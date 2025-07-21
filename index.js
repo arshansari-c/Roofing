@@ -21,7 +21,7 @@ app.use(fileUpload({
 app.use(cookieParser())
 
 app.get('/', (req, res) => {
-  console.log("hello")
+  res.send("hello)
 });
 
 mongoDB()
