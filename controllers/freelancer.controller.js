@@ -13,6 +13,28 @@ cloudinary.config({
   api_key: process.env.CLOUDNARY_API,
   api_secret: process.env.CLOUDNARY_SECRET,
 });
+export const fetchOtherFreelancerDetails = async (req, res) => {
+  try {
+    const { seconduser } = req.params;
+
+    // Fetch freelancer details using userId
+    const freelancerDetails = await FreelancerList.findById(seconduser);
+
+    if (!freelancerDetails) {
+      return res.status(404).json({ message: "Freelancer details not found" });
+    }
+
+    return res.status(200).json({
+      message: "Fetched successfully",
+      details: freelancerDetails,
+    });
+
+  } catch (error) {
+    console.error("fetchOtherFreelancerDetails error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 export const fetchOtherUserDetails = async (req, res) => {
   try {
