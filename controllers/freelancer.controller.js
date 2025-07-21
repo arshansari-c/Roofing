@@ -16,7 +16,7 @@ cloudinary.config({
 
 export const fetchOtherUserDetails = async (req, res) => {
   try {
-    const { token, seconduser: otherUserId } = req.params;
+    const { token, seconduser } = req.params;
 
     const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
     if (!decoded?.userId) {
@@ -28,7 +28,7 @@ export const fetchOtherUserDetails = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const findSecondUser = await User.findById(otherUserId).select('-password');
+    const findSecondUser = await User.findById(seconduser).select('-password');
     if (!findSecondUser) {
       return res.status(404).json({ message: "Second user not found" });
     }
