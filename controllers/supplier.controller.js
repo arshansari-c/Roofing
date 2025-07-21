@@ -3,7 +3,7 @@ import {SupplierList} from '../models/supplier.model.js';
 
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
-
+import jwt from 'jsonwebtoken'
 cloudinary.config({
   cloud_name: process.env.CLOUDNARY_NAME,
   api_key: process.env.CLOUDNARY_API,
