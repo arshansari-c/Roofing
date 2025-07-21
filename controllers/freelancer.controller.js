@@ -3,6 +3,7 @@ import { FreelancerList } from "../models/freelancer.model.js";
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv'
 import fs from 'fs'
+import { SupplierList } from "../models/supplier.model.js";
 import jwt from 'jsonwebtoken'
 dotenv.config()
 
