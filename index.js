@@ -27,6 +27,6 @@ app.get('/', (req, res) => {
 mongoDB()
 
 app.use('/auth',AuthRouter)
-app.listen(2222, '0.0.0.0', () => {
-  console.log('Server running on http://0.0.0.0:2222');
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
