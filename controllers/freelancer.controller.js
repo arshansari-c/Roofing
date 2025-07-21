@@ -13,6 +13,50 @@ cloudinary.config({
   api_secret: process.env.CLOUDNARY_SECRET,
 });
 
+export const fetchOtherUserDetails = async (req, res) => {
+  try {
+    const { token, seconduser: otherUserId } = req.params;
+
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const findSecondUser = await User.findById(otherUserId).select('-password');
+    if (!findSecondUser) {
+      return res.status(404).json({ message: "Second user not found" });
+    }
+
+    let details = null;
+
+    if (findSecondUser.role === "supplier") {
+      details = await SupplierList.findOne({ userId: findSecondUser._id });
+    } else if (findSecondUser.role === "freelancer") {
+      details = await FreelancerList.findOne({ userId: findSecondUser._id });
+    } else {
+      return res.status(400).json({ message: "Invalid role for user" });
+    }
+
+    if (!details) {
+      return res.status(404).json({ message: "Details not found for the user" });
+    }
+
+    return res.status(200).json({
+      message: "Fetched successfully",
+      details,
+    });
+
+  } catch (error) {
+    console.error("fetchOtherUserDetails error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export const FreelancerDetails = async (req, res) => {
   try {
     const token = req.params.token; // ✅ fix here
