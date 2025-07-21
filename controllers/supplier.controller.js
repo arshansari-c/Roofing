@@ -135,8 +135,25 @@ export const EditSupplierDetails = async (req, res) => {
 
 
 
+
 export const fetchSupplierList = async (req, res) => {
   try {
+    const token = req.params.token;
+
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const supplierList = await SupplierList.find();
 
     return res.status(200).json({
@@ -146,6 +163,7 @@ export const fetchSupplierList = async (req, res) => {
 
   } catch (error) {
     console.error("fetchSupplierList error", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error", error: error.message });
   }
+};
 };
