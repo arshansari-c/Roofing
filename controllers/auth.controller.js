@@ -128,19 +128,24 @@ export const login = async (req, res) => {
 };
 
 
+
 export const Profile = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const token = req.params.token; // ✅ correctly access token
 
-    const user = await User.findById(userId).select('-password'); // exclude password
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
 
-    if (!user) {
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
     res.status(200).json({
       message: "Profile fetched successfully",
-      user,
+      findUser,
     });
 
   } catch (error) {
@@ -148,3 +153,4 @@ export const Profile = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
