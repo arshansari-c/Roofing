@@ -11,9 +11,18 @@ cloudinary.config({
 });
 export const SupplierDetails = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const findUser = await User.findById(userId);
+    const token = req.params.token;
 
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    const findUser = await User.findById(decoded.userId).select('-password');
     if (!findUser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -23,7 +32,7 @@ export const SupplierDetails = async (req, res) => {
     }
 
     if (findUser.role === "freelancer") {
-      return res.status(400).json({ message: "Sorry but you already registered as Freelancer" });
+      return res.status(400).json({ message: "Sorry but you are already registered as a Freelancer" });
     }
 
     const { companyName, description, tags, achievements } = req.body;
@@ -33,13 +42,15 @@ export const SupplierDetails = async (req, res) => {
       return res.status(400).json({ message: "All fields including image are required" });
     }
 
-    // ✅ Upload to Cloudinary
+    // Upload image to Cloudinary
     const result = await cloudinary.uploader.upload(companyImage.tempFilePath, {
-      folder: 'suppliers'
+      folder: 'suppliers',
     });
 
-    fs.unlinkSync(companyImage.tempFilePath); // Delete temp file
+    // Delete temp file
+    fs.unlinkSync(companyImage.tempFilePath);
 
+    // Save details to DB
     const saveDetails = new SupplierList({
       userId: findUser._id,
       companyName,
@@ -48,24 +59,29 @@ export const SupplierDetails = async (req, res) => {
       achievements,
       companyImage: {
         public_id: result.public_id,
-        url: result.secure_url
-      }
+        url: result.secure_url,
+      },
     });
 
     await saveDetails.save();
 
-    // ✅ Update user's role
+    // Update user's role
     findUser.role = "supplier";
     await findUser.save();
 
-    return res.status(200).json({ message: "Supplier details saved successfully", data: saveDetails });
+    return res.status(200).json({
+      message: "Supplier details saved successfully",
+      data: saveDetails,
+    });
 
   } catch (error) {
     console.error("SupplierDetails error", error);
-    return res.status(500).json({ message: "Internal server error", error: error.message });
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
-
 export const EditSupplierDetails = async (req, res) => {
   try {
     const userId = req.user._id;
