@@ -9,7 +9,7 @@ export const AuthRouter = express.Router()
 
 AuthRouter.post('/register',register)
 AuthRouter.post('/login',login)
-AuthRouter.get('/profile',CheckAuth, Profile)
+AuthRouter.post('/profile/:token', Profile)
 AuthRouter.post('/supplierdetails',CheckAuth,SupplierDetails)
 AuthRouter.post('/supplierdetailsedit',CheckAuth,EditSupplierDetails)
 AuthRouter.post('/freelancerdetails',CheckAuth,FreelancerDetails)
