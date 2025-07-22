@@ -1,7 +1,7 @@
 import { User } from "../models/auth.model.js";
 import {ContractList} from "../models/contractor.model.js"; // make sure this import exists
 import { Chat } from "../models/conversetionChat.model.js";
-
+import jwt from 'jsonwebtoken'
 export const SendOrderToContractor = async (req, res) => {
   try {
     const { token, contractorId } = req.params;
