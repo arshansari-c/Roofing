@@ -4,6 +4,8 @@ import { Chat } from "../models/conversetionChat.model.js";
 import {io} from '../index.js'
 import jwt from 'jsonwebtoken'
 import { read } from "fs";
+import { FreelancerList } from "../models/freelancer.model.js";
+import { SupplierList } from "../models/supplier.model.js";
 export const SendOrderToContractor = async (req, res) => {
   try {
     const { token, contractorId } = req.params;
@@ -238,16 +240,38 @@ export const fetchConversationChat = async (req, res) => {
 };
 
 
-export const fetchclientDetails = async(req,res)=>{
+export const fetchclientDetails = async (req, res) => {
   try {
-    const clientId = req.params.clientId
-    const findUser = await User.findById(clientId)
-    if(!findUser){
-      return res.status(400).json({message:"User not found"})
+    const clientId = req.params.clientId;
+
+    const baseUser = await User.findById(clientId).select("-password");
+    if (!baseUser) {
+      return res.status(400).json({ message: "User not found" });
     }
-    return res.status(200).json({message:"fetch succesfully",findUser})
+
+    let userDetails = baseUser; // default
+
+    if (baseUser.role === "freelancer") {
+      const freelancer = await FreelancerList.findOne({ userId: baseUser._id });
+      if (freelancer) {
+        userDetails = { ...baseUser._doc, freelancerDetails: freelancer };
+      }
+    }
+
+    if (baseUser.role === "supplier") {
+      const supplier = await SupplierList.findOne({ userId: baseUser._id });
+      if (supplier) {
+        userDetails = { ...baseUser._doc, supplierDetails: supplier };
+      }
+    }
+
+    return res.status(200).json({
+      message: "Fetch successful",
+      user: userDetails,
+    });
+
   } catch (error) {
-    console.log("FetchClientDetails error",error)
-    return res.status(500).json({message:"Internal server error"})
+    console.log("FetchClientDetails error", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
