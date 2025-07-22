@@ -133,7 +133,6 @@ export const fetchSelectedOrderDetails = async (req, res) => {
 
     const findOrder = await ContractList.findById(orderId).populate([
       { path: "ClientId", select: "username email" },
-      { path: "ContractorId", select: "username email" }
     ]);
 
     if (!findOrder) {
@@ -150,6 +149,7 @@ export const fetchSelectedOrderDetails = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 export const ConversetionChat = async (req, res) => {
