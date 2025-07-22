@@ -1,7 +1,9 @@
 import { User } from "../models/auth.model.js";
 import {ContractList} from "../models/contractor.model.js"; // make sure this import exists
 import { Chat } from "../models/conversetionChat.model.js";
+import {io} from '../index.js'
 import jwt from 'jsonwebtoken'
+import { read } from "fs";
 export const SendOrderToContractor = async (req, res) => {
   try {
     const { token, contractorId } = req.params;
@@ -65,6 +67,7 @@ export const SendOrderToContractor = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 export const cancelOrder = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -90,7 +93,7 @@ export const cancelOrder = async (req, res) => {
     console.error("cancelOrder error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-};
+}
 
 export const fetchOrders = async (req, res) => {
   try {
@@ -127,6 +130,7 @@ export const fetchOrders = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 export const fetchSelectedOrderDetails = async (req, res) => {
   try {
     const { orderId } = req.params; // ✅ Correct destructuring
@@ -151,18 +155,16 @@ export const fetchSelectedOrderDetails = async (req, res) => {
 };
 
 
-
 export const ConversetionChat = async (req, res) => {
   try {
-    const senderId = req.user._id;
-    const { clientId } = req.params;
+    const senderId = req.params.id; // Should be JWT verified ideally
+    const clientId = req.params.clientId;
     const { message } = req.body;
 
     if (!message) {
       return res.status(400).json({ message: "Message is required" });
     }
 
-    // Check for existing chat between these two users (in any order)
     let chat = await Chat.findOne({
       $or: [
         { userId: senderId, clientId },
@@ -170,23 +172,21 @@ export const ConversetionChat = async (req, res) => {
       ],
     });
 
-    // If no chat exists, create a new one
     if (!chat) {
-      chat = new Chat({
-        userId: senderId,
-        clientId,
-        conversation: [],
-      });
+      chat = new Chat({ userId: senderId, clientId, conversation: [] });
     }
 
-    // Add new message to the conversation array
-    chat.conversation.push({
+    const newMessage = {
       sender: senderId,
       message,
       sentAt: new Date(),
-    });
+    };
 
+    chat.conversation.push(newMessage);
     await chat.save();
+
+    // Emit socket event to receiver (clientId)
+    io.emit('newMessage', { chatId: chat._id, message: newMessage });
 
     return res.status(200).json({
       message: "Message sent successfully",
@@ -197,13 +197,17 @@ export const ConversetionChat = async (req, res) => {
     console.error("ConversetionChat error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-};
+}
+
 export const fetchConversationChat = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { clientId } = req.params;
+    const { id: userId, clientId } = req.params;
 
-    // Find chat between the two users (in any order)
+    if (!userId || !clientId) {
+      return res.status(400).json({ message: "Both userId and clientId are required" });
+    }
+
+    // Find existing conversation
     const chat = await Chat.findOne({
       $or: [
         { userId, clientId },
@@ -219,6 +223,9 @@ export const fetchConversationChat = async (req, res) => {
       return res.status(404).json({ message: "No conversation found" });
     }
 
+    // Emit fetched conversation over socket
+    io.emit('chatFetched', { chatId: chat._id, chat });
+
     return res.status(200).json({
       message: "Conversation fetched successfully",
       chat
@@ -229,3 +236,18 @@ export const fetchConversationChat = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
+export const fetchclientDetails = async(req,res)=>{
+  try {
+    const clientId = req.params.clientId
+    const findUser = await User.findById(clientId)
+    if(!findUser){
+      return res.status(400).json({message:"User not found"})
+    }
+    return res.status(200).json({message:"fetch succesfully",findUser})
+  } catch (error) {
+    console.log("FetchClientDetails error",error)
+    return res.status(500).json({message:"Internal server error"})
+  }
+}
