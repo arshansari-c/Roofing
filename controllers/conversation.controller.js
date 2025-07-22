@@ -4,12 +4,21 @@ import { Chat } from "../models/conversetionChat.model.js";
 
 export const SendOrderToContractor = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const contractorId = req.params.contractorId; // fixed
+    const { token, contractorId } = req.params;
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     const findContractor = await User.findById(contractorId);
     if (!findContractor) {
-      return res.status(404).json({ message: "Contractor not found" });``
+      return res.status(404).json({ message: "Contractor not found" });
     }
 
     const {
@@ -23,20 +32,13 @@ export const SendOrderToContractor = async (req, res) => {
       installDate,
     } = req.body;
 
-    if (
-      !roofSize ||
-      !material ||
-      !color ||
-      !totalLength ||
-      !totalGirth ||
-      !designNotes ||
-      !installDate
-    ) {
+    const requiredFields = [roofSize, material, color, totalLength, totalGirth, designNotes, installDate];
+    if (requiredFields.some(field => !field)) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
     const saveContract = new ContractList({
-      ClientId: userId, // fixed spelling
+      ClientId: findUser._id,
       ContractorId: contractorId,
       roofSize,
       material,
@@ -50,7 +52,6 @@ export const SendOrderToContractor = async (req, res) => {
 
     await saveContract.save();
 
-    // push contract ID into contractor's list and save
     findContractor.ContractOrderList.push(saveContract._id);
     await findContractor.save();
 
