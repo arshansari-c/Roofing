@@ -43,7 +43,7 @@ const ContractSchema = new Schema({
     default: 0
   },
   installDate: {
-    type: Date
+    type: String,
   },
   status: {
     type: String,
