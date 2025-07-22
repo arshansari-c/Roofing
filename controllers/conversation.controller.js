@@ -94,21 +94,29 @@ export const cancelOrder = async (req, res) => {
 
 export const fetchOrders = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const token = req.params.token;
 
-    // First, find the user and populate the ContractOrderList
-   const findUser = await User.findById(userId)
-
-    if (!findUser) {
-      return res.status(400).json({ message: "User not found" });
+    // Validate token
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
     }
 
+    // Fetch user info
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Block normal users from accessing order list
     if (findUser.role === "user") {
       return res.status(403).json({ message: "Access denied: You are not a supplier or freelancer" });
     }
 
-    const findOrder = await ContractList.find({ContractorId:userId})
-    // Return the populated order list
+    // Fetch orders where user is contractor (supplier/freelancer)
+    const findOrder = await ContractList.find({ ContractorId: findUser.id })
+      .populate("ClientId", "username email");
+
     return res.status(200).json({
       message: "Order list fetched successfully",
       orders: findOrder,
