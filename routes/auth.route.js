@@ -3,7 +3,7 @@ import { login,  Profile, register } from '../controllers/auth.controller.js'
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
-import { cancelOrder, ConversetionChat, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, SendOrderToContractor } from '../controllers/conversation.controller.js'
+import { approveOrder, cancelOrder, ConversetionChat, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, rejectOrder, SendOrderToContractor } from '../controllers/conversation.controller.js'
 
 export const AuthRouter = express.Router()
 
@@ -19,9 +19,11 @@ AuthRouter.get("/fetchdetails/:seconduser",fetchOtherUserDetails)
 AuthRouter.get('/fetchsupplierlist/:token',fetchSupplierList)
 AuthRouter.get('/fetchfreelancerdetail/:seconduser',fetchOtherFreelancerDetails)
 AuthRouter.post('/sendorder/:token/:contractorId',SendOrderToContractor)
-AuthRouter.get('/cancelorder/:orderId',cancelOrder)
+AuthRouter.get('/cancelorder/:token/:orderId',cancelOrder)
 AuthRouter.get('/fetchorder/:token',fetchOrders)
 AuthRouter.get('/fetchselectedorder/:orderId',fetchSelectedOrderDetails)
 AuthRouter.post('/conversationchat/:id/:clientId',ConversetionChat)
 AuthRouter.get('/fetchconversationchat/:id/:clientId',fetchConversationChat)
 AuthRouter.get('/fetchclientdetails/:clientId',fetchclientDetails)
+AuthRouter.get('/approvedorder/:token/:orderId',approveOrder)
+AuthRouter.get('/rejectorder/:token/:orderId',rejectOrder)
