@@ -1,14 +1,16 @@
 import { User } from '../models/auth.model.js';
 import {SupplierList} from '../models/supplier.model.js';
-
+import jwt from 'jsonwebtoken'
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
-import jwt from 'jsonwebtoken'
+
 cloudinary.config({
   cloud_name: process.env.CLOUDNARY_NAME,
   api_key: process.env.CLOUDNARY_API,
   api_secret: process.env.CLOUDNARY_SECRET,
 });
+
+
 export const SupplierDetails = async (req, res) => {
   try {
     const token = req.params.token;
@@ -27,12 +29,13 @@ export const SupplierDetails = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Check if user already registered as supplier or freelancer
     if (findUser.role === "supplier") {
       return res.status(400).json({ message: "You already filled the details" });
     }
 
     if (findUser.role === "freelancer") {
-      return res.status(400).json({ message: "Sorry but you are already registered as a Freelancer" });
+      return res.status(400).json({ message: "Sorry, you are already registered as a Freelancer" });
     }
 
     const { companyName, description, tags, achievements } = req.body;
@@ -47,10 +50,10 @@ export const SupplierDetails = async (req, res) => {
       folder: 'suppliers',
     });
 
-    // Delete temp file
+    // Delete temporary file from server
     fs.unlinkSync(companyImage.tempFilePath);
 
-    // Save details to DB
+    // Save supplier details in DB
     const saveDetails = new SupplierList({
       userId: findUser._id,
       companyName,
@@ -65,7 +68,9 @@ export const SupplierDetails = async (req, res) => {
 
     await saveDetails.save();
 
-    // Update user's role
+    // Update user document with image and role
+    findUser.username = companyName;
+    findUser.image = result.secure_url;
     findUser.role = "supplier";
     await findUser.save();
 
@@ -82,6 +87,8 @@ export const SupplierDetails = async (req, res) => {
     });
   }
 };
+
+
 export const EditSupplierDetails = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -166,3 +173,4 @@ export const fetchSupplierList = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
+
