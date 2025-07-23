@@ -3,8 +3,8 @@ import { FreelancerList } from "../models/freelancer.model.js";
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv'
 import fs from 'fs'
-import { SupplierList } from "../models/supplier.model.js";
 import jwt from 'jsonwebtoken'
+import { SupplierList } from "../models/supplier.model.js";
 dotenv.config()
 
 // Cloudinary config
@@ -13,83 +13,49 @@ cloudinary.config({
   api_key: process.env.CLOUDNARY_API,
   api_secret: process.env.CLOUDNARY_SECRET,
 });
-export const fetchOtherFreelancerDetails = async (req, res) => {
-  try {
-    const { seconduser } = req.params;
 
-    // Fetch freelancer details using userId
-    const freelancerDetails = await FreelancerList.findById(seconduser);
-
-    if (!freelancerDetails) {
-      return res.status(404).json({ message: "Freelancer details not found" });
-    }
-
-    return res.status(200).json({
-      message: "Fetched successfully",
-      details: freelancerDetails,
-    });
-
-  } catch (error) {
-    console.error("fetchOtherFreelancerDetails error", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-
-export const fetchOtherUserDetails = async (req, res) => {
-  try {
-    const seconduser  = req.params.seconduser;
-
-    // Find user by ID and exclude password
-    const findSecondUser = await SupplierList.findById(seconduser).select('-password');
-    if (!findSecondUser) {
-      return res.status(404).json({ message: "Second user not found" });
-    }
-
-    return res.status(200).json({
-      message: "Fetched successfully",
-      findSecondUser,
-    });
-
-  } catch (error) {
-    console.error("fetchOtherUserDetails error", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
 export const FreelancerDetails = async (req, res) => {
   try {
-    const token = req.params.token; // ✅ fix here
+    const token = req.params.token;
+
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
 
     const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
     if (!decoded?.userId) {
       return res.status(400).json({ message: "Invalid token" });
     }
 
-    const findUser = await User.findById(decoded.userId).select('-password');
+    const findUser = await User.findById(decoded.userId).select("-password");
     if (!findUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (findUser.role === "freelancer" || findUser.role === "supplier") {
-      return res.status(400).json({ message: "You already filled details" });
+    if (findUser.role === "freelancer") {
+      return res.status(400).json({ message: "You already filled the freelancer details" });
+    }
+
+    if (findUser.role === "supplier") {
+      return res.status(400).json({ message: "Sorry, you are already registered as a Supplier" });
     }
 
     const { FreelancerName, description, tags, achievements } = req.body;
     const FreelancerImage = req.files?.FreelancerImage;
 
-    if (!FreelancerImage || !FreelancerName || !description || !tags || !achievements) {
-      return res.status(400).json({ message: "All fields and image are required" });
+    if (!FreelancerName || !description || !tags || !achievements || !FreelancerImage) {
+      return res.status(400).json({ message: "All fields including image are required" });
     }
 
-    // ✅ Upload image to Cloudinary
+    // Upload image to Cloudinary
     const result = await cloudinary.uploader.upload(FreelancerImage.tempFilePath, {
-      folder: "freelancers"
+      folder: "freelancers",
     });
 
-    // ✅ Remove temp file
+    // Delete temporary file from server
     fs.unlinkSync(FreelancerImage.tempFilePath);
 
-    // ✅ Save freelancer data
+    // Save freelancer details to DB
     const freelancerDetails = new FreelancerList({
       userId: findUser._id,
       FreelancerName,
@@ -99,21 +65,33 @@ export const FreelancerDetails = async (req, res) => {
       FreelancerImage: {
         public_id: result.public_id,
         url: result.secure_url,
-      }
+      },
     });
 
     await freelancerDetails.save();
 
+    // Update user with new role and image
+    findUser.username = FreelancerName;
+    findUser.image = result.secure_url;
     findUser.role = "freelancer";
     await findUser.save();
 
-    return res.status(200).json({ message: "Freelancer saved", data: freelancerDetails });
+    return res.status(200).json({
+      message: "Freelancer details saved successfully",
+      data: freelancerDetails,
+    });
 
   } catch (err) {
-    console.error("Upload error:", err);
-    return res.status(500).json({ message: "Something went wrong", error: err.message });
+    console.error("FreelancerDetails error:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message,
+    });
   }
 };
+
+
+
 export const EditFreelancerDetails = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -174,3 +152,47 @@ export const fetchFreelancerList = async (req, res) => {
     });
   }
 };
+
+export const fetchOtherUserDetails = async (req, res) => {
+  try {
+    const seconduser  = req.params.seconduser;
+
+    // Find user by ID and exclude password
+    const findSecondUser = await SupplierList.findById(seconduser).select('-password');
+    if (!findSecondUser) {
+      return res.status(404).json({ message: "Second user not found" });
+    }
+
+    return res.status(200).json({
+      message: "Fetched successfully",
+      findSecondUser,
+    });
+
+  } catch (error) {
+    console.error("fetchOtherUserDetails error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const fetchOtherFreelancerDetails = async (req, res) => {
+  try {
+    const { seconduser } = req.params;
+
+    // Fetch freelancer details using userId
+    const freelancerDetails = await FreelancerList.findById(seconduser);
+
+    if (!freelancerDetails) {
+      return res.status(404).json({ message: "Freelancer details not found" });
+    }
+
+    return res.status(200).json({
+      message: "Fetched successfully",
+      details: freelancerDetails,
+    });
+
+  } catch (error) {
+    console.error("fetchOtherFreelancerDetails error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
