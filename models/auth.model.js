@@ -12,6 +12,9 @@ const AuthSchema = new Schema(
       maxlength: [30, "Username must be less than 30 characters"],
     },
 
+    image:{
+      type : String
+    },
     email: {
       type: String,
       required: [true, "Email is required"],
