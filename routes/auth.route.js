@@ -3,7 +3,7 @@ import { login,  Profile, register } from '../controllers/auth.controller.js'
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
-import { approveOrder, cancelOrder, ConversetionChat, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, rejectOrder, SendOrderToContractor } from '../controllers/conversation.controller.js'
+import { approveOrder, cancelOrder, ConversetionChat, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, fetchUserSendOrderList, rejectOrder, SendOrderToContractor } from '../controllers/conversation.controller.js'
 
 export const AuthRouter = express.Router()
 
@@ -27,3 +27,4 @@ AuthRouter.get('/fetchconversationchat/:id/:clientId',fetchConversationChat)
 AuthRouter.get('/fetchclientdetails/:clientId',fetchclientDetails)
 AuthRouter.get('/approvedorder/:token/:orderId',approveOrder)
 AuthRouter.get('/rejectorder/:token/:orderId',rejectOrder)
+AuthRouter.get('/fetchuserorder/:token',fetchUserSendOrderList)
