@@ -43,11 +43,11 @@ const ContractSchema = new Schema({
     default: 0
   },
   installDate: {
-    type: String,
+    type: String
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'in-progress', 'completed', 'cancelled'],
+    enum: ['pending', 'approved', 'in-progress', 'completed', 'cancelled','reject'],
     default: 'pending'
   }
 }, { timestamps: true });
