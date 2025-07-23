@@ -72,31 +72,116 @@ export const SendOrderToContractor = async (req, res) => {
 
 export const cancelOrder = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const orderId = req.params.orderId;
+    const { token, orderId } = req.params;
 
-    // Find the order belonging to this client
+    // Decode the JWT token
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    // Fetch user
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Fetch and validate the order
     const findOrder = await ContractList.findOne({
       _id: orderId,
-      ClientId: userId,
+      ClientId: findUser._id,
     });
 
     if (!findOrder) {
-      return res.status(400).json({ message: "Order not found" });
+      return res.status(404).json({ message: "Order not found for this client" });
     }
 
-    // Update the order status
+    // Update the status
     findOrder.status = "cancelled";
     await findOrder.save();
 
     return res.status(200).json({ message: "Order cancelled successfully" });
 
   } catch (error) {
-    console.error("cancelOrder error:", error);
+    console.error("cancelOrder error:", error.message);
     return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
+export const rejectOrder = async (req, res) => {
+  try {
+    const { token, orderId } = req.params;
 
+    // Decode the JWT token
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    // Find the user
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Find the order where this user is the contractor
+    const findOrder = await ContractList.findOne({
+      _id: orderId,
+      ContractorId: findUser._id
+    });
+
+    if (!findOrder) {
+      return res.status(404).json({ message: "Order not found for this contractor" });
+    }
+
+    // Update status to "rejected"
+    findOrder.status = "reject"; // ✅ use "rejected" instead of "reject"
+    await findOrder.save();
+
+    return res.status(200).json({ message: "Order rejected successfully" });
+
+  } catch (error) {
+    console.error("rejectOrder error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const approveOrder = async (req, res) => {
+  try {
+    const { token, orderId } = req.params;
+
+    // Verify JWT
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    // Find the user
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Find the order where user is the contractor
+    const findOrder = await ContractList.findOne({
+      _id: orderId,
+      ContractorId: findUser.id
+    });
+
+    if (!findOrder) {
+      return res.status(404).json({ message: "Order not found for this contractor" });
+    }
+
+    // Update status to "approved"
+    findOrder.status = "approved";
+    await findOrder.save();
+
+    return res.status(200).json({ message: "Order approved successfully" });
+
+  } catch (error) {
+    console.error("approveOrder error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 export const fetchOrders = async (req, res) => {
   try {
     const token = req.params.token;
@@ -275,3 +360,4 @@ export const fetchclientDetails = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
