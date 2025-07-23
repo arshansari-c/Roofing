@@ -386,3 +386,30 @@ export const fetchUserSendOrderList = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
+export const fetchChatUser = async(req,res)=>{
+  try {
+    const {token} = req.params
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+       if (!decoded?.userId) {
+         return res.status(400).json({ message: "Invalid token" });
+       }
+   
+       const findUser = await User.findById(decoded.userId).select('-password');
+       if (!findUser) {
+         return res.status(404).json({ message: "User not found" });
+       }
+
+       const findUserList = await Chat.find({userId:findUser._id}).populate("clientId","username email") 
+       if(!findUserList){
+        return res.status(400).json({message:"Chat list not found"})
+       }
+
+       res.status(200).json({message:"fetch successfully",findUserList})
+  } catch (error) {
+    console.log("fetchChatUser error",error)
+    return res.status(500).json({message:"Internal server error"})
+  }
+}
+
