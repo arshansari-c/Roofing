@@ -63,10 +63,12 @@ export const SendOrderToContractor = async (req, res) => {
       return res.status(400).json({ message: "PDF file is required" });
     }
 
-    const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
-      folder: "freelancers",
-      resource_type: "auto",
-    });
+  const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
+  folder: "freelancers",
+  resource_type: "auto",
+  type: "upload",
+  access_mode: "public"
+});
 
     // Create new contract
     const saveContract = new ContractList({
