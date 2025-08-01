@@ -242,7 +242,7 @@ export const fetchOrders = async (req, res) => {
 
     // Fetch orders where user is contractor (supplier/freelancer)
     const findOrder = await ContractList.find({ ContractorId: findUser.id })
-      .populate("ClientId", "username email");
+      .populate("ClientId", "username email image");
 
     return res.status(200).json({
       message: "Order list fetched successfully",
