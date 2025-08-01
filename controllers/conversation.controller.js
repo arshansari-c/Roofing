@@ -4,27 +4,42 @@ import { Chat } from "../models/conversetionChat.model.js";
 import {io} from '../index.js'
 import jwt from 'jsonwebtoken'
 import { read } from "fs";
+import { v2 as cloudinary } from 'cloudinary';
 import { FreelancerList } from "../models/freelancer.model.js";
 import { SupplierList } from "../models/supplier.model.js";
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDNARY_NAME,
+  api_key: process.env.CLOUDNARY_API,
+  api_secret: process.env.CLOUDNARY_SECRET,
+});
+
 export const SendOrderToContractor = async (req, res) => {
   try {
     const { token, contractorId } = req.params;
-    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
 
+    // Verify JWT token
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
     if (!decoded?.userId) {
       return res.status(400).json({ message: "Invalid token" });
     }
 
+    // Find client user
     const findUser = await User.findById(decoded.userId).select('-password');
     if (!findUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Find contractor
     const findContractor = await User.findById(contractorId);
     if (!findContractor) {
       return res.status(404).json({ message: "Contractor not found" });
     }
+    if(findContractor.role=="user"){
+      return res.status(400).json({message:"User not allowed"})
+    }
 
+    // Extract data from body
     const {
       roofSize,
       material,
@@ -33,14 +48,27 @@ export const SendOrderToContractor = async (req, res) => {
       totalGirth,
       designNotes,
       estimatedCost,
-      installDate,
+      installDate
     } = req.body;
 
+    // Check for required fields
     const requiredFields = [roofSize, material, color, totalLength, totalGirth, designNotes, installDate];
     if (requiredFields.some(field => !field)) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    // Check and upload PDF
+    const { pdf } = req.files || {};
+    if (!pdf || !pdf.tempFilePath) {
+      return res.status(400).json({ message: "PDF file is required" });
+    }
+
+    const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
+      folder: "freelancers",
+      resource_type: "auto",
+    });
+
+    // Create new contract
     const saveContract = new ContractList({
       ClientId: findUser._id,
       ContractorId: contractorId,
@@ -51,21 +79,30 @@ export const SendOrderToContractor = async (req, res) => {
       totalGirth,
       designNotes,
       estimatedCost,
-      installDate
+      installDate,
+      pdf: [
+        {
+          public_id: uploadPdf.public_id,
+          url: uploadPdf.secure_url
+        }
+      ]
     });
 
+    // Save contract
     await saveContract.save();
 
+    // Push contract ID to contractor
     findContractor.ContractOrderList.push(saveContract._id);
     await findContractor.save();
 
+    // Success response
     return res.status(200).json({
       message: "Contract order sent successfully",
       contractId: saveContract._id
     });
 
   } catch (error) {
-    console.error("SendOrderToContractor error", error);
+    console.error("SendOrderToContractor error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

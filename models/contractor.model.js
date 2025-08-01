@@ -11,6 +11,16 @@ const ContractSchema = new Schema({
     ref: "User",
     required: true
   },
+  pdf:[{
+    public_id : {
+      type : String,
+      required : true
+    },
+    url:{
+      type : String,
+      required : true
+    },
+  }],
   roofSize: {
     type: String, // e.g., "10x15 ft" or custom string
     required: true
@@ -35,9 +45,6 @@ const ContractSchema = new Schema({
     type: String, // custom notes or instructions
     maxlength: 1000
   },
-  attachmentUrls: [{
-    type: String // array of image/PDF URLs
-  }],
   estimatedCost: {
     type: Number,
     default: 0
