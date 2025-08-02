@@ -59,7 +59,7 @@ export const SaveUserPdf = async (req, res) => {
     // Upload to Cloudinary
     const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
         folder: "freelancers",
-  resource_type: "auto",
+  resource_type: "raw",
   type: "upload",
   access_mode: "public"
     });
