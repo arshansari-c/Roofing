@@ -3,7 +3,7 @@ import { login,  Profile, register } from '../controllers/auth.controller.js'
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
-import { approveOrder, cancelOrder, ConversetionChat, fetchChatUser, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, fetchUserSendOrderList, rejectOrder, SendOrderToContractor } from '../controllers/conversation.controller.js'
+import { approveOrder, cancelOrder, ConversetionChat, fetchChatUser, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, fetchUserSendOrderList, rejectOrder, SaveUserPdf, SendOrderToContractor } from '../controllers/conversation.controller.js'
 
 export const AuthRouter = express.Router()
 
@@ -29,3 +29,4 @@ AuthRouter.get('/approvedorder/:token/:orderId',approveOrder)
 AuthRouter.get('/rejectorder/:token/:orderId',rejectOrder)
 AuthRouter.get('/fetchuserorder/:token',fetchUserSendOrderList)
 AuthRouter.get('/fetchchats/:token',fetchChatUser)
+AuthRouter.post('/uploadpdf/:token',SaveUserPdf)
