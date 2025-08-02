@@ -26,6 +26,14 @@ const AuthSchema = new Schema(
         message: "Please enter a valid email address",
       },
     },
+    pdfLists:[{
+      public_id : {
+        type : String,
+      },
+      url:{
+        type : String
+      },
+    }],
 
     password: {
       type: String,
