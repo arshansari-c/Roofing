@@ -13,7 +13,57 @@ cloudinary.config({
   api_key: process.env.CLOUDNARY_API,
   api_secret: process.env.CLOUDNARY_SECRET,
 });
+export const SaveUserPdf = async (req, res) => {
+  try {
+    const { token } = req.params;
 
+    // Verify JWT
+    const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    // Find user
+    const findUser = await User.findById(decoded.userId).select('-password');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Validate PDF
+    const pdf = req.files?.pdf;
+    if (!pdf || !pdf.tempFilePath) {
+      return res.status(400).json({ message: "PDF file is required" });
+    }
+
+    // Upload to Cloudinary
+    const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
+        folder: "freelancers",
+  resource_type: "auto",
+  type: "upload",
+  access_mode: "public"
+    });
+
+    // Push PDF to user's list
+    findUser.pdfLists.push({
+      public_id: uploadPdf.public_id,
+      url: uploadPdf.secure_url
+    });
+
+    await findUser.save();
+
+    return res.status(200).json({
+      message: "PDF saved successfully",
+      pdf: {
+        public_id: uploadPdf.public_id,
+        url: uploadPdf.secure_url
+      }
+    });
+
+  } catch (error) {
+    console.error("SaveUserPdf error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 export const SendOrderToContractor = async (req, res) => {
   try {
     const { token, contractorId } = req.params;
