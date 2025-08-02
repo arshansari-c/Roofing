@@ -427,28 +427,39 @@ export const fetchUserSendOrderList = async (req, res) => {
 };
 
 
-export const fetchChatUser = async(req,res)=>{
+export const fetchChatUser = async (req, res) => {
   try {
-    const {token} = req.params
+    const { token } = req.params;
+
+    // Validate token
     const decoded = jwt.verify(token, process.env.SECRET_TOKEN_KEY);
-       if (!decoded?.userId) {
-         return res.status(400).json({ message: "Invalid token" });
-       }
-   
-       const findUser = await User.findById(decoded.userId).select('-password');
-       if (!findUser) {
-         return res.status(404).json({ message: "User not found" });
-       }
+    if (!decoded?.userId) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
 
-       const findUserList = await Chat.find({userId:findUser._id}).populate("clientId","username email") 
-       if(!findUserList){
-        return res.status(400).json({message:"Chat list not found"})
-       }
+    // Find user
+    const user = await User.findById(decoded.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-       res.status(200).json({message:"fetch successfully",findUserList})
+    // Fetch user's chat list and populate client details
+    const chatList = await Chat.find({ clientId: user._id }).populate(
+      "userId",
+      "username email"
+    );
+
+    if (!chatList || chatList.length === 0) {
+      return res.status(404).json({ message: "No chats found" });
+    }
+
+    // Respond with chat list
+    return res.status(200).json({
+      message: "Fetched successfully",
+      chats: chatList,
+    });
   } catch (error) {
-    console.log("fetchChatUser error",error)
-    return res.status(500).json({message:"Internal server error"})
+    console.error("fetchChatUser error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 }
-
