@@ -443,11 +443,19 @@ export const fetchChatUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Fetch user's chat list and populate client details
-    const chatList = await Chat.find({ clientId: user._id }).populate(
-      "userId",
-      "username email"
-    );
+    // Fetch chats based on user role
+    let chatList;
+    if (user.role === "user") {
+      chatList = await Chat.find({ userId: user._id }).populate(
+        "clientId",
+        "username email image"
+      );
+    } else {
+      chatList = await Chat.find({ clientId: user._id }).populate(
+        "userId",
+        "username email"
+      );
+    }
 
     if (!chatList || chatList.length === 0) {
       return res.status(404).json({ message: "No chats found" });
@@ -462,4 +470,4 @@ export const fetchChatUser = async (req, res) => {
     console.error("fetchChatUser error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
