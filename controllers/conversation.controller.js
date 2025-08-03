@@ -528,7 +528,7 @@ export const fetchChatUser = async (req, res) => {
     } else {
       chatList = await Chat.find({ clientId: user._id }).populate(
         "userId",
-        "username email"
+        "username email image"
       );
     }
 
