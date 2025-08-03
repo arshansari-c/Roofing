@@ -7,6 +7,7 @@ import { read } from "fs";
 import { v2 as cloudinary } from 'cloudinary';
 import { FreelancerList } from "../models/freelancer.model.js";
 import { SupplierList } from "../models/supplier.model.js";
+import bcrypt from "bcryptjs";
 // Cloudinary config
 cloudinary.config({
   cloud_name: process.env.CLOUDNARY_NAME,
@@ -14,26 +15,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDNARY_SECRET,
 });
 
-export const fetchUserPdf = async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const findUser = await User.findById(userId).select("pdfLists");
-    if (!findUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const pdfLinks = findUser.pdfLists || [];
-    return res.status(200).json({
-      message: "PDFs fetched successfully",
-      pdfLinks
-    });
-
-  } catch (error) {
-    console.error("fetchUserPdf error:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
 export const SaveUserPdf = async (req, res) => {
   try {
     const { token } = req.params;
@@ -59,7 +40,7 @@ export const SaveUserPdf = async (req, res) => {
     // Upload to Cloudinary
     const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
         folder: "freelancers",
-  resource_type: "raw",
+  resource_type: "auto",
   type: "upload",
   access_mode: "public"
     });
@@ -85,6 +66,29 @@ export const SaveUserPdf = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const fetchUserPdf = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const findUser = await User.findById(userId).select("pdfLists");
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const pdfLinks = findUser.pdfLists || [];
+    return res.status(200).json({
+      message: "PDFs fetched successfully",
+      pdfLinks
+    });
+
+  } catch (error) {
+    console.error("fetchUserPdf error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
 export const SendOrderToContractor = async (req, res) => {
   try {
     const { token, contractorId } = req.params;
@@ -134,9 +138,9 @@ export const SendOrderToContractor = async (req, res) => {
       return res.status(400).json({ message: "PDF file is required" });
     }
 
-  const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
+    const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
   folder: "freelancers",
-  resource_type: "raw",
+  resource_type: "auto",
   type: "upload",
   access_mode: "public"
 });
@@ -315,7 +319,7 @@ export const fetchOrders = async (req, res) => {
 
     // Fetch orders where user is contractor (supplier/freelancer)
     const findOrder = await ContractList.find({ ContractorId: findUser.id })
-      .populate("ClientId", "username email image");
+      .populate("ClientId", "username email ");
 
     return res.status(200).json({
       message: "Order list fetched successfully",
@@ -539,6 +543,36 @@ export const fetchChatUser = async (req, res) => {
     });
   } catch (error) {
     console.error("fetchChatUser error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+export const ChangePassword = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { password } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "UserId is required" });
+    }
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
+    const findUser = await User.findById(userId);
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    findUser.password = hashedPassword;
+    await findUser.save();
+
+    return res.status(200).json({ message: "Password changed successfully" });
+
+  } catch (error) {
+    console.error("ChangePassword error", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
