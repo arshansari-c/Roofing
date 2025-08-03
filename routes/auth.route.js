@@ -3,7 +3,7 @@ import { login,  Profile, register, UpdateProfile } from '../controllers/auth.co
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
-import { approveOrder, cancelOrder, ConversetionChat, fetchChatUser, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, fetchUserPdf, fetchUserSendOrderList, rejectOrder, SaveUserPdf, SendOrderToContractor } from '../controllers/conversation.controller.js'
+import { approveOrder, cancelOrder, ChangePassword, ConversetionChat, fetchChatUser, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, fetchUserPdf, fetchUserSendOrderList, rejectOrder, SaveUserPdf, SendOrderToContractor } from '../controllers/conversation.controller.js'
 
 export const AuthRouter = express.Router()
 
@@ -32,3 +32,4 @@ AuthRouter.get('/fetchchats/:token',fetchChatUser)
 AuthRouter.post('/uploadpdf/:token',SaveUserPdf)
 AuthRouter.put('/updateprofile/:token',UpdateProfile)
 AuthRouter.get('/fetchuserpdf/:userId',fetchUserPdf)
+AuthRouter.put('/changepassword/:userId',ChangePassword)
