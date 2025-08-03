@@ -1,5 +1,5 @@
 import express from 'express'
-import { login,  Profile, register } from '../controllers/auth.controller.js'
+import { login,  Profile, register, UpdateProfile } from '../controllers/auth.controller.js'
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
@@ -30,4 +30,5 @@ AuthRouter.get('/rejectorder/:token/:orderId',rejectOrder)
 AuthRouter.get('/fetchuserorder/:token',fetchUserSendOrderList)
 AuthRouter.get('/fetchchats/:token',fetchChatUser)
 AuthRouter.post('/uploadpdf/:token',SaveUserPdf)
+AuthRouter.put('/updateprofile/:token',UpdateProfile)
 AuthRouter.get('/fetchuserpdf/:userId',fetchUserPdf)
