@@ -489,7 +489,7 @@ export const fetchUserSendOrderList = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const findOrders = await ContractList.find({ ClientId: findUser._id }).populate("ContractorId","username email");
+    const findOrders = await ContractList.find({ ClientId: findUser._id }).populate("ContractorId","username email image");
     if (!findOrders || findOrders.length === 0) {
       return res.status(404).json({ message: "No orders found" });
     }
