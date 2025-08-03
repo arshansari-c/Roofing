@@ -337,7 +337,7 @@ export const fetchSelectedOrderDetails = async (req, res) => {
     const { orderId } = req.params; // ✅ Correct destructuring
 
     const findOrder = await ContractList.findById(orderId).populate([
-      { path: "ClientId", select: "username email" },
+      { path: "ClientId", select: "username email image" },
     ]);
 
     if (!findOrder) {
