@@ -1,5 +1,5 @@
 import express from 'express'
-import { login,  Profile, register, UpdateProfile } from '../controllers/auth.controller.js'
+import { addTeamMemberEmail, login,  Profile, register, sendPdfToTeamFromEmail, UpdateProfile } from '../controllers/auth.controller.js'
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
@@ -33,3 +33,5 @@ AuthRouter.post('/uploadpdf/:token',SaveUserPdf)
 AuthRouter.put('/updateprofile/:token',UpdateProfile)
 AuthRouter.get('/fetchuserpdf/:userId',fetchUserPdf)
 AuthRouter.put('/changepassword/:userId',ChangePassword)
+AuthRouter.post('/savedEmails/:userId',addTeamMemberEmail)
+AuthRouter.post('/sendpdftoteam/:userId',sendPdfToTeamFromEmail)

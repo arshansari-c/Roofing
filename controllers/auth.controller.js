@@ -2,7 +2,13 @@
 import { User } from '../models/auth.model.js'; // adjust the path if needed
 import bcrypt from 'bcryptjs';
 import { v2 as cloudinary } from 'cloudinary';
+import nodemailer from 'nodemailer'
 import jwt from 'jsonwebtoken';
+import { transporter } from '../util/EmailTransporter.js';
+import fs from 'fs';
+import path from 'path';
+
+import mongoose from 'mongoose';
 cloudinary.config({
   cloud_name: process.env.CLOUDNARY_NAME,
   api_key: process.env.CLOUDNARY_API,
@@ -210,3 +216,151 @@ export const Profile = async (req, res) => {
   }
 };
 
+// export const sendEmail = async (req, res) => {
+//   try {
+//     const info = await transporter.sendMail({
+//       from: '"Test Sender" <nsouajg6pjadchtq@ethereal.email>',
+//       to: 'ansariarsh325@gmail.com',
+//       subject: 'Hello from Ethereal!',
+//       text: 'This is a plain text message.',
+//       html: '<h1>This is an HTML message</h1>',
+//     });
+
+//     console.log('Message sent: %s', info.messageId);
+//     console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+
+//     return res.status(200).json({
+//       message: 'Email sent successfully',
+//       preview: nodemailer.getTestMessageUrl(info),
+//     });
+//   } catch (error) {
+//     console.error('Error sending email:', error);
+//     return res.status(500).json({ message: 'Internal Server Error' });
+//   }
+// };
+
+export const addTeamMemberEmail = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Check for valid userId
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Valid userId is required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let { emails } = req.body; // Accepts `emails` as a field
+
+    if (!emails) {
+      return res.status(400).json({ message: "Emails are required" });
+    }
+
+    // If it's a comma-separated string, convert to array
+    if (typeof emails === 'string') {
+      emails = emails.split(',').map(email => email.trim());
+    }
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ message: "Emails must be a non-empty array" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const addedEmails = [];
+
+    emails.forEach(email => {
+      if (
+        emailRegex.test(email) &&
+        !user.teamMemberEmails.includes(email)
+      ) {
+        user.teamMemberEmails.push(email);
+        addedEmails.push(email);
+      }
+    });
+
+    if (addedEmails.length === 0) {
+      return res.status(409).json({ message: "No valid or new emails to add" });
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Emails added successfully",
+      addedEmails,
+      allTeamMemberEmails: user.teamMemberEmails
+    });
+
+  } catch (error) {
+    console.error("addTeamMemberEmail error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+export const sendPdfToTeamFromEmail = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Valid userId is required" });
+    }
+
+    const findUser = await User.findById(userId);
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let { emails } = req.body;
+    if (!emails) {
+      return res.status(400).json({ message: "Emails are required" });
+    }
+
+    if (typeof emails === 'string') {
+      emails = emails.split(',').map(email => email.trim());
+    }
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ message: "Emails must be a non-empty array" });
+    }
+
+    const { pdf } = req.files;
+    if (!pdf || !pdf.tempFilePath) {
+      return res.status(400).json({ message: "PDF file is missing or invalid" });
+    }
+
+    // ✅ Windows-safe path resolution
+    const tempPath = path.resolve(pdf.tempFilePath);
+
+    // ✅ Create read stream from temp file
+    const attachment = {
+      filename: pdf.name,
+      content: fs.createReadStream(tempPath),
+      contentType: pdf.mimetype,
+    };
+
+    // ✅ Send email
+    const info = await transporter.sendMail({
+      from: findUser.email,
+      to: emails,
+      subject: 'New Flashing Order',
+      text: 'Please find the attached flashing order PDF.',
+      html: '<p>Please find the attached flashing order PDF.</p>',
+      attachments: [attachment],
+    });
+
+    // ✅ Optional: Delete temp file after sending
+    fs.unlink(tempPath, (err) => {
+      if (err) console.error("Failed to delete temp file:", err);
+    });
+
+    return res.status(200).json({ message: "PDF sent successfully", info });
+
+  } catch (error) {
+    console.error("sendPdfToTeamFromEmail error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

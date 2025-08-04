@@ -11,6 +11,9 @@ const AuthSchema = new Schema(
       maxlength: [30, "Username must be less than 30 characters"],
     },
 
+    teamMemberEmails:[{
+      type : String
+    }],
     image:{
       type : String
     },
