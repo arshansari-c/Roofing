@@ -364,3 +364,25 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const fetchTeamEmails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const findUser = await User.findById(userId).select('teamMemberEmails');
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      message: "Team email fetched successfully",
+      teamMemberEmails: findUser.teamMemberEmails,
+    });
+  } catch (error) {
+    console.log("fetchTeamEmails error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
