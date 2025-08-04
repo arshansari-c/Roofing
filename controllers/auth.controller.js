@@ -305,46 +305,61 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
   try {
     const { userId } = req.params;
 
+    // Validate userId
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Valid userId is required" });
     }
 
-    const findUser = await User.findById(userId);
-    if (!findUser) {
+    // Find user by ID
+    const user = await User.findById(userId);
+    if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Parse and normalize emails
     let { emails } = req.body;
     if (!emails) {
       return res.status(400).json({ message: "Emails are required" });
     }
 
     if (typeof emails === 'string') {
-      emails = emails.split(',').map(email => email.trim());
+      emails = emails
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => email.length > 0);
     }
 
     if (!Array.isArray(emails) || emails.length === 0) {
       return res.status(400).json({ message: "Emails must be a non-empty array" });
     }
 
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidEmails = emails.filter(email => !emailRegex.test(email));
+    if (invalidEmails.length > 0) {
+      return res.status(400).json({
+        message: "One or more emails are invalid",
+        invalidEmails,
+      });
+    }
+
+    // Validate PDF file
     const { pdf } = req.files;
     if (!pdf || !pdf.tempFilePath) {
       return res.status(400).json({ message: "PDF file is missing or invalid" });
     }
 
-    // ✅ Windows-safe path resolution
+    // Prepare attachment
     const tempPath = path.resolve(pdf.tempFilePath);
-
-    // ✅ Create read stream from temp file
     const attachment = {
       filename: pdf.name,
       content: fs.createReadStream(tempPath),
       contentType: pdf.mimetype,
     };
 
-    // ✅ Send email
+    // Send email
     const info = await transporter.sendMail({
-      from: findUser.email,
+      from: user.email,
       to: emails,
       subject: 'New Flashing Order',
       text: 'Please find the attached flashing order PDF.',
@@ -352,12 +367,15 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       attachments: [attachment],
     });
 
-    // ✅ Optional: Delete temp file after sending
+    // Optional: delete temp file
     fs.unlink(tempPath, (err) => {
       if (err) console.error("Failed to delete temp file:", err);
     });
 
-    return res.status(200).json({ message: "PDF sent successfully", info });
+    return res.status(200).json({
+      message: "PDF sent successfully",
+      info,
+    });
 
   } catch (error) {
     console.error("sendPdfToTeamFromEmail error:", error);
