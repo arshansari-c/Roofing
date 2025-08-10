@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 
 import mongoose from 'mongoose';
+import { ProjectData } from '../models/project.model.js';
 cloudinary.config({
   cloud_name: process.env.CLOUDNARY_NAME,
   api_key: process.env.CLOUDNARY_API,
@@ -401,6 +402,105 @@ export const fetchTeamEmails = async (req, res) => {
     });
   } catch (error) {
     console.log("fetchTeamEmails error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const UploadProjectData = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { projectData, Name, Code, Color, Quantity, TotalLength } = req.body;
+    
+    // Validate inputs
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+    if (!Name || !Code || !Color || !Quantity || !TotalLength) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    if (!projectData || typeof projectData !== "object") {
+      return res.status(400).json({ message: "projectData must be a valid object" });
+    }
+
+    // Check if user exists
+    const userExists = await User.exists({ _id: userId });
+    if (!userExists) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Save project
+    const savedProject = await ProjectData.create({
+      userId,
+      data: projectData,
+      Name,
+      Code,
+      Color,
+      Quantity,
+      TotalLength
+    });
+
+    return res.status(201).json({
+      message: "Project uploaded successfully",
+      project: savedProject
+    });
+  } catch (error) {
+    console.error("UploadProjectData error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const fetchUploadProjectData = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const projects = await ProjectData.find({ userId });
+
+    if (projects.length === 0) {
+      return res.status(404).json({ message: "Project data not found" });
+    }
+
+    return res.status(200).json({
+      message: "Data fetched successfully",
+      projects
+    });
+
+  } catch (error) {
+    console.error("fetchUploadProjectData error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const fetchSelectedProjectData = async (req, res) => {
+  try {
+    const { userId, projectId } = req.params;
+
+    if (!userId || !projectId) {
+      return res.status(400).json({ message: "userId and projectId are required" });
+    }
+
+    // Check if user exists
+    const userExists = await User.exists({ _id: userId });
+    if (!userExists) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Find project and ensure it belongs to this user
+    const project = await ProjectData.findOne({ _id: projectId, userId });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found for this user" });
+    }
+
+    return res.status(200).json({
+      message: "Project fetched successfully",
+      project
+    });
+
+  } catch (error) {
+    console.error("fetchSelectedProjectData error", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
