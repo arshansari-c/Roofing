@@ -42,6 +42,8 @@ export const SaveUserPdf = async (req, res) => {
         folder: "freelancers",
   resource_type: "raw",
   type: "upload",
+        public_id: "final_merged_pdf", // This will make the file URL contain the name
+  format: "pdf",
   access_mode: "public"
     });
 
@@ -142,6 +144,8 @@ export const SendOrderToContractor = async (req, res) => {
   folder: "freelancers",
   resource_type: "raw",
   type: "upload",
+        public_id: "final_merged_pdf", // This will make the file URL contain the name
+  format: "pdf",
   access_mode: "public"
 });
 
