@@ -366,49 +366,45 @@ export const addTeamMemberEmail = async (req, res) => {
 export const sendPdfToTeamFromEmail = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { JobReference, Number, OrderContact, OrderDate, DeliveryAddress } = req.body;
+
+    // Validate order details
+    if (!JobReference || !Number || !OrderContact || !OrderDate || !DeliveryAddress) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
     // Validate userId
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Valid userId is required" });
     }
 
-    // Find user by ID
+    // Find user
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Parse and normalize emails
+    // Validate emails
     let { emails } = req.body;
-    if (!emails) {
-      return res.status(400).json({ message: "Emails are required" });
-    }
-
+    if (!emails) return res.status(400).json({ message: "Emails are required" });
     if (typeof emails === 'string') {
-      emails = emails
-        .split(',')
-        .map(email => email.trim())
-        .filter(email => email.length > 0);
+      emails = emails.split(',').map(email => email.trim()).filter(Boolean);
     }
-
     if (!Array.isArray(emails) || emails.length === 0) {
       return res.status(400).json({ message: "Emails must be a non-empty array" });
     }
-
-    // Basic email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const invalidEmails = emails.filter(email => !emailRegex.test(email));
     if (invalidEmails.length > 0) {
-      return res.status(400).json({
-        message: "One or more emails are invalid",
-        invalidEmails,
-      });
+      return res.status(400).json({ message: "Invalid emails", invalidEmails });
     }
 
-    // Validate PDF file
-    const { pdf } = req.files;
-    // Prepare attachment
+    // Validate PDF
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ message: "PDF file is required" });
+    }
+    const pdf = req.files.pdf;
     const tempPath = path.resolve(pdf.tempFilePath);
+
+    // Prepare attachment
     const attachment = {
       filename: pdf.name,
       content: fs.createReadStream(tempPath),
@@ -420,24 +416,30 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       from: user.email,
       to: emails,
       subject: 'New Flashing Order',
-      text: 'Please find the attached flashing order PDF.',
-      html: '<p>Please find the attached flashing order PDF.</p>',
+      html: `
+        <p>Please find the attached flashing order PDF.</p>
+        <p>info@commercialroofers.net.au | 0421259430</p>
+        <p>
+          Job Reference: ${JobReference}<br>
+          Number: ${Number}<br>
+          Order Contact: ${OrderContact}<br>
+          Order Date: ${OrderDate}<br>
+          Delivery Address: ${DeliveryAddress}
+        </p>
+      `,
       attachments: [attachment],
     });
 
-    // Optional: delete temp file
+    // Delete temp file
     fs.unlink(tempPath, (err) => {
       if (err) console.error("Failed to delete temp file:", err);
     });
 
-    return res.status(200).json({
-      message: "PDF sent successfully",
-      info,
-    });
+    res.status(200).json({ message: "PDF sent successfully", info });
 
   } catch (error) {
     console.error("sendPdfToTeamFromEmail error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 export const fetchTeamEmails = async (req, res) => {
