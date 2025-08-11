@@ -15,6 +15,67 @@ cloudinary.config({
   api_key: process.env.CLOUDNARY_API,
   api_secret: process.env.CLOUDNARY_SECRET,
 });
+export const UploadProjectPdf = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { pdf } = req.files || {};
+    const { Name, Code, Color, Quantity, TotalLength } = req.body;
+
+    // Validate PDF file
+    if (!pdf) {
+      return res.status(400).json({ message: "PDF file is required" });
+    }
+
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    // Validate body fields
+    const requiredFields = { Name, Code, Color, Quantity, TotalLength };
+    const missingField = Object.entries(requiredFields).find(([key, value]) => !value);
+    if (missingField) {
+      return res.status(400).json({ message: `${missingField[0]} is required` });
+    }
+
+    // Check if user exists
+    const userExists = await User.exists({ _id: userId });
+    if (!userExists) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Upload to Cloudinary
+    const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
+      folder: "freelancers",
+      resource_type: "raw", // PDFs need 'raw' type
+      access_mode: "public"
+    });
+
+    // Save project to DB
+    const savedProject = await ProjectData.create({
+      userId,
+      pdf: [{
+        public_id: uploadPdf.public_id,
+        url: uploadPdf.secure_url,
+      }],
+      Name,
+      Code,
+      Color,
+      Quantity,
+      TotalLength
+    });
+
+    return res.status(201).json({
+      message: "Project uploaded successfully",
+      project: savedProject
+    });
+
+  } catch (error) {
+    console.error("UploadProjectPdf error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 export const UpdateProfile = async (req, res) => {
   try {
