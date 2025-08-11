@@ -363,7 +363,7 @@ export const addTeamMemberEmail = async (req, res) => {
 
 
 
-const sendPdfToTeamFromEmail = async (req, res) => {
+export const sendPdfToTeamFromEmail = async (req, res) => {
   try {
     const { userId } = req.params;
 
