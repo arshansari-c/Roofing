@@ -369,39 +369,30 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
 
     // Validate userId
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Valid userId is required' });
+      return res.status(400).json({ message: "Valid userId is required" });
     }
 
     // Find user by ID
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
-
-    // Log request details
-    console.log('Request details:', {
-      userId,
-      files: req.files,
-      body: req.body,
-    });
 
     // Parse and normalize emails
     let { emails } = req.body;
     if (!emails) {
-      return res.status(400).json({ message: 'Emails are required' });
+      return res.status(400).json({ message: "Emails are required" });
     }
 
     if (typeof emails === 'string') {
-      try {
-        emails = JSON.parse(emails); // Parse JSON string
-      } catch (error) {
-        console.error('Error parsing emails:', error);
-        return res.status(400).json({ message: 'Invalid emails format' });
-      }
+      emails = emails
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => email.length > 0);
     }
 
     if (!Array.isArray(emails) || emails.length === 0) {
-      return res.status(400).json({ message: 'Emails must be a non-empty array' });
+      return res.status(400).json({ message: "Emails must be a non-empty array" });
     }
 
     // Basic email format validation
@@ -409,33 +400,15 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     const invalidEmails = emails.filter(email => !emailRegex.test(email));
     if (invalidEmails.length > 0) {
       return res.status(400).json({
-        message: 'One or more emails are invalid',
+        message: "One or more emails are invalid",
         invalidEmails,
       });
     }
 
     // Validate PDF file
-    if (!req.files || !req.files.pdf) {
-      console.error('No PDF file received');
-      return res.status(400).json({ message: 'PDF file is required' });
-    }
     const { pdf } = req.files;
-    console.log('PDF file details:', {
-      name: pdf.name,
-      mimetype: pdf.mimetype,
-      tempFilePath: pdf.tempFilePath,
-    });
-
-    // Verify temp file exists
-    const tempPath = path.resolve(pdf.tempFilePath);
-    try {
-      await fs.access(tempPath);
-    } catch (error) {
-      console.error('Error accessing temp file:', error);
-      return res.status(500).json({ message: 'Failed to access PDF file' });
-    }
-
     // Prepare attachment
+    const tempPath = path.resolve(pdf.tempFilePath);
     const attachment = {
       filename: pdf.name,
       content: fs.createReadStream(tempPath),
@@ -451,28 +424,20 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       html: '<p>Please find the attached flashing order PDF.</p>',
       attachments: [attachment],
     });
-    console.log('Email sent:', info);
 
-    // Delete temp file
-    try {
-      await fs.unlink(tempPath);
-      console.log('Temp file deleted:', tempPath);
-    } catch (error) {
-      console.error('Failed to delete temp file:', error);
-    }
+    // Optional: delete temp file
+    fs.unlink(tempPath, (err) => {
+      if (err) console.error("Failed to delete temp file:", err);
+    });
 
     return res.status(200).json({
-      message: 'PDF sent successfully',
+      message: "PDF sent successfully",
       info,
     });
+
   } catch (error) {
-    console.error('sendPdfToTeamFromEmail error:', {
-      message: error.message,
-      stack: error.stack,
-      files: req.files,
-      body: req.body,
-    });
-    return res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error("sendPdfToTeamFromEmail error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 export const fetchTeamEmails = async (req, res) => {
