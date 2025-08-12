@@ -4,6 +4,10 @@ import mongoose, { Schema } from "mongoose";
 const ProjectSchema = new Schema(
   {
     userId: { type: mongoose.Schema.ObjectId, ref: "User", required: true },
+    data : {
+      type  : String,
+      required : true
+    },
     pdf : [{
       public_id : {
         type : String,
