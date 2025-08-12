@@ -19,7 +19,7 @@ export const UploadProjectPdf = async (req, res) => {
   try {
     const { userId } = req.params;
     const { pdf } = req.files || {};
-    const { Name, Code, Color, Quantity, TotalLength } = req.body;
+    const { Name, Code, Color, Quantity, TotalLength,data } = req.body;
 
     // Validate PDF file
     if (!pdf) {
@@ -59,6 +59,7 @@ export const UploadProjectPdf = async (req, res) => {
         url: uploadPdf.secure_url,
       }],
       Name,
+      data,
       Code,
       Color,
       Quantity,
@@ -75,6 +76,7 @@ export const UploadProjectPdf = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 export const UpdateProfile = async (req, res) => {
