@@ -10,6 +10,7 @@ import path from 'path';
 
 import mongoose from 'mongoose';
 import { ProjectData } from '../models/project.model.js';
+import { ProjectOrder } from '../models/ProjectOrder.model.js';
 cloudinary.config({
   cloud_name: process.env.CLOUDNARY_NAME,
   api_key: process.env.CLOUDNARY_API,
@@ -363,75 +364,103 @@ export const addTeamMemberEmail = async (req, res) => {
   }
 };
 
+
+export const UpdateJobOrder = async (req, res) => {
+  try {
+    const { userId, orderId } = req.params;
+    const { JobReference, Number, OrderContact, OrderDate, DeliveryAddress } = req.body;
+
+    // 1️⃣ Validate IDs
+    if (!userId || !orderId) {
+      return res.status(400).json({ message: "userId and orderId are required" });
+    }
+
+    // 2️⃣ Check if user exists
+    const findUser = await User.findById(userId);
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 3️⃣ Prepare update data (only include provided fields)
+    const updateData = {};
+    if (JobReference) updateData.JobReference = JobReference;
+    if (Number) updateData.Number = Number;
+    if (OrderContact) updateData.OrderContact = OrderContact;
+    if (OrderDate) updateData.OrderDate = OrderDate;
+    if (DeliveryAddress) updateData.DeliveryAddress = DeliveryAddress;
+
+    // 4️⃣ Update order
+    const updatedOrder = await ProjectOrder.findByIdAndUpdate(
+      orderId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    return res.status(200).json({
+      message: "Job order updated successfully",
+      order: updatedOrder
+    });
+
+  } catch (error) {
+    console.error("UpdateJobOrder error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export const sendPdfToTeamFromEmail = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { JobReference, Number, OrderContact, OrderDate, DeliveryAddress } = req.body;
+    const { JobReference, Number, OrderContact, OrderDate, DeliveryAddress, emails } = req.body;
 
-    // Validate order details
+    // 1️⃣ Validate inputs
     if (!JobReference || !Number || !OrderContact || !OrderDate || !DeliveryAddress) {
-      return res.status(400).json({ message: 'All fields are required' });
+      return res.status(400).json({ message: "All fields are required" });
     }
-
-    // Validate userId
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Valid userId is required' });
+      return res.status(400).json({ message: "Valid userId is required" });
     }
 
-    // Find user
+    // 2️⃣ Find user
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Validate and parse emails
-    let { emails } = req.body;
-    if (!emails) return res.status(400).json({ message: 'Emails are required' });
-
-    // Handle JSON string or array
-    let recipientEmails;
-    try {
-      if (typeof emails === 'string') {
-        recipientEmails = JSON.parse(emails); // Parse JSON string
-      } else {
-        recipientEmails = emails;
-      }
-      // Ensure emails is an array
-      if (!Array.isArray(recipientEmails)) {
-        recipientEmails = [recipientEmails]; // Convert single email to array
-      }
-      // Trim and validate emails
-      recipientEmails = recipientEmails.map(email => email.trim()).filter(Boolean);
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const invalidEmails = recipientEmails.filter(email => !emailRegex.test(email));
-      if (invalidEmails.length > 0) {
-        return res.status(400).json({ message: 'Invalid emails', invalidEmails });
-      }
-      if (recipientEmails.length === 0) {
-        return res.status(400).json({ message: 'At least one valid email is required' });
-      }
-    } catch (error) {
-      console.error('Error parsing emails:', error);
-      return res.status(400).json({ message: 'Invalid email format' });
+    // 3️⃣ Validate email list
+    let emailList = emails;
+    if (!emailList) return res.status(400).json({ message: "Emails are required" });
+    if (typeof emailList === "string") {
+      emailList = emailList.split(",").map(e => e.trim()).filter(Boolean);
+    }
+    if (!Array.isArray(emailList) || emailList.length === 0) {
+      return res.status(400).json({ message: "Emails must be a non-empty array" });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidEmails = emailList.filter(email => !emailRegex.test(email));
+    if (invalidEmails.length > 0) {
+      return res.status(400).json({ message: "Invalid emails", invalidEmails });
     }
 
-    // Validate PDF
+    // 4️⃣ Validate PDF file
     if (!req.files || !req.files.pdf) {
-      return res.status(400).json({ message: 'PDF file is required' });
+      return res.status(400).json({ message: "PDF file is required" });
     }
     const pdf = req.files.pdf;
     const tempPath = path.resolve(pdf.tempFilePath);
 
-    // Prepare attachment
-    const attachment = {
-      filename: pdf.name,
-      content: fs.createReadStream(tempPath),
-      contentType: pdf.mimetype,
-    };
+    // 5️⃣ Upload PDF to Cloudinary
+    const uploadedPdf = await cloudinary.uploader.upload(tempPath, {
+         resource_type: "raw", // PDFs need 'raw' type
+      access_mode: "public"
+    });
 
-    // Send email
+    // 6️⃣ Send email with PDF link
     const info = await transporter.sendMail({
-      from: user.email,
-      to: recipientEmails.join(','), // Join emails with commas for Nodemailer
-      subject: 'New Flashing Order',
+      from: `"${user.name}" <${user.email}>`,
+      to: emailList,
+      subject: "New Flashing Order",
       html: `
         <p>Please find the attached flashing order PDF.</p>
         <p>info@commercialroofers.net.au | 0421259430</p>
@@ -442,30 +471,32 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
           Order Date: ${OrderDate}<br>
           Delivery Address: ${DeliveryAddress}
         </p>
-      `,
-      attachments: [attachment],
+        <p><a href="${uploadedPdf.secure_url}">Download PDF</a></p>
+      `
     });
 
-    // Delete temp file
+    // 7️⃣ Save order in DB
+    await new ProjectOrder({
+      userId: user._id,
+      pdf: uploadedPdf.secure_url,
+      JobReference : JobReference,
+      Number  : Number,
+      OrderContact : OrderContact,
+      OrderDate : OrderDate,
+      DeliveryAddress : DeliveryAddress,
+    }).save();
+
+    // 8️⃣ Delete temp file
     fs.unlink(tempPath, (err) => {
-      if (err) console.error('Failed to delete temp file:', err);
+      if (err) console.error("Failed to delete temp file:", err);
     });
 
-    res.status(200).json({ message: 'PDF sent successfully', info });
+    res.status(200).json({ message: "PDF sent successfully", info });
   } catch (error) {
-    console.error('sendPdfToTeamFromEmail error:', {
-      message: error.message,
-      stack: error.stack,
-      response: error.response ? {
-        status: error.response.status,
-        data: error.response.data,
-      } : 'No response data',
-    });
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error("sendPdfToTeamFromEmail error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
 export const fetchTeamEmails = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -583,6 +614,39 @@ export const fetchSelectedProjectData = async (req, res) => {
 
   } catch (error) {
     console.error("fetchSelectedProjectData error", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const fetchUploadOrder = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 1️⃣ Validate
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    // 2️⃣ Check user
+    const findUser = await User.findById(userId);
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 3️⃣ Fetch orders
+    const orders = await ProjectOrder.find({ userId });
+    if (!orders.length) {
+      return res.status(404).json({ message: "No orders found" });
+    }
+
+    // 4️⃣ Success
+    return res.status(200).json({
+      message: "Orders fetched successfully",
+      orders
+    });
+
+  } catch (error) {
+    console.error("fetchUploadOrder error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
