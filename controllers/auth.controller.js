@@ -450,13 +450,13 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     const pdf = req.files.pdf;
     const tempPath = path.resolve(pdf.tempFilePath);
 
-    // 5️⃣ Upload PDF to Cloudinary
+    // 5️⃣ Upload PDF to Cloudinary (optional — for storage)
     const uploadedPdf = await cloudinary.uploader.upload(tempPath, {
-         resource_type: "raw", // PDFs need 'raw' type
+      resource_type: "raw",
       access_mode: "public"
     });
 
-    // 6️⃣ Send email with PDF link
+    // 6️⃣ Send email with PDF attachment
     const info = await transporter.sendMail({
       from: `"${user.name}" <${user.email}>`,
       to: emailList,
@@ -471,19 +471,25 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
           Order Date: ${OrderDate}<br>
           Delivery Address: ${DeliveryAddress}
         </p>
-        <p><a href="${uploadedPdf.secure_url}">Download PDF</a></p>
-      `
+      `,
+      attachments: [
+        {
+          filename: `${JobReference || "order"}.pdf`,
+          path: tempPath, // Attach directly from temp file
+          contentType: "application/pdf"
+        }
+      ]
     });
 
     // 7️⃣ Save order in DB
     await new ProjectOrder({
       userId: user._id,
-      pdf: uploadedPdf.secure_url,
-      JobReference : JobReference,
-      Number  : Number,
-      OrderContact : OrderContact,
-      OrderDate : OrderDate,
-      DeliveryAddress : DeliveryAddress,
+      pdf: uploadedPdf.secure_url, // still store Cloudinary URL
+      JobReference,
+      Number,
+      OrderContact,
+      OrderDate,
+      DeliveryAddress,
     }).save();
 
     // 8️⃣ Delete temp file
@@ -497,6 +503,7 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 export const fetchTeamEmails = async (req, res) => {
   try {
     const { userId } = req.params;
