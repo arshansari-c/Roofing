@@ -449,8 +449,7 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     if (!req.files || !req.files.pdf) {
       return res.status(400).json({ message: "PDF file is required" });
     }
-    const pdf = req.files.pdf;
-
+ 
     // 5️⃣ Upload PDF to Cloudinary
     const uploadedPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
       resource_type: "raw",
