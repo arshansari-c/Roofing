@@ -411,7 +411,6 @@ export const UpdateJobOrder = async (req, res) => {
   }
 };
 
-import fs from "fs";
 
 export const sendPdfToTeamFromEmail = async (req, res) => {
   try {
