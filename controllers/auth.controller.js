@@ -448,17 +448,16 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     if (!req.files || !req.files.pdf) {
       return res.status(400).json({ message: "PDF file is required" });
     }
- 
+    const pdf = req.files.pdf;
+    const tempPath = pdf.tempFilePath || pdf.path;
+
     // 5️⃣ Upload PDF to Cloudinary
-    const uploadedPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
-      resource_type: "raw",
+    const uploadedPdf = await cloudinary.uploader.upload(tempPath, {
+      resource_type: "raw", // PDFs need 'raw' type
       access_mode: "public"
     });
 
-    // 6️⃣ Read the file from disk again to ensure buffer is not empty
-    const fileBuffer = fs.readFileSync(pdf.tempFilePath);
-
-    // 7️⃣ Send email with actual file buffer
+    // 6️⃣ Send email with PDF ATTACHMENT
     const info = await transporter.sendMail({
       from: `"${user.name}" <${user.email}>`,
       to: emailList,
@@ -476,14 +475,14 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       `,
       attachments: [
         {
-          filename: `${JobReference || "order"}.pdf`,
-          content: fileBuffer,
+          filename: `${JobReference || "FlashingOrder"}.pdf`,
+          path: tempPath, // Send from temp file directly
           contentType: "application/pdf"
         }
       ]
     });
 
-    // 8️⃣ Save order in DB with Cloudinary URL
+    // 7️⃣ Save order in DB
     await new ProjectOrder({
       userId: user._id,
       pdf: uploadedPdf.secure_url,
@@ -494,8 +493,8 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       DeliveryAddress,
     }).save();
 
-    // 9️⃣ Remove temp file
-    fs.unlink(pdf.tempFilePath, err => {
+    // 8️⃣ Delete temp file
+    fs.unlink(tempPath, (err) => {
       if (err) console.error("Failed to delete temp file:", err);
     });
 
