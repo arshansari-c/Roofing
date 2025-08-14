@@ -449,20 +449,13 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     }
     const pdf = req.files.pdf;
 
-    // 5️⃣ Upload PDF to Cloudinary (direct from buffer)
-    const uploadedPdf = await cloudinary.uploader.upload_stream(
-      { resource_type: "raw", access_mode: "public" },
-      (error, result) => {
-        if (error) throw error;
-        return result;
-      }
-    );
+    // 5️⃣ Upload PDF to Cloudinary from temp file (no streamifier)
+    const uploadedPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
+      resource_type: "raw",
+      access_mode: "public"
+    });
 
-    // Create a readable stream from buffer
-    const streamifier = require("streamifier");
-    streamifier.createReadStream(pdf.data).pipe(uploadedPdf);
-
-    // 6️⃣ Send email with actual PDF attachment from memory
+    // 6️⃣ Send email with actual PDF file (from memory, not URL)
     const info = await transporter.sendMail({
       from: `"${user.name}" <${user.email}>`,
       to: emailList,
@@ -481,7 +474,7 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       attachments: [
         {
           filename: `${JobReference || "order"}.pdf`,
-          content: pdf.data, // Directly attach from buffer
+          content: pdf.data, // attach from buffer
           contentType: "application/pdf"
         }
       ]
@@ -490,7 +483,7 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     // 7️⃣ Save order in DB with Cloudinary URL
     await new ProjectOrder({
       userId: user._id,
-      pdf: uploadedPdf.secure_url, // store Cloudinary link
+      pdf: uploadedPdf.secure_url,
       JobReference,
       Number,
       OrderContact,
