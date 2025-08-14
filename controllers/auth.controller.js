@@ -411,6 +411,8 @@ export const UpdateJobOrder = async (req, res) => {
   }
 };
 
+import fs from "fs";
+
 export const sendPdfToTeamFromEmail = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -449,13 +451,16 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
     }
     const pdf = req.files.pdf;
 
-    // 5️⃣ Upload PDF to Cloudinary from temp file (no streamifier)
+    // 5️⃣ Upload PDF to Cloudinary
     const uploadedPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
       resource_type: "raw",
       access_mode: "public"
     });
 
-    // 6️⃣ Send email with actual PDF file (from memory, not URL)
+    // 6️⃣ Read the file from disk again to ensure buffer is not empty
+    const fileBuffer = fs.readFileSync(pdf.tempFilePath);
+
+    // 7️⃣ Send email with actual file buffer
     const info = await transporter.sendMail({
       from: `"${user.name}" <${user.email}>`,
       to: emailList,
@@ -474,13 +479,13 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       attachments: [
         {
           filename: `${JobReference || "order"}.pdf`,
-          content: pdf.data, // attach from buffer
+          content: fileBuffer,
           contentType: "application/pdf"
         }
       ]
     });
 
-    // 7️⃣ Save order in DB with Cloudinary URL
+    // 8️⃣ Save order in DB with Cloudinary URL
     await new ProjectOrder({
       userId: user._id,
       pdf: uploadedPdf.secure_url,
@@ -491,12 +496,18 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       DeliveryAddress,
     }).save();
 
+    // 9️⃣ Remove temp file
+    fs.unlink(pdf.tempFilePath, err => {
+      if (err) console.error("Failed to delete temp file:", err);
+    });
+
     res.status(200).json({ message: "PDF sent successfully", info });
   } catch (error) {
     console.error("sendPdfToTeamFromEmail error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 export const fetchTeamEmails = async (req, res) => {
