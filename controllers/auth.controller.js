@@ -448,15 +448,21 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       return res.status(400).json({ message: "PDF file is required" });
     }
     const pdf = req.files.pdf;
-    const tempPath = path.resolve(pdf.tempFilePath);
 
-    // 5️⃣ Upload PDF to Cloudinary (optional — for storage)
-    const uploadedPdf = await cloudinary.uploader.upload(tempPath, {
-      resource_type: "raw",
-      access_mode: "public"
-    });
+    // 5️⃣ Upload PDF to Cloudinary (direct from buffer)
+    const uploadedPdf = await cloudinary.uploader.upload_stream(
+      { resource_type: "raw", access_mode: "public" },
+      (error, result) => {
+        if (error) throw error;
+        return result;
+      }
+    );
 
-    // 6️⃣ Send email with PDF attachment
+    // Create a readable stream from buffer
+    const streamifier = require("streamifier");
+    streamifier.createReadStream(pdf.data).pipe(uploadedPdf);
+
+    // 6️⃣ Send email with actual PDF attachment from memory
     const info = await transporter.sendMail({
       from: `"${user.name}" <${user.email}>`,
       to: emailList,
@@ -475,16 +481,16 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       attachments: [
         {
           filename: `${JobReference || "order"}.pdf`,
-          path: tempPath, // Attach directly from temp file
+          content: pdf.data, // Directly attach from buffer
           contentType: "application/pdf"
         }
       ]
     });
 
-    // 7️⃣ Save order in DB
+    // 7️⃣ Save order in DB with Cloudinary URL
     await new ProjectOrder({
       userId: user._id,
-      pdf: uploadedPdf.secure_url, // still store Cloudinary URL
+      pdf: uploadedPdf.secure_url, // store Cloudinary link
       JobReference,
       Number,
       OrderContact,
@@ -492,17 +498,13 @@ export const sendPdfToTeamFromEmail = async (req, res) => {
       DeliveryAddress,
     }).save();
 
-    // 8️⃣ Delete temp file
-    fs.unlink(tempPath, (err) => {
-      if (err) console.error("Failed to delete temp file:", err);
-    });
-
     res.status(200).json({ message: "PDF sent successfully", info });
   } catch (error) {
     console.error("sendPdfToTeamFromEmail error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 export const fetchTeamEmails = async (req, res) => {
   try {
