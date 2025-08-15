@@ -612,7 +612,7 @@ export const fetchSelectedProjectData = async (req, res) => {
     }
 
     // Find project and ensure it belongs to this user
-    const project = await ProjectData.findOne({ _id: projectId, userId });
+    const project = await ProjectOrder.findOne({ _id: projectId, userId:userId });
     if (!project) {
       return res.status(404).json({ message: "Project not found for this user" });
     }
@@ -627,7 +627,6 @@ export const fetchSelectedProjectData = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 export const fetchUploadOrder = async (req, res) => {
   try {
     const { userId } = req.params;
