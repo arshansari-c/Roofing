@@ -4,6 +4,7 @@ import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
 import { approveOrder, cancelOrder, ChangePassword, ConversetionChat, fetchChatUser, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, fetchUserPdf, fetchUserSendOrderList, rejectOrder, SaveUserPdf, SendOrderToContractor } from '../controllers/conversation.controller.js'
+import { generatePdf, UpdateGerantePdfOrder } from '../controllers/Pdf.controller.js'
 
 export const AuthRouter = express.Router()
 
@@ -41,3 +42,5 @@ AuthRouter.get('/fetchprojectdata/:userId',fetchUploadProjectData)
 AuthRouter.get('/fetchselectproject/:userId/:projectId',fetchSelectedProjectData)
 AuthRouter.put('/updatejoborder/:userId/:orderId',UpdateJobOrder)
 AuthRouter.get('/fetchuploadorder/:userId',fetchUploadOrder)
+AuthRouter.post('/generatepdfandsendteam/:userId',generatePdf)
+AuthRouter.put('/updategeneratepdfandsendteam/:userId/:orderId',UpdateGerantePdfOrder)

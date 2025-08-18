@@ -19,13 +19,7 @@ cloudinary.config({
 export const UploadProjectPdf = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { pdf } = req.files || {};
     const { Name, Code, Color, Quantity, TotalLength,data } = req.body;
-
-    // Validate PDF file
-    if (!pdf) {
-      return res.status(400).json({ message: "PDF file is required" });
-    }
 
     // Validate userId
     if (!userId) {
@@ -44,21 +38,9 @@ export const UploadProjectPdf = async (req, res) => {
     if (!userExists) {
       return res.status(404).json({ message: "User not found" });
     }
-
-    // Upload to Cloudinary
-    const uploadPdf = await cloudinary.uploader.upload(pdf.tempFilePath, {
-      folder: "freelancers",
-      resource_type: "raw", // PDFs need 'raw' type
-      access_mode: "public"
-    });
-
     // Save project to DB
     const savedProject = await ProjectData.create({
       userId,
-      pdf: [{
-        public_id: uploadPdf.public_id,
-        url: uploadPdf.secure_url,
-      }],
       Name,
       data,
       Code,

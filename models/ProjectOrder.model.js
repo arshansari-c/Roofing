@@ -11,6 +11,10 @@ export const ProjectOrderSchema = new Schema(
       type: String,
       required: true
     },
+    data : {
+      type : Schema.Types.Mixed,
+      required : true
+  },
     JobReference: {
       type: String,
       required: true
