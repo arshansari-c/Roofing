@@ -17,6 +17,7 @@
     "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+     "sharp": "^0.33.3",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "express-fileupload": "^1.5.2",
