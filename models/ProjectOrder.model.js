@@ -31,12 +31,21 @@ export const ProjectOrderSchema = new Schema(
       type: String, // Better for sorting/filtering
       required: true
     },
-    DeliveryAddress: {
+     DeliveryAddress: {
       type: String,
-      required: true
+    
+    },
+    PickupNotes:{
+      type : String,
+     
+    },
+    Notes:{
+      type : String,
+     
     }
   },
   { timestamps: true }
 );
 
 export const ProjectOrder = mongoose.model("ProjectOrder", ProjectOrderSchema);
+
