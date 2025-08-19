@@ -161,7 +161,8 @@ export const fetchSupplierList = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const supplierList = await SupplierList.find();
+   
+    const supplierList = await SupplierList.find().populate("userId","email");
 
     return res.status(200).json({
       message: "Supplier list fetched successfully",
