@@ -12,11 +12,6 @@ import { transporter } from '../util/EmailTransporter.js';
 
 // Derive __dirname for ES6 modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'Uploads');
 await fsPromises.mkdir(uploadsDir, { recursive: true }).catch((err) => {
