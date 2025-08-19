@@ -271,12 +271,18 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 // Backend route handler
 export const generatePdf = async (req, res) => {
   try {
-    const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, emails } = req.body;
+    const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, Notes, emails } = req.body;
     const { userId } = req.params;
 
     // Validate inputs
-    if (!JobReference || !Number || !OrderContact || !OrderDate || !DeliveryAddress) {
-      return res.status(400).json({ message: 'All fields (JobReference, Number, OrderContact, OrderDate, DeliveryAddress) are required' });
+    if (!JobReference || !Number || !OrderContact || !OrderDate) {
+      return res.status(400).json({ message: 'JobReference, Number, OrderContact, and OrderDate are required' });
+    }
+    if (!DeliveryAddress && !PickupNotes) {
+      return res.status(400).json({ message: 'Either DeliveryAddress or PickupNotes is required' });
+    }
+    if (DeliveryAddress && PickupNotes) {
+      return res.status(400).json({ message: 'Provide either DeliveryAddress or PickupNotes, not both' });
     }
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'Valid userId is required' });
@@ -362,7 +368,7 @@ export const generatePdf = async (req, res) => {
       `PO Number: ${Number}`,
       `Order Contact: ${OrderContact}`,
       `Order Date: ${OrderDate}`,
-      `Delivery Address: ${DeliveryAddress}`,
+      DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`,
     ];
 
     doc.font('Helvetica').fontSize(14);
@@ -372,12 +378,16 @@ export const generatePdf = async (req, res) => {
     });
     y += 24;
 
-    // Notes
+    // Notes Section
     const notes = [
       '• Arrow points to the (solid) coloured side',
       '• 90° degrees are not labelled',
       '• F = Total number of folds, each crush counts as 2 folds',
     ];
+
+    if (Notes) {
+      notes.push(`• ${Notes}`);
+    }
 
     doc.font('Helvetica-Bold').fontSize(16);
     notes.forEach((line, index) => {
@@ -579,7 +589,7 @@ export const generatePdf = async (req, res) => {
             Number: ${Number}<br>
             Order Contact: ${OrderContact}<br>
             Order Date: ${OrderDate}<br>
-            Delivery Address: ${DeliveryAddress}
+            ${DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`}${Notes ? `<br>Notes: ${Notes}` : ''}
           </p>
         `,
         attachments: [
@@ -606,7 +616,9 @@ export const generatePdf = async (req, res) => {
         Number,
         OrderContact,
         OrderDate,
-        DeliveryAddress,
+        DeliveryAddress: DeliveryAddress || null,
+        PickupNotes: PickupNotes || null,
+        Notes: Notes || null,
       }).save();
       console.log('Project order saved successfully');
     } catch (dbError) {
@@ -634,7 +646,6 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-
 
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
