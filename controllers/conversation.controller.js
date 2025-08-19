@@ -4,6 +4,7 @@ import { Chat } from "../models/conversetionChat.model.js";
 import {io} from '../index.js'
 import jwt from 'jsonwebtoken'
 import { read } from "fs";
+import { ProjectOrder } from "../models/ProjectOrder.model.js";
 import { v2 as cloudinary } from 'cloudinary';
 import { FreelancerList } from "../models/freelancer.model.js";
 import { SupplierList } from "../models/supplier.model.js";
@@ -73,12 +74,14 @@ export const fetchUserPdf = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const findUser = await User.findById(userId).select("pdfLists");
+    const findUser = await User.findById(userId);
     if (!findUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const pdfLinks = findUser.pdfLists || [];
+    const orders = await ProjectOrder.find({ userId });
+    const pdfLinks = orders.map(order => order.pdf).filter(Boolean); // removes undefined/null
+
     return res.status(200).json({
       message: "PDFs fetched successfully",
       pdfLinks
@@ -89,7 +92,6 @@ export const fetchUserPdf = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 export const SendOrderToContractor = async (req, res) => {
   try {
