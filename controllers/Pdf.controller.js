@@ -610,7 +610,7 @@ export const generatePdf = async (req, res) => {
     try {
       await new ProjectOrder({
         userId: user._id,
-        pdf: uploadResult.secure_url,
+       pdf: uploadResult.url,
         JobReference,
         data: selectedProjectData,
         Number,
