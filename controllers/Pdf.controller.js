@@ -567,7 +567,7 @@ export const generatePdf = async (req, res) => {
         resource_type: 'raw',
         type: 'upload',
         access_mode: 'public',
-        public_id: `project-${timestamp}`,
+      
       });
       console.log('Cloudinary upload result:', JSON.stringify(uploadResult, null, 2));
     } catch (uploadError) {
