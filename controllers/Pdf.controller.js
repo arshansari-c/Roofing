@@ -11,6 +11,15 @@ import { ProjectOrder } from '../models/ProjectOrder.model.js';
 import { transporter } from '../util/EmailTransporter.js';
 import dotenv from "dotenv"
 
+dotenv.config()
+
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDNARY_NAME,
+  api_key: process.env.CLOUDNARY_API,
+  api_secret: process.env.CLOUDNARY_SECRET,
+});
+
 // Derive __dirname for ES6 modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Create uploads directory if it doesn't exist
@@ -553,11 +562,6 @@ export const generatePdf = async (req, res) => {
       return res.status(500).json({ message: 'PDF file not generated' });
     }
 
-    // Verify Cloudinary configuration
-    if (!cloudinary.config().cloud_name || !cloudinary.config().api_key || !cloudinary.config().api_secret) {
-      console.error('Cloudinary configuration is incomplete');
-      return res.status(500).json({ message: 'Cloudinary configuration missing' });
-    }
 
     // Upload to Cloudinary
     let uploadResult;
