@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 import { User } from '../models/auth.model.js';
 import { ProjectOrder } from '../models/ProjectOrder.model.js';
 import { transporter } from '../util/EmailTransporter.js';
+import dotenv from "dotenv"
 
 // Derive __dirname for ES6 modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
