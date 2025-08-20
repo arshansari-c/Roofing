@@ -9,9 +9,9 @@ import mongoose from 'mongoose';
 import { User } from '../models/auth.model.js';
 import { ProjectOrder } from '../models/ProjectOrder.model.js';
 import { transporter } from '../util/EmailTransporter.js';
-import dotenv from "dotenv";
+import dotenv from "dotenv"
 
-dotenv.config();
+dotenv.config()
 
 // Cloudinary config
 cloudinary.config({
@@ -377,7 +377,7 @@ export const generatePdf = async (req, res) => {
       `PO Number: ${Number}`,
       `Order Contact: ${OrderContact}`,
       `Order Date: ${OrderDate}`,
-      DeliveryAddress ? `DeliveryAddress: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`,
+      DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`,
     ];
 
     doc.font('Helvetica').fontSize(14);
@@ -562,6 +562,7 @@ export const generatePdf = async (req, res) => {
       return res.status(500).json({ message: 'PDF file not generated' });
     }
 
+
     // Upload to Cloudinary
     let uploadResult;
     try {
@@ -570,18 +571,13 @@ export const generatePdf = async (req, res) => {
         resource_type: 'raw',
         type: 'upload',
         access_mode: 'public',
+      
       });
       console.log('Cloudinary upload result:', JSON.stringify(uploadResult, null, 2));
     } catch (uploadError) {
       console.error('Cloudinary upload error:', uploadError.message);
       return res.status(500).json({ message: 'Failed to upload PDF to Cloudinary', error: uploadError.message });
     }
-
-    // Generate signed URL
-    const signedUrl = cloudinary.utils.signed_download_url(uploadResult.public_id, {
-      resource_type: 'raw',
-      secure: true,
-    });
 
     // Send email with PDF attachment
     try {
@@ -619,9 +615,10 @@ export const generatePdf = async (req, res) => {
       await new ProjectOrder({
         userId: userId,
         pdf: [{
-          public_id: uploadResult.public_id,
-          url: signedUrl, // Store signed URL
-        }],
+  public_id: uploadResult.public_id,
+  url: uploadResult.secure_url,  // ✅ not secure.url
+}],
+
         JobReference,
         data: selectedProjectData,
         Number,
@@ -646,18 +643,17 @@ export const generatePdf = async (req, res) => {
       // Continue execution even if deletion fails
     }
 
-    // Return both local path (for reference) and signed Cloudinary URL
+    // Return both local path (for reference) and Cloudinary URL
     return res.status(200).json({
       message: 'PDF generated, email sent, and local file deleted successfully',
-      localPath: pdfPath,
-      cloudinaryUrl: signedUrl, // Return signed URL
+      localPath: pdfPath, // Included for reference, though file is deleted
+      cloudinaryUrl: `${uploadResult.secure_url}/fl_attachment`,
     });
   } catch (error) {
     console.error('GeneratePdf error:', error.message);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
