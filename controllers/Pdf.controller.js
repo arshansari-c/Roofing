@@ -567,11 +567,8 @@ export const generatePdf = async (req, res) => {
     let uploadResult;
     try {
       uploadResult = await cloudinary.uploader.upload(pdfPath, {
-        folder: 'freelancers',
-        resource_type: 'raw',
-        type: 'upload',
-        access_mode: 'public',
-      
+ resource_type: "raw", // PDFs need 'raw' type
+      access_mode: "public"
       });
       console.log('Cloudinary upload result:', JSON.stringify(uploadResult, null, 2));
     } catch (uploadError) {
