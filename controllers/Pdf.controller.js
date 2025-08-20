@@ -567,9 +567,11 @@ export const generatePdf = async (req, res) => {
     let uploadResult;
     try {
       uploadResult = await cloudinary.uploader.upload(pdfPath, {
- resource_type: "raw", // PDFs need 'raw' type
-          type: "upload", // ✅ Forces public delivery access
-      access_mode: "public"
+        folder: 'freelancers',
+        resource_type: 'raw',
+        type: 'upload',
+        access_mode: 'public',
+      
       });
       console.log('Cloudinary upload result:', JSON.stringify(uploadResult, null, 2));
     } catch (uploadError) {
@@ -612,7 +614,7 @@ export const generatePdf = async (req, res) => {
     try {
       await new ProjectOrder({
         userId: userId,
-          pdf: [{
+        pdf: [{
   public_id: uploadResult.public_id,
   url: uploadResult.secure_url,  // ✅ not secure.url
 }],
@@ -652,6 +654,7 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
