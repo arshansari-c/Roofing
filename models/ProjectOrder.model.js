@@ -7,10 +7,18 @@ export const ProjectOrderSchema = new Schema(
       ref: "User",
       required: true
     },
-    pdf: {
-      type: String,
-      required: true
+  pdf: [
+  {
+    public_id: {
+      type: String,  // 🔧 corrected "Stirng" to "String"
+      required: true,
     },
+    url: {
+      type: String,
+      required: true,
+    }
+  }
+],
     data : {
       type : Schema.Types.Mixed,
       required : true
