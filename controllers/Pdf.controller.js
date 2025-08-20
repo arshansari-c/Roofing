@@ -613,7 +613,7 @@ export const generatePdf = async (req, res) => {
     // Save order in DB
     try {
       await new ProjectOrder({
-        userId: user._id,
+        userId: userId,
         pdf: [{
   public_id: uploadResult.public_id,
   url: uploadResult.secure_url,  // ✅ not secure.url
