@@ -27,12 +27,29 @@ export const UploadProjectPdf = async (req, res) => {
     });
 
     const { userId } = req.params;
-    const { Name, Code, Color, QuantitiesAndLengths, data } = req.body;
+    const { Name, Code, Color, data } = req.body;
+
+    // Parse QuantitiesAndLengths from FormData fields
+    const QuantitiesAndLengths = [];
+    const bodyKeys = Object.keys(req.body);
+    const quantityKeys = bodyKeys.filter((key) => key.match(/^QuantitiesAndLengths\[\d+\]\[quantity\]$/));
+    for (const quantityKey of quantityKeys) {
+      const index = quantityKey.match(/\[(\d+)\]/)[1];
+      const lengthKey = `QuantitiesAndLengths[${index}][length]`;
+      if (bodyKeys.includes(lengthKey)) {
+        QuantitiesAndLengths.push({
+          quantity: req.body[quantityKey],
+          length: req.body[lengthKey],
+        });
+      }
+    }
+
+    console.log('Parsed QuantitiesAndLengths:', QuantitiesAndLengths);
 
     // Validate userId
     if (!userId) {
       console.log('Validation failed: userId is required');
-      return res.status(400).json({ message: "userId is required" });
+      return res.status(400).json({ message: 'userId is required' });
     }
 
     // Validate body fields
@@ -43,35 +60,35 @@ export const UploadProjectPdf = async (req, res) => {
       return res.status(400).json({ message: `${missingField[0]} is required` });
     }
 
-    // Parse QuantitiesAndLengths if it's a string
-    let parsedQuantitiesAndLengths;
-    try {
-      parsedQuantitiesAndLengths = typeof QuantitiesAndLengths === 'string' 
-        ? JSON.parse(QuantitiesAndLengths) 
-        : QuantitiesAndLengths;
-    } catch (error) {
-      console.log('Validation failed: Invalid QuantitiesAndLengths JSON:', error.message);
-      return res.status(400).json({ message: "Invalid QuantitiesAndLengths format" });
-    }
-
     // Validate QuantitiesAndLengths array
-    if (!Array.isArray(parsedQuantitiesAndLengths) || parsedQuantitiesAndLengths.length === 0) {
+    if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
       console.log('Validation failed: QuantitiesAndLengths must be a non-empty array');
-      return res.status(400).json({ message: "QuantitiesAndLengths must be a non-empty array" });
+      return res.status(400).json({ message: 'QuantitiesAndLengths must be a non-empty array' });
     }
 
-    for (const item of parsedQuantitiesAndLengths) {
+    for (const item of QuantitiesAndLengths) {
       if (!item.quantity || !item.length) {
-        console.log('Validation failed: Missing quantity or length in QuantitiesAndLengths');
-        return res.status(400).json({ message: "Each item in QuantitiesAndLengths must have quantity and length" });
+        console.log('Validation failed: Each item in QuantitiesAndLengths must have quantity and length');
+        return res.status(400).json({
+          message: 'Each item in QuantitiesAndLengths must have quantity and length',
+        });
       }
+    }
+
+    // Parse data if it's a string
+    let parsedData;
+    try {
+      parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (error) {
+      console.log('Validation failed: Invalid data JSON:', error.message);
+      return res.status(400).json({ message: 'Invalid data format' });
     }
 
     // Check if user exists
     const userExists = await User.exists({ _id: userId });
     if (!userExists) {
       console.log('Validation failed: User not found for userId:', userId);
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Save project to DB
@@ -80,19 +97,19 @@ export const UploadProjectPdf = async (req, res) => {
       Name,
       Code,
       Color,
-      QuantitiesAndLengths: parsedQuantitiesAndLengths, // Store the parsed array
-      data,
+      QuantitiesAndLengths,
+      data: parsedData,
     });
 
     console.log('Project saved:', savedProject);
 
     return res.status(201).json({
-      message: "Project uploaded successfully",
+      message: 'Project uploaded successfully',
       project: savedProject,
     });
   } catch (error) {
-    console.error("UploadProjectPdf error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error('UploadProjectPdf error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 export const UpdateProfile = async (req, res) => {
