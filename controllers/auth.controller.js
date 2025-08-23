@@ -19,7 +19,7 @@ cloudinary.config({
 export const UploadProjectPdf = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { Name, Code, Color, Quantity, TotalLength,data } = req.body;
+    const { Name, Code, Color, QuantitiesAndLengths, data } = req.body;
 
     // Validate userId
     if (!userId) {
@@ -27,10 +27,21 @@ export const UploadProjectPdf = async (req, res) => {
     }
 
     // Validate body fields
-    const requiredFields = { Name, Code, Color, Quantity, TotalLength };
+    const requiredFields = { Name, Code, Color, QuantitiesAndLengths };
     const missingField = Object.entries(requiredFields).find(([key, value]) => !value);
     if (missingField) {
       return res.status(400).json({ message: `${missingField[0]} is required` });
+    }
+
+    // Validate QuantitiesAndLengths array
+    if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
+      return res.status(400).json({ message: "QuantitiesAndLengths must be a non-empty array" });
+    }
+
+    for (const item of QuantitiesAndLengths) {
+      if (!item.quantity || !item.length) {
+        return res.status(400).json({ message: "Each item in QuantitiesAndLengths must have quantity and length" });
+      }
     }
 
     // Check if user exists
@@ -38,28 +49,26 @@ export const UploadProjectPdf = async (req, res) => {
     if (!userExists) {
       return res.status(404).json({ message: "User not found" });
     }
+
     // Save project to DB
     const savedProject = await ProjectData.create({
       userId,
       Name,
-      data,
       Code,
       Color,
-      Quantity,
-      TotalLength
+      QuantitiesAndLengths, // Store the array
+      data,
     });
 
     return res.status(201).json({
       message: "Project uploaded successfully",
-      project: savedProject
+      project: savedProject,
     });
-
   } catch (error) {
     console.error("UploadProjectPdf error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 
 export const UpdateProfile = async (req, res) => {
