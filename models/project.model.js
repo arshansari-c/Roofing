@@ -11,8 +11,18 @@ const ProjectSchema = new Schema(
     Name: { type: String, required: true },
     Code: { type: String, required: true },
     Color: { type: String, required: true },
-    Quantity: { type: Number, required: true },
-    TotalLength: { type: String, required: true }
+    QuantitiesAndLengths: [
+    {
+      quantity: {
+        type: String,
+        required: true,
+      },
+      length: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
   },
   { timestamps: true }
 );
