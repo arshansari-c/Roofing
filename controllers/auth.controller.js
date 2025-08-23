@@ -18,11 +18,20 @@ cloudinary.config({
 });
 export const UploadProjectPdf = async (req, res) => {
   try {
+    console.log('Request received:', {
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      params: req.params,
+      body: req.body,
+    });
+
     const { userId } = req.params;
     const { Name, Code, Color, QuantitiesAndLengths, data } = req.body;
 
     // Validate userId
     if (!userId) {
+      console.log('Validation failed: userId is required');
       return res.status(400).json({ message: "userId is required" });
     }
 
@@ -30,16 +39,30 @@ export const UploadProjectPdf = async (req, res) => {
     const requiredFields = { Name, Code, Color, QuantitiesAndLengths };
     const missingField = Object.entries(requiredFields).find(([key, value]) => !value);
     if (missingField) {
+      console.log(`Validation failed: ${missingField[0]} is required`);
       return res.status(400).json({ message: `${missingField[0]} is required` });
     }
 
+    // Parse QuantitiesAndLengths if it's a string
+    let parsedQuantitiesAndLengths;
+    try {
+      parsedQuantitiesAndLengths = typeof QuantitiesAndLengths === 'string' 
+        ? JSON.parse(QuantitiesAndLengths) 
+        : QuantitiesAndLengths;
+    } catch (error) {
+      console.log('Validation failed: Invalid QuantitiesAndLengths JSON:', error.message);
+      return res.status(400).json({ message: "Invalid QuantitiesAndLengths format" });
+    }
+
     // Validate QuantitiesAndLengths array
-    if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
+    if (!Array.isArray(parsedQuantitiesAndLengths) || parsedQuantitiesAndLengths.length === 0) {
+      console.log('Validation failed: QuantitiesAndLengths must be a non-empty array');
       return res.status(400).json({ message: "QuantitiesAndLengths must be a non-empty array" });
     }
 
-    for (const item of QuantitiesAndLengths) {
+    for (const item of parsedQuantitiesAndLengths) {
       if (!item.quantity || !item.length) {
+        console.log('Validation failed: Missing quantity or length in QuantitiesAndLengths');
         return res.status(400).json({ message: "Each item in QuantitiesAndLengths must have quantity and length" });
       }
     }
@@ -47,6 +70,7 @@ export const UploadProjectPdf = async (req, res) => {
     // Check if user exists
     const userExists = await User.exists({ _id: userId });
     if (!userExists) {
+      console.log('Validation failed: User not found for userId:', userId);
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -56,9 +80,11 @@ export const UploadProjectPdf = async (req, res) => {
       Name,
       Code,
       Color,
-      QuantitiesAndLengths, // Store the array
+      QuantitiesAndLengths: parsedQuantitiesAndLengths, // Store the parsed array
       data,
     });
+
+    console.log('Project saved:', savedProject);
 
     return res.status(201).json({
       message: "Project uploaded successfully",
@@ -69,8 +95,6 @@ export const UploadProjectPdf = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
 export const UpdateProfile = async (req, res) => {
   try {
     // Extract token from header
