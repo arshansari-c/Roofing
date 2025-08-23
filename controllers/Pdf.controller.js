@@ -303,7 +303,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
 export const generatePdf = async (req, res) => {
   try {
-    const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, Notes, emails } = req.body;
+    const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, Notes, AdditionalItems, emails } = req.body;
     const { userId } = req.params;
 
     // Validate inputs
@@ -330,6 +330,9 @@ export const generatePdf = async (req, res) => {
         return res.status(400).json({ message: 'Each QuantitiesAndLengths item must have quantity and length' });
       }
     }
+
+    // Validate AdditionalItems (optional, can be empty string or null)
+    const additionalItemsText = AdditionalItems || '';
 
     // Find user
     const user = await User.findById(userId);
@@ -384,7 +387,7 @@ export const generatePdf = async (req, res) => {
     const pathsPerPage = 4;
     const imagePagesNeeded = Math.ceil(projectData.paths.length / pathsPerPage);
 
-    // Page 1: Company Details, Order Details, Notes, and Table
+    // Page 1: Company Details, Order Details, Notes, Additional Items, and Table
     let y = margin;
 
     // Company Header with Logo on Right
@@ -437,6 +440,20 @@ export const generatePdf = async (req, res) => {
       doc.text(line, margin, y + index * 20);
     });
     y += notes.length * 20 + 24;
+
+    // Additional Items Section
+    if (additionalItemsText) {
+      doc.font('Helvetica-Bold').fontSize(16).fillColor('red')
+        .text('Additional Items', margin, y);
+      y += 20;
+      doc.font('Helvetica').fontSize(14).fillColor('black');
+      const additionalItemsLines = additionalItemsText.split('\n');
+      additionalItemsLines.forEach((line) => {
+        doc.text(`• ${line.trim()}`, margin, y);
+        y += 18;
+      });
+      y += 24;
+    }
 
     // Table Header
     const headers = ['#', 'Name', 'Code', 'Color', 'Q x L', 'Folds', 'Girth'];
@@ -667,7 +684,7 @@ export const generatePdf = async (req, res) => {
             Number: ${Number}<br>
             Order Contact: ${OrderContact}<br>
             Order Date: ${OrderDate}<br>
-            ${DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`}${Notes ? `<br>Notes: ${Notes}` : ''}
+            ${DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`}${Notes ? `<br>Notes: ${Notes}` : ''}${additionalItemsText ? `<br>Additional Items:<br>${additionalItemsText.split('\n').map(line => line.trim()).filter(Boolean).join('<br>')}` : ''}
           </p>
         `,
         attachments: [
@@ -700,6 +717,7 @@ export const generatePdf = async (req, res) => {
         DeliveryAddress: DeliveryAddress || null,
         PickupNotes: PickupNotes || null,
         Notes: Notes || null,
+        AdditionalItems: additionalItemsText || null,
         QuantitiesAndLengths,
       }).save();
       console.log('Project order saved successfully');
