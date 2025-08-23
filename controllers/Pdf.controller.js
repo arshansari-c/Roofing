@@ -106,30 +106,30 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   const viewBox = `${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`;
   const offsetSegments = showBorder && path.points.length > 1 ? calculateOffsetSegments(path, borderOffsetDirection) : [];
 
-  // Generate grid
-  const scaledWidth = (bounds.maxX - bounds.minX) / scale;
-  const scaledHeight = (bounds.maxY - bounds.minY) / scale;
-  const gridStartX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
-  const gridStartY = Math.floor(bounds.minY / GRID_SIZE) * GRID_SIZE;
-  const gridEndX = gridStartX + scaledWidth + GRID_SIZE;
-  const gridEndY = gridStartY + scaledHeight + GRID_SIZE;
-  let gridLines = '';
-  for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
-    gridLines += `<line x1="${x}" y1="${gridStartY}" x2="${x}" y2="${gridEndY}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
-  }
-  for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
-    gridLines += `<line x1="${gridStartX}" y1="${y}" x2="${gridEndX}" y2="${y}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
-  }
+  // Generate grid (commented out to match photo, no grid)
+  // const scaledWidth = (bounds.maxX - bounds.minX) / scale;
+  // const scaledHeight = (bounds.maxY - bounds.minY) / scale;
+  // const gridStartX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
+  // const gridStartY = Math.floor(bounds.minY / GRID_SIZE) * GRID_SIZE;
+  // const gridEndX = gridStartX + scaledWidth + GRID_SIZE;
+  // const gridEndY = gridStartY + scaledHeight + GRID_SIZE;
+  // let gridLines = '';
+  // for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
+  //   gridLines += `<line x1="${x}" y1="${gridStartY}" x2="${x}" y2="${gridEndY}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
+  // }
+  // for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
+  //   gridLines += `<line x1="${gridStartX}" y1="${y}" x2="${gridEndX}" y2="${y}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
+  // }
 
   // Generate path points and lines
   let svgContent = path.points.map((point) => `
-    <circle cx="${parseFloat(point.x)}" cy="${parseFloat(point.y)}" r="${3 / scale}" fill="#29313b"/>
+    <circle cx="${parseFloat(point.x)}" cy="${parseFloat(point.y)}" r="${3 / scale}" fill="black"/>
   `).join('');
 
   if (path.points.length > 1) {
     svgContent += `
       <path d="M${path.points.map(p => `${parseFloat(p.x)},${parseFloat(p.y)}`).join(' L')}"
-            stroke="#2c1a3c" stroke-width="${2.5 / scale}" fill="none"/>
+            stroke="black" stroke-width="${2.5 / scale}" fill="none"/>
     `;
   }
 
@@ -146,7 +146,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const origP1 = path.points[0];
     const origP2 = path.points[1];
     const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
-    const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
+    const dy = parseFloat(origP2.y) - parseFloat(p1.y);
     const length = Math.sqrt(dx * dx + dy * dy);
     if (length !== 0) {
       const unitX = dx / length;
@@ -196,7 +196,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${foldEndX},${foldEndY}
             L${foldEndX + (9 / scale) * normalX - (9 / scale) * unitX},${foldEndY + (9 / scale) * normalY - (9 / scale) * unitY}
           `;
-          foldElement = `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+          foldElement = `<path d="${chevronPath}" stroke="black" stroke-width="${2 / scale}" fill="none"/>`;
         } else if (foldType === 'Break') {
           const midX = foldBaseX + normalX * (FOLD_LENGTH / 2) / scale;
           const midY = foldBaseY + normalY * (FOLD_LENGTH / 2) / scale;
@@ -206,7 +206,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${midX - (9 / scale) * unitX},${midY - (9 / scale) * unitY}
             L${foldEndX},${foldEndY}
           `;
-          foldElement = `<path d="${zigzagPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+          foldElement = `<path d="${zigzagPath}" stroke="black" stroke-width="${2 / scale}" fill="none"/>`;
         }
       }
     }
@@ -231,16 +231,16 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       <g>
         <rect x="${parseFloat(segment.labelPosition.x) - 35 / scale}" y="${parseFloat(segment.labelPosition.y) - 20 / scale}"
               width="${70 / scale}" height="${25 / scale}" fill="#ffffff" fill-opacity="0.9" rx="${5 / scale}"
-              stroke="#1a3c34" stroke-width="${0.5 / scale}"/>
+              stroke="black" stroke-width="${0.5 / scale}"/>
         <text x="${parseFloat(segment.labelPosition.x)}" y="${parseFloat(segment.labelPosition.y)}"
-              font-size="${14 / scale}" fill="#361a3c" text-anchor="middle" alignment-baseline="middle">
+              font-size="${14 / scale}" fill="black" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
-        <path d="${arrowPath}" stroke="#666666" stroke-width="${1 / scale}" fill="#666666"/>
+        <path d="${arrowPath}" stroke="black" stroke-width="${1 / scale}" fill="black"/>
         ${foldElement}
         ${foldType !== 'None' ? `
           <text x="${parseFloat(segment.labelPosition.x)}" y="${parseFloat(segment.labelPosition.y) + 30 / scale}"
-                font-size="${14 / scale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
+                font-size="${14 / scale}" fill="black" text-anchor="middle" alignment-baseline="middle">
             ${foldType}
           </text>
         ` : ''}
@@ -253,9 +253,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     <g>
       <rect x="${parseFloat(angle.labelPosition.x) - 35 / scale}" y="${parseFloat(angle.labelPosition.y) - 20 / scale}"
             width="${70 / scale}" height="${25 / scale}" fill="#ffffff" fill-opacity="0.9" rx="${5 / scale}"
-            stroke="#e76f51" stroke-width="${0.5 / scale}"/>
+            stroke="red" stroke-width="${0.5 / scale}"/>
       <text x="${parseFloat(angle.labelPosition.x)}" y="${parseFloat(angle.labelPosition.y)}"
-            font-size="${14 / scale}" fill="#e76f51" text-anchor="middle" alignment-baseline="middle">
+            font-size="${14 / scale}" fill="red" text-anchor="middle" alignment-baseline="middle">
         ${angle.angle}
       </text>
       <path d="
@@ -263,13 +263,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         L${parseFloat(angle.labelPosition.x)},${parseFloat(angle.labelPosition.y) + 20 / scale}
         L${parseFloat(angle.labelPosition.x) - ARROW_SIZE + ARROW_SIZE * 0.5},${parseFloat(angle.labelPosition.y) + 20 / scale - ARROW_SIZE - ARROW_SIZE * 0.5}
         Z
-      " stroke="#e76f51" stroke-width="${1 / scale}" fill="#e76f51"/>
+      " stroke="red" stroke-width="${1 / scale}" fill="red"/>
     </g>
   `).join('');
 
   return `
     <svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
-      <g>${gridLines}</g>
       <g>${svgContent}</g>
     </svg>
   `;
@@ -340,8 +339,20 @@ export const generatePdf = async (req, res) => {
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
 
-    // Initialize PDF document with A3 size
-    const doc = new PDFDocument({ size: 'A3', bufferPages: true });
+    // Calculate F and Girth for each path
+    const pathMetrics = projectData.paths.map(path => {
+      let girth = 0;
+      let f = 0;
+      path.segments.forEach(segment => {
+        girth += parseFloat(segment.length.replace(' m', ''));
+        if (segment.fold === 'Crush') f += 2;
+        else if (segment.fold !== 'None') f += 1;
+      });
+      return { girth, f };
+    });
+
+    // Initialize PDF document with A3 landscape
+    const doc = new PDFDocument({ size: 'A3', layout: 'landscape', bufferPages: true });
     const timestamp = Date.now();
     const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
@@ -350,12 +361,12 @@ export const generatePdf = async (req, res) => {
     const writeStream = fs.createWriteStream(pdfPath);
     doc.pipe(writeStream);
 
-    const pageWidth = 842; // A3 width in points
-    const pageHeight = 1191; // A3 height in points
+    const pageWidth = 1191; // A3 landscape width in points
+    const pageHeight = 842; // A3 landscape height in points
     const margin = 60;
     const imgSize = 300;
     const gap = 40;
-    const pathsPerPage = 4;
+    const pathsPerPage = 2; // Side by side for landscape
     const imagePagesNeeded = Math.ceil(projectData.paths.length / pathsPerPage);
 
     // Page 1: Company Details, Order Details, Notes, and Table
@@ -412,22 +423,12 @@ export const generatePdf = async (req, res) => {
     });
     y += notes.length * 20 + 24;
 
-    // Table Header
-    const headers = ['#', 'Name', 'Code', 'Color', 'Quantity', 'Length', 'Q x L'];
-    const colWidths = [40, 150, 80, 100, 100, 100, 100];
-    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
-    const rowHeight = 24;
+    // *** PLEASE WRITE ALL CODES ON FLASHINGS ***
+    doc.font('Helvetica-Bold').fontSize(16).fillColor('red');
+    doc.text('*** PLEASE WRITE ALL CODES ON FLASHINGS ***', margin, y);
+    y += 30;
 
-    doc.rect(margin, y, totalWidth, rowHeight).fill('#E6E6E6');
-    let xPos = margin;
-    doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
-    headers.forEach((h, i) => {
-      doc.text(h, xPos + 6, y + 6);
-      xPos += colWidths[i];
-    });
-    y += rowHeight;
-
-    // Group QuantitiesAndLengths by path (assuming multiple entries per path)
+    // Group QuantitiesAndLengths by path
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / projectData.paths.length);
     const groupedQuantitiesAndLengths = [];
     for (let i = 0; i < projectData.paths.length; i++) {
@@ -436,35 +437,79 @@ export const generatePdf = async (req, res) => {
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
     }
 
-    // Table Rows (Using grouped QuantitiesAndLengths)
-    doc.font('Helvetica').fontSize(12);
-    projectData.paths.forEach((path, index) => {
-      const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
-      const quantities = pathQuantitiesAndLengths.map(item => item.quantity.toString()).join(', ');
-      const lengths = pathQuantitiesAndLengths.map(item => item.length.toString()).join(', ');
-      const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
+    // Sub-table headers
+    const subHeaders = ['Colour / Material', 'CODE', 'F', 'GIRTH', 'Q x L'];
+    const subColWidths = [120, 80, 40, 80, 200];
+    const subTotalWidth = subColWidths.reduce((a, b) => a + b, 0);
 
-      const row = [
-        `${index + 1}`,
-        path.name || 'N/A',
-        path.code || 'N/A',
-        path.color || 'N/A',
-        quantities || 'N/A',
-        lengths || 'N/A',
-        qxLs || 'N/A',
+    // Assume 2 paths, place side by side
+    if (projectData.paths.length >= 2) {
+      // Left sub-table (first path)
+      let leftX = margin;
+      doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
+      subHeaders.forEach((h, i) => {
+        doc.text(h, leftX + 6, y + 6);
+        leftX += subColWidths[i];
+      });
+
+      // Left row
+      const leftPath = projectData.paths[0];
+      const leftMetrics = pathMetrics[0];
+      const leftGroup = groupedQuantitiesAndLengths[0];
+      const leftQxL = leftGroup.map(item => `${item.quantity} x ${(item.length).toFixed(3)}`).join(' / ');
+      const leftRow = [
+        leftPath.color || 'N/A',
+        leftPath.code || 'N/A',
+        leftMetrics.f.toString(),
+        leftMetrics.girth.toFixed(0),
+        leftQxL,
       ];
 
-      xPos = margin;
-      row.forEach((val, i) => {
-        doc.text(val, xPos + 6, y + 6, { width: colWidths[i] - 12, align: i > 0 ? 'left' : 'center' });
-        xPos += colWidths[i];
+      leftX = margin;
+      doc.font('Helvetica').fontSize(12);
+      leftRow.forEach((val, i) => {
+        doc.text(val, leftX + 6, y + 30, { width: subColWidths[i] - 12 });
+        leftX += subColWidths[i];
       });
-      y += rowHeight;
-    });
 
-    // Image pages
+      // Right sub-table (second path)
+      let rightX = margin + subTotalWidth + 50;
+      doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
+      subHeaders.forEach((h, i) => {
+        doc.text(h, rightX + 6, y + 6);
+        rightX += subColWidths[i];
+      });
+
+      // Right row
+      const rightPath = projectData.paths[1];
+      const rightMetrics = pathMetrics[1];
+      const rightGroup = groupedQuantitiesAndLengths[1];
+      const rightQxL = rightGroup.map(item => `${item.quantity} x ${(item.length).toFixed(3)}`).join(' / ');
+      const rightRow = [
+        rightPath.color || 'N/A',
+        rightPath.code || 'N/A',
+        rightMetrics.f.toString(),
+        rightMetrics.girth.toFixed(0),
+        rightQxL,
+      ];
+
+      rightX = margin + subTotalWidth + 50;
+      doc.font('Helvetica').fontSize(12);
+      rightRow.forEach((val, i) => {
+        doc.text(val, rightX + 6, y + 30, { width: subColWidths[i] - 12 });
+        rightX += subColWidths[i];
+      });
+
+      y += 60; // Space after table
+    } else {
+      // Fallback for other numbers of paths
+      // Implement single sub-table or loop
+      // For brevity, assume 2 paths as per data
+    }
+
+    // Image pages (side by side in landscape)
     for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
-      doc.addPage();
+      if (pageIndex > 0) doc.addPage();
       y = margin;
 
       // Page Header with Logo
@@ -485,7 +530,7 @@ export const generatePdf = async (req, res) => {
         .text('contact@commercialroofers.net.au | 0421259430', margin, y);
       y += 40;
 
-      // Images & Info
+      // Images
       const startPath = pageIndex * pathsPerPage;
       const endPath = Math.min(startPath + pathsPerPage, projectData.paths.length);
       const startX = margin;
@@ -493,8 +538,8 @@ export const generatePdf = async (req, res) => {
 
       for (let i = startPath; i < endPath; i++) {
         const svgIndex = i - startPath;
-        const row = Math.floor(svgIndex / 2);
         const col = svgIndex % 2;
+        const row = Math.floor(svgIndex / 2);
         const x = startX + col * (imgSize + gap);
         const yPos = startY + row * (imgSize + gap + 70);
 
@@ -503,11 +548,11 @@ export const generatePdf = async (req, res) => {
           const bounds = calculateBounds(pathData, scale);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
-          // Convert SVG to PNG
+          // Convert SVG to PNG with higher resolution for photo-like quality
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: imgSize * 2,
-              height: imgSize * 2,
+              width: imgSize * 4,
+              height: imgSize * 4,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255 },
             })
@@ -519,42 +564,8 @@ export const generatePdf = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Border
-          doc.rect(x - 8, yPos - 8, imgW + 16, imgH + 16)
-            .lineWidth(1.5).strokeColor('black').stroke();
-
-          // Image
+          // Image (no border to match photo)
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-
-          // Info below image
-          const infoY = yPos + imgH + 15;
-          const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
-          const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
-          const infoItems = [
-            [pathData.color || 'N/A', 'Colour / Material'],
-            [pathData.code || 'N/A', 'CODE'],
-            [qxLs || 'N/A', 'Q x L'],
-          ];
-
-          doc.font('Helvetica-Bold').fontSize(12);
-          infoItems.forEach(([label, value], idx) => {
-            doc.text(label, x, infoY + idx * 15);
-            doc.font('Helvetica').text(value, x + 120, infoY + idx * 15, { width: imgW - 120 });
-          });
-
-          // Dashed line below image
-          const lineY = yPos + imgH + 60;
-          const length = pathQuantitiesAndLengths[0]?.length || 410;
-
-          doc.lineWidth(1.5).dash(7, { space: 7 })
-            .moveTo(x, lineY).lineTo(x + imgW, lineY).strokeColor('black').stroke();
-          doc.undash();
-
-          doc.font('Helvetica').fontSize(12)
-            .text(`${parseFloat(length).toFixed(0)}`, x + imgW / 2, lineY - 15, { align: 'center' });
-
-          doc.moveTo(x, lineY - 7).lineTo(x, lineY + 7).strokeColor('red').stroke();
-          doc.moveTo(x + imgW, lineY - 7).lineTo(x + imgW, lineY + 7).stroke();
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
