@@ -369,7 +369,7 @@ export const generatePdf = async (req, res) => {
     // Initialize PDF document with A3 size
     const doc = new PDFDocument({ size: 'A3', bufferPages: true });
     const timestamp = Date.now();
-    const pdfPath = path.join(UploadsDir, `project-${timestamp}.pdf`);
+    const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
 
     // Create a write stream and pipe the document to it
