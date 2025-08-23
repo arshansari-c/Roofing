@@ -9,9 +9,9 @@ import mongoose from 'mongoose';
 import { User } from '../models/auth.model.js';
 import { ProjectOrder } from '../models/ProjectOrder.model.js';
 import { transporter } from '../util/EmailTransporter.js';
-import dotenv from "dotenv"
+import dotenv from 'dotenv';
 
-dotenv.config()
+dotenv.config();
 
 // Cloudinary config
 cloudinary.config({
@@ -20,9 +20,10 @@ cloudinary.config({
   api_secret: process.env.CLOUDNARY_SECRET,
 });
 
-// Derive __dirname for ES6 modules
+// Derive __dirname for ES modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Create uploads directory if it doesn't exist
+
+// Create uploads directory
 const uploadsDir = path.join(__dirname, 'Uploads');
 await fsPromises.mkdir(uploadsDir, { recursive: true }).catch((err) => {
   console.error('Failed to create uploads directory:', err.message);
@@ -90,14 +91,8 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
     const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
 
     offsetSegments.push({
-      p1: {
-        x: parseFloat(p1.x) + normalX * offsetDistance,
-        y: parseFloat(p1.y) + normalY * offsetDistance,
-      },
-      p2: {
-        x: parseFloat(p2.x) + normalX * offsetDistance,
-        y: parseFloat(p2.y) + normalY * offsetDistance,
-      },
+      p1: { x: parseFloat(p1.x) + normalX * offsetDistance, y: parseFloat(p1.y) + normalY * offsetDistance },
+      p2: { x: parseFloat(p2.x) + normalX * offsetDistance, y: parseFloat(p2.y) + normalY * offsetDistance },
     });
   }
   return offsetSegments;
@@ -124,7 +119,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
 
   // Generate path points and lines
-  let svgContent = path.points.map((point, i) => `
+  let svgContent = path.points.map((point) => `
     <circle cx="${parseFloat(point.x)}" cy="${parseFloat(point.y)}" r="${3 / scale}" fill="#29313b"/>
   `).join('');
 
@@ -137,7 +132,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   // Generate offset segments for border
   if (showBorder && offsetSegments.length > 0) {
-    svgContent += offsetSegments.map((segment, i) => `
+    svgContent += offsetSegments.map((segment) => `
       <line x1="${segment.p1.x}" y1="${segment.p1.y}" x2="${segment.p2.x}" y2="${segment.p2.y}"
             stroke="#cccccc" stroke-width="${3 / scale}" stroke-dasharray="${6 / scale},${4 / scale}"/>
     `).join('');
@@ -203,7 +198,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const midX = foldBaseX + normalX * (FOLD_LENGTH / 2) / scale;
           const midY = foldBaseY + normalY * (FOLD_LENGTH / 2) / scale;
           const zigzagPath = `
-            M${foldBaseX},${foldBaseX}
+            M${foldBaseX},${foldBaseY}
             L${midX + (9 / scale) * unitX},${midY + (9 / scale) * unitY}
             L${midX - (9 / scale) * unitX},${midY - (9 / scale) * unitY}
             L${foldEndX},${foldEndY}
@@ -277,92 +272,106 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   `;
 };
 
-// Backend route handler
 export const generatePdf = async (req, res) => {
   try {
-    const {
-      selectedProjectData,
-      JobReference,
-      Number,
-      OrderContact,
-      OrderDate,
-      DeliveryAddress,
-      PickupNotes,
-      Notes,
-      emails,
-    } = req.body;
-
+    const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, Notes, emails } = req.body;
     const { userId } = req.params;
 
-    // Basic validations
+    // Validate inputs
     if (!JobReference || !Number || !OrderContact || !OrderDate) {
       return res.status(400).json({ message: 'JobReference, Number, OrderContact, and OrderDate are required' });
     }
-
-    if ((!DeliveryAddress && !PickupNotes) || (DeliveryAddress && PickupNotes)) {
-      return res.status(400).json({ message: 'Provide either DeliveryAddress or PickupNotes' });
+    if (!DeliveryAddress && !PickupNotes) {
+      return res.status(400).json({ message: 'Either DeliveryAddress or PickupNotes is required' });
     }
-
+    if (DeliveryAddress && PickupNotes) {
+      return res.status(400).json({ message: 'Provide either DeliveryAddress or PickupNotes, not both' });
+    }
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'Valid userId is required' });
     }
 
-    // Fetch user
+    // Validate QuantitiesAndLengths
+    const QuantitiesAndLengths = selectedProjectData?.QuantitiesAndLengths || [];
+    if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
+      return res.status(400).json({ message: 'QuantitiesAndLengths must be a non-empty array' });
+    }
+    for (const item of QuantitiesAndLengths) {
+      if (!item.quantity || !item.length) {
+        return res.status(400).json({ message: 'Each QuantitiesAndLengths item must have quantity and length' });
+      }
+    }
+
+    // Find user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Validate and parse emails
-    let emailList = typeof emails === 'string' ? emails.split(',').map(e => e.trim()) : emails;
+    // Validate email list
+    let emailList = emails;
+    if (!emailList) return res.status(400).json({ message: 'Emails are required' });
+    if (typeof emailList === 'string') {
+      emailList = emailList.split(',').map(e => e.trim()).filter(Boolean);
+    }
     if (!Array.isArray(emailList) || emailList.length === 0) {
       return res.status(400).json({ message: 'Emails must be a non-empty array' });
     }
-    const invalidEmails = emailList.filter(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidEmails = emailList.filter(email => !emailRegex.test(email));
     if (invalidEmails.length > 0) {
       return res.status(400).json({ message: 'Invalid emails', invalidEmails });
     }
 
-    // Validate selectedProjectData
+    // Validate project data
     let projectData;
     try {
-      projectData = typeof selectedProjectData === 'string'
-        ? JSON.parse(selectedProjectData)
-        : selectedProjectData;
-
+      projectData = typeof selectedProjectData === 'string' ? JSON.parse(selectedProjectData) : selectedProjectData;
       if (!projectData?.paths?.length) {
-        throw new Error('Missing drawing paths');
+        throw new Error('No valid paths');
       }
-    } catch (err) {
-      return res.status(400).json({ message: 'Invalid project data', error: err.message });
+    } catch (error) {
+      console.error('Error parsing projectData:', error.message);
+      return res.status(400).json({ message: 'Invalid project data' });
     }
 
-    const quantitiesAndLengths = projectData.QuantitiesAndLengths || [];
     const scale = parseFloat(projectData.scale) || 1;
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
 
-    // Setup PDF document
+    // Initialize PDF document with A3 size
     const doc = new PDFDocument({ size: 'A3', bufferPages: true });
     const timestamp = Date.now();
     const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
+    console.log('Saving PDF to:', pdfPath);
+
+    // Create a write stream and pipe the document to it
     const writeStream = fs.createWriteStream(pdfPath);
     doc.pipe(writeStream);
 
-    const pageWidth = 842;
+    const pageWidth = 842; // A3 width in points
+    const pageHeight = 1191; // A3 height in points
     const margin = 60;
+    const imgSize = 300;
+    const gap = 40;
+    const pathsPerPage = 4;
+    const imagePagesNeeded = Math.ceil(projectData.paths.length / pathsPerPage);
+
+    // Page 1: Company Details, Order Details, Notes, and Table
     let y = margin;
 
-    // Header
+    // Company Header with Logo on Right
     try {
       const logo = doc.openImage(logoPath);
       const logoHeight = 50;
       const logoWidth = (logo.width * logoHeight) / logo.height;
       doc.image(logo, pageWidth - margin - logoWidth, y, { width: logoWidth, height: logoHeight });
-      doc.font('Helvetica-Bold').fontSize(24).text('Commercial Roofers Pty Ltd', margin, y + 10);
-    } catch {
-      doc.font('Helvetica-Bold').fontSize(24).text('Commercial Roofers Pty Ltd', margin, y);
+      doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
+        .text('Commercial Roofers Pty Ltd', margin, y + (logoHeight - 24) / 2);
+    } catch (err) {
+      console.warn('Failed to load logo:', err.message);
+      doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
+        .text('Commercial Roofers Pty Ltd', margin, y);
     }
-
-    y += 60;
+    y += 50; // Adjust for logo height
     doc.font('Helvetica').fontSize(14)
       .text('contact@commercialroofers.net.au | 0421259430', margin, y);
     y += 40;
@@ -373,134 +382,285 @@ export const generatePdf = async (req, res) => {
       `PO Number: ${Number}`,
       `Order Contact: ${OrderContact}`,
       `Order Date: ${OrderDate}`,
-      DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`,
+      DeliveryAddress ? `DeliveryAddress: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`,
     ];
 
-    orderDetails.forEach(detail => {
-      doc.text(detail, margin, y);
+    doc.font('Helvetica').fontSize(14);
+    orderDetails.forEach((text) => {
+      doc.text(text, margin, y);
       y += 20;
     });
+    y += 24;
 
-    y += 20;
-
-    // Notes
+    // Notes Section
     const notes = [
       '• Arrow points to the (solid) coloured side',
       '• 90° degrees are not labelled',
       '• F = Total number of folds, each crush counts as 2 folds',
     ];
-    if (Notes) notes.push(`• ${Notes}`);
-    notes.forEach(note => {
-      doc.text(note, margin, y);
-      y += 20;
-    });
 
-    y += 20;
-
-    // Quantities and Lengths Table
-    if (quantitiesAndLengths.length > 0) {
-      doc.font('Helvetica-Bold').fontSize(16).text('Quantities & Lengths', margin, y);
-      y += 24;
-
-      const headers = ['#', 'Quantity', 'Length'];
-      const colWidths = [40, 100, 100];
-      const rowHeight = 24;
-
-      doc.rect(margin, y, colWidths.reduce((a, b) => a + b, 0), rowHeight).fill('#E6E6E6');
-      let xPos = margin;
-      doc.font('Helvetica-Bold').fontSize(14);
-      headers.forEach((header, i) => {
-        doc.text(header, xPos + 6, y + 6);
-        xPos += colWidths[i];
-      });
-
-      y += rowHeight;
-      doc.font('Helvetica').fontSize(14);
-
-      quantitiesAndLengths.forEach((item, idx) => {
-        const row = [idx + 1, item.quantity || '0', item.length || '0'];
-        xPos = margin;
-        row.forEach((val, i) => {
-          doc.text(val.toString(), xPos + 6, y + 6);
-          xPos += colWidths[i];
-        });
-        y += rowHeight;
-      });
-
-      y += 20;
+    if (Notes) {
+      notes.push(`• ${Notes}`);
     }
 
-    // TODO: Render drawing table & images (same as your existing code logic)
+    doc.font('Helvetica-Bold').fontSize(16);
+    notes.forEach((line, index) => {
+      doc.text(line, margin, y + index * 20);
+    });
+    y += notes.length * 20 + 24;
 
-    // Finalize PDF
+    // Table Header
+    const headers = ['#', 'Name', 'Code', 'Color', 'Quantity', 'Length', 'Q x L'];
+    const colWidths = [40, 150, 80, 100, 80, 80, 80];
+    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+    const rowHeight = 24;
+
+    doc.rect(margin, y, totalWidth, rowHeight).fill('#E6E6E6');
+    let xPos = margin;
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
+    headers.forEach((h, i) => {
+      doc.text(h, xPos + 6, y + 6);
+      xPos += colWidths[i];
+    });
+    y += rowHeight;
+
+    // Table Rows (Using QuantitiesAndLengths)
+    doc.font('Helvetica').fontSize(14);
+    QuantitiesAndLengths.forEach((item, index) => {
+      const qxL = (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2);
+      const row = [
+        `${index + 1}`,
+        projectData.paths[index]?.name || 'N/A',
+        projectData.paths[index]?.code || 'N/A',
+        projectData.paths[index]?.color || 'N/A',
+        item.quantity.toString(),
+        item.length.toString(),
+        qxL,
+      ];
+
+      xPos = margin;
+      row.forEach((val, i) => {
+        doc.text(val, xPos + 6, y + 6);
+        xPos += colWidths[i];
+      });
+      y += rowHeight;
+    });
+
+    // Image pages
+    for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
+      doc.addPage();
+      y = margin;
+
+      // Page Header with Logo
+      try {
+        const logo = doc.openImage(logoPath);
+        const logoHeight = 50;
+        const logoWidth = (logo.width * logoHeight) / logo.height;
+        doc.image(logo, pageWidth - margin - logoWidth, y, { width: logoWidth, height: logoHeight });
+        doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
+          .text('Commercial Roofers Pty Ltd', margin, y + (logoHeight - 24) / 2);
+      } catch (err) {
+        console.warn('Failed to load logo:', err.message);
+        doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
+          .text('Commercial Roofers Pty Ltd', margin, y);
+      }
+      y += 50;
+      doc.font('Helvetica').fontSize(14)
+        .text('contact@commercialroofers.net.au | 0421259430', margin, y);
+      y += 40;
+
+      // Images & Info
+      const startPath = pageIndex * pathsPerPage;
+      const endPath = Math.min(startPath + pathsPerPage, projectData.paths.length);
+      const startX = margin;
+      const startY = y;
+
+      for (let i = startPath; i < endPath; i++) {
+        const svgIndex = i - startPath;
+        const row = Math.floor(svgIndex / 2);
+        const col = svgIndex % 2;
+        const x = startX + col * (imgSize + gap);
+        const yPos = startY + row * (imgSize + gap + 70);
+
+        try {
+          const pathData = projectData.paths[i];
+          const bounds = calculateBounds(pathData, scale);
+          const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
+
+          // Convert SVG to PNG
+          const imageBuffer = await sharp(Buffer.from(svgString))
+            .resize({
+              width: imgSize * 2,
+              height: imgSize * 2,
+              fit: 'contain',
+              background: { r: 255, g: 255, b: 255 },
+            })
+            .png({ quality: 100, compressionLevel: 0 })
+            .toBuffer();
+
+          // Embed image in PDF
+          const img = doc.openImage(imageBuffer);
+          const imgW = imgSize;
+          const imgH = (img.height * imgW) / img.width;
+
+          // Border
+          doc.rect(x - 8, yPos - 8, imgW + 16, imgH + 16)
+            .lineWidth(1.5).strokeColor('black').stroke();
+
+          // Image
+          doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+
+          // Info below image
+          const infoY = yPos + imgH + 15;
+          const qxL = QuantitiesAndLengths[i] ? (parseFloat(QuantitiesAndLengths[i].quantity) * parseFloat(QuantitiesAndLengths[i].length)).toFixed(2) : 'N/A';
+          const infoItems = [
+            [pathData.color || 'N/A', 'Colour / Material'],
+            [pathData.code || 'N/A', 'CODE'],
+            [qxL, 'Q x L'],
+          ];
+
+          doc.font('Helvetica-Bold').fontSize(12);
+          infoItems.forEach(([label, value], idx) => {
+            doc.text(label, x, infoY + idx * 15);
+            doc.font('Helvetica').text(value, x + 120, infoY + idx * 15);
+          });
+
+          // Dashed line below image
+          const lineY = yPos + imgH + 60;
+          const length = QuantitiesAndLengths[i]?.length || 410;
+
+          doc.lineWidth(1.5).dash(7, { space: 7 })
+            .moveTo(x, lineY).lineTo(x + imgW, lineY).strokeColor('black').stroke();
+          doc.undash();
+
+          doc.font('Helvetica').fontSize(12)
+            .text(`${parseFloat(length).toFixed(0)}`, x + imgW / 2, lineY - 15, { align: 'center' });
+
+          doc.moveTo(x, lineY - 7).lineTo(x, lineY + 7).strokeColor('red').stroke();
+          doc.moveTo(x + imgW, lineY - 7).lineTo(x + imgW, lineY + 7).stroke();
+        } catch (err) {
+          console.warn(`Image error (path ${i}):`, err.message);
+          doc.font('Helvetica').fontSize(14)
+            .text(`Image unavailable`, x, yPos);
+        }
+      }
+    }
+
+    // Finalize the PDF
     doc.flushPages();
     doc.end();
 
+    // Wait for the PDF to be written
     await new Promise((resolve, reject) => {
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
+      writeStream.on('finish', () => {
+        console.log('PDF written successfully to:', pdfPath);
+        resolve();
+      });
+      writeStream.on('error', (error) => {
+        console.error('Write stream error:', error.message);
+        reject(error);
+      });
     });
 
-    const uploadResult = await cloudinary.uploader.upload(pdfPath, {
-      folder: 'freelancers',
-      resource_type: 'raw',
-      access_mode: 'public',
-    });
+    // Verify file exists
+    const exists = await fsPromises.access(pdfPath).then(() => true).catch(() => false);
+    if (!exists) {
+      console.error('PDF file not found at:', pdfPath);
+      return res.status(500).json({ message: 'PDF file not generated' });
+    }
 
-    // Send Email
-    await transporter.sendMail({
-      from: `"${user.name}" <${user.email}>`,
-      to: emailList,
-      subject: 'New Flashing Order',
-      html: `
-        <p>Please find the attached flashing order PDF.</p>
-        <p>info@commercialroofers.net.au | 0421259430</p>
-        <p>
-          Job Reference: ${JobReference}<br>
-          Number: ${Number}<br>
-          Order Contact: ${OrderContact}<br>
-          Order Date: ${OrderDate}<br>
-          ${DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`}<br>
-          ${Notes ? `Notes: ${Notes}` : ''}
-        </p>
-      `,
-      attachments: [{
-        filename: `${JobReference || 'FlashingOrder'}.pdf`,
-        path: pdfPath,
-        contentType: 'application/pdf',
-      }],
-    });
+    // Upload to Cloudinary
+    let uploadResult;
+    try {
+      uploadResult = await cloudinary.uploader.upload(pdfPath, {
+        folder: 'freelancers',
+        resource_type: 'raw',
+        access_mode: 'public',
+      });
+      console.log('Cloudinary upload result:', JSON.stringify(uploadResult, null, 2));
+    } catch (uploadError) {
+      console.error('Cloudinary upload error:', uploadError.message);
+      return res.status(500).json({ message: 'Failed to upload PDF to Cloudinary', error: uploadError.message });
+    }
 
-    // Save Order
-    await new ProjectOrder({
-      userId: userId,
-      pdf: [{ public_id: uploadResult.public_id, url: uploadResult.secure_url }],
-      JobReference,
-      Number,
-      OrderContact,
-      OrderDate,
-      DeliveryAddress: DeliveryAddress || null,
-      PickupNotes: PickupNotes || null,
-      Notes: Notes || null,
-      data: {
-        ...projectData,
-        QuantitiesAndLengths: quantitiesAndLengths, // <-- ✅ Saved
-      },
-    }).save();
+    if (!uploadResult || !uploadResult.public_id || !uploadResult.secure_url) {
+      console.error('Cloudinary upload result is invalid:', uploadResult);
+      return res.status(500).json({ message: 'Invalid Cloudinary upload result' });
+    }
 
-    // Cleanup
-    await fsPromises.unlink(pdfPath);
+    // Send email with PDF attachment
+    try {
+      const info = await transporter.sendMail({
+        from: `"${user.name}" <${user.email}>`,
+        to: emailList,
+        subject: 'New Flashing Order',
+        html: `
+          <p>Please find the attached flashing order PDF.</p>
+          <p>info@commercialroofers.net.au | 0421259430</p>
+          <p>
+            Job Reference: ${JobReference}<br>
+            Number: ${Number}<br>
+            Order Contact: ${OrderContact}<br>
+            Order Date: ${OrderDate}<br>
+            ${DeliveryAddress ? `Delivery Address: ${DeliveryAddress}` : `Pickup Notes: ${PickupNotes || 'N/A'}`}${Notes ? `<br>Notes: ${Notes}` : ''}
+          </p>
+        `,
+        attachments: [
+          {
+            filename: `${JobReference || 'FlashingOrder'}.pdf`,
+            path: pdfPath,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+      console.log('Email sent successfully:', info.messageId);
+    } catch (emailError) {
+      console.error('Email sending error:', emailError.message);
+      return res.status(500).json({ message: 'Failed to send email', error: emailError.message });
+    }
+
+    // Save order in DB
+    try {
+      await new ProjectOrder({
+        userId: userId,
+        pdf: [{
+          public_id: uploadResult.public_id,
+          url: uploadResult.secure_url,
+        }],
+        JobReference,
+        data: selectedProjectData,
+        Number,
+        OrderContact,
+        OrderDate,
+        DeliveryAddress: DeliveryAddress || null,
+        PickupNotes: PickupNotes || null,
+        Notes: Notes || null,
+        QuantitiesAndLengths, // Save QuantitiesAndLengths
+      }).save();
+      console.log('Project order saved successfully');
+    } catch (dbError) {
+      console.error('Database save error:', dbError.message);
+      return res.status(500).json({ message: 'Failed to save order in database', error: dbError.message });
+    }
+
+    // Delete local PDF file
+    try {
+      await fsPromises.unlink(pdfPath);
+      console.log('Local PDF deleted successfully:', pdfPath);
+    } catch (deleteError) {
+      console.warn('Failed to delete local PDF:', deleteError.message);
+    }
 
     return res.status(200).json({
-      message: 'PDF generated and email sent',
+      message: 'PDF generated, email sent, and local file deleted successfully',
+      localPath: pdfPath,
       cloudinaryUrl: uploadResult.secure_url,
     });
   } catch (error) {
-    console.error('generatePdf error:', error.message);
-    return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    console.error('GeneratePdf error:', error.message);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
