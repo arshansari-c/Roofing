@@ -106,21 +106,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   const viewBox = `${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`;
   const offsetSegments = showBorder && path.points.length > 1 ? calculateOffsetSegments(path, borderOffsetDirection) : [];
 
-  // Generate grid (commented out to match photo, no grid)
-  // const scaledWidth = (bounds.maxX - bounds.minX) / scale;
-  // const scaledHeight = (bounds.maxY - bounds.minY) / scale;
-  // const gridStartX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
-  // const gridStartY = Math.floor(bounds.minY / GRID_SIZE) * GRID_SIZE;
-  // const gridEndX = gridStartX + scaledWidth + GRID_SIZE;
-  // const gridEndY = gridStartY + scaledHeight + GRID_SIZE;
-  // let gridLines = '';
-  // for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
-  //   gridLines += `<line x1="${x}" y1="${gridStartY}" x2="${x}" y2="${gridEndY}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
-  // }
-  // for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
-  //   gridLines += `<line x1="${gridStartX}" y1="${y}" x2="${gridEndX}" y2="${y}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
-  // }
-
   // Generate path points and lines
   let svgContent = path.points.map((point) => `
     <circle cx="${parseFloat(point.x)}" cy="${parseFloat(point.y)}" r="${3 / scale}" fill="black"/>
@@ -146,7 +131,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const origP1 = path.points[0];
     const origP2 = path.points[1];
     const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
-    const dy = parseFloat(origP2.y) - parseFloat(p1.y);
+    const dy = parseFloat(origP2.y) - parseFloat(origP1.y); // Fixed p1 to origP1
     const length = Math.sqrt(dx * dx + dy * dy);
     if (length !== 0) {
       const unitX = dx / length;
@@ -364,8 +349,8 @@ export const generatePdf = async (req, res) => {
     const pageWidth = 1191; // A3 landscape width in points
     const pageHeight = 842; // A3 landscape height in points
     const margin = 60;
-    const imgSize = 300;
-    const gap = 40;
+    const imgSize = 400; // Increased for better photo-like quality
+    const gap = 50;
     const pathsPerPage = 2; // Side by side for landscape
     const imagePagesNeeded = Math.ceil(projectData.paths.length / pathsPerPage);
 
@@ -385,7 +370,7 @@ export const generatePdf = async (req, res) => {
       doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
         .text('Commercial Roofers Pty Ltd', margin, y);
     }
-    y += 50; // Adjust for logo height
+    y += 50;
     doc.font('Helvetica').fontSize(14)
       .text('contact@commercialroofers.net.au | 0421259430', margin, y);
     y += 40;
@@ -423,7 +408,7 @@ export const generatePdf = async (req, res) => {
     });
     y += notes.length * 20 + 24;
 
-    // *** PLEASE WRITE ALL CODES ON FLASHINGS ***
+    // Warning
     doc.font('Helvetica-Bold').fontSize(16).fillColor('red');
     doc.text('*** PLEASE WRITE ALL CODES ON FLASHINGS ***', margin, y);
     y += 30;
@@ -500,14 +485,13 @@ export const generatePdf = async (req, res) => {
         rightX += subColWidths[i];
       });
 
-      y += 60; // Space after table
+      y += 60;
     } else {
-      // Fallback for other numbers of paths
-      // Implement single sub-table or loop
-      // For brevity, assume 2 paths as per data
+      // Fallback for single path or more
+      // Implement loop for all paths if needed
     }
 
-    // Image pages (side by side in landscape)
+    // Image pages
     for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
       if (pageIndex > 0) doc.addPage();
       y = margin;
@@ -548,15 +532,15 @@ export const generatePdf = async (req, res) => {
           const bounds = calculateBounds(pathData, scale);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
-          // Convert SVG to PNG with higher resolution for photo-like quality
+          // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
               width: imgSize * 4,
               height: imgSize * 4,
               fit: 'contain',
-              background: { r: 255, g: 255, b: 255 },
+              background: { r: 255, g: 255, b: 255, alpha: 1 },
             })
-            .png({ quality: 100, compressionLevel: 0 })
+            .png({ quality: 100 })
             .toBuffer();
 
           // Embed image in PDF
@@ -564,7 +548,6 @@ export const generatePdf = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Image (no border to match photo)
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
@@ -689,7 +672,6 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
