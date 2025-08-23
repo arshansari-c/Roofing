@@ -227,7 +227,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const midX = foldBaseX + normalX * (FOLD_LENGTH / 2) / scale;
           const midY = foldBaseY + normalY * (FOLD_LENGTH / 2) / scale;
           const zigzagPath = `
-            M${foldBaseX},${foldBaseX}
+            M${foldBaseX},${foldBaseY}
             L${midX + (9 / scale) * unitX},${midY + (9 / scale) * unitY}
             L${midX - (9 / scale) * unitX},${midY - (9 / scale) * unitY}
             L${foldEndX},${foldEndY}
@@ -369,7 +369,7 @@ export const generatePdf = async (req, res) => {
     // Initialize PDF document with A3 size
     const doc = new PDFDocument({ size: 'A3', bufferPages: true });
     const timestamp = Date.now();
-    const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
+    const pdfPath = path.join(UploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
 
     // Create a write stream and pipe the document to it
@@ -444,22 +444,23 @@ export const generatePdf = async (req, res) => {
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
     const rowHeight = 24;
 
-    // Draw table header with solid borders
+    // Draw table header with white background, black borders, and black text
     let xPos = margin;
-doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
-headers.forEach((h, i) => {
-  // White background box
-  doc.rect(xPos, y, colWidths[i], rowHeight)
-    .fillColor('#FFFFFF') // White background
-    .fill();               // Apply fill (no stroke here)
-
-  // Black text
-  doc.fillColor('black')
-    .text(h, xPos + 6, y + 6, { width: colWidths[i] - 12, align: 'center' });
-
-  xPos += colWidths[i];
-});
-y += rowHeight;
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
+    headers.forEach((h, i) => {
+      // Draw white background with black border
+      doc.rect(xPos, y, colWidths[i], rowHeight)
+        .lineWidth(1)
+        .fillColor('white')
+        .fill()
+        .strokeColor('black')
+        .stroke();
+      // Draw text
+      doc.fillColor('black')
+        .text(h, xPos + 6, y + 6, { width: colWidths[i] - 12, align: 'center' });
+      xPos += colWidths[i];
+    });
+    y += rowHeight;
 
     // Group QuantitiesAndLengths by path
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / projectData.paths.length);
@@ -470,7 +471,7 @@ y += rowHeight;
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
     }
 
-    // Table Rows with solid borders
+    // Table Rows with white background, black borders, and black text
     doc.font('Helvetica').fontSize(12);
     projectData.paths.forEach((path, index) => {
       const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
@@ -490,10 +491,14 @@ y += rowHeight;
 
       xPos = margin;
       row.forEach((val, i) => {
+        // Draw white background with black border
         doc.rect(xPos, y, colWidths[i], rowHeight)
           .lineWidth(1)
           .fillColor('white')
-          .fillAndStroke('black');
+          .fill()
+          .strokeColor('black')
+          .stroke();
+        // Draw text
         doc.fillColor('black').text(val, xPos + 6, y + 6, { width: colWidths[i] - 12, align: i > 0 ? 'left' : 'center' });
         xPos += colWidths[i];
       });
