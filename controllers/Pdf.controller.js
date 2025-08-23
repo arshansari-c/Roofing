@@ -122,6 +122,11 @@ const calculateGirth = (path) => {
   return totalLength.toFixed(2);
 };
 
+// Helper function to format Q x L
+const formatQxL = (quantitiesAndLengths) => {
+  return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
+};
+
 // Helper function to generate SVG string
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   const viewBox = `${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`;
@@ -222,7 +227,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const midX = foldBaseX + normalX * (FOLD_LENGTH / 2) / scale;
           const midY = foldBaseY + normalY * (FOLD_LENGTH / 2) / scale;
           const zigzagPath = `
-            M${foldBaseX},${foldBaseY}
+            M${foldBaseX},${foldBaseX}
             L${midX + (9 / scale) * unitX},${midY + (9 / scale) * unitY}
             L${midX - (9 / scale) * unitX},${midY - (9 / scale) * unitY}
             L${foldEndX},${foldEndY}
@@ -434,17 +439,20 @@ export const generatePdf = async (req, res) => {
     y += notes.length * 20 + 24;
 
     // Table Header
-    const headers = ['#', 'Name', 'Code', 'Color', 'Quantity', 'Length', 'Q x L', 'Folds', 'Girth'];
-    const colWidths = [40, 120, 80, 80, 80, 80, 80, 80, 80];
+    const headers = ['#', 'Name', 'Code', 'Color', 'Q x L', 'Folds', 'Girth'];
+    const colWidths = [40, 150, 100, 100, 120, 80, 80];
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
     const rowHeight = 24;
 
-    // Draw table header with borders
+    // Draw table header with solid borders
     let xPos = margin;
     doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
     headers.forEach((h, i) => {
-      doc.rect(xPos, y, colWidths[i], rowHeight).fill('#E6E6E6').stroke('#000000');
-      doc.text(h, xPos + 6, y + 6, { width: colWidths[i] - 12, align: 'center' });
+      doc.rect(xPos, y, colWidths[i], rowHeight)
+        .lineWidth(1)
+        .fillColor('#E6E6E6')
+        .fillAndStroke('black');
+      doc.fillColor('black').text(h, xPos + 6, y + 6, { width: colWidths[i] - 12, align: 'center' });
       xPos += colWidths[i];
     });
     y += rowHeight;
@@ -458,13 +466,11 @@ export const generatePdf = async (req, res) => {
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
     }
 
-    // Table Rows with borders
+    // Table Rows with solid borders
     doc.font('Helvetica').fontSize(12);
     projectData.paths.forEach((path, index) => {
       const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
-      const quantities = pathQuantitiesAndLengths.map(item => item.quantity.toString()).join(', ');
-      const lengths = pathQuantitiesAndLengths.map(item => item.length.toString()).join(', ');
-      const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
+      const qxL = formatQxL(pathQuantitiesAndLengths);
       const totalFolds = calculateTotalFolds(path);
       const girth = calculateGirth(path);
 
@@ -473,17 +479,18 @@ export const generatePdf = async (req, res) => {
         path.name || 'N/A',
         path.code || 'N/A',
         path.color || 'N/A',
-        quantities || 'N/A',
-        lengths || 'N/A',
-        qxLs || 'N/A',
+        qxL || 'N/A',
         totalFolds.toString(),
         girth
       ];
 
       xPos = margin;
       row.forEach((val, i) => {
-        doc.rect(xPos, y, colWidths[i], rowHeight).stroke('#000000');
-        doc.text(val, xPos + 6, y + 6, { width: colWidths[i] - 12, align: i > 0 ? 'left' : 'center' });
+        doc.rect(xPos, y, colWidths[i], rowHeight)
+          .lineWidth(1)
+          .fillColor('white')
+          .fillAndStroke('black');
+        doc.fillColor('black').text(val, xPos + 6, y + 6, { width: colWidths[i] - 12, align: i > 0 ? 'left' : 'center' });
         xPos += colWidths[i];
       });
       y += rowHeight;
@@ -523,7 +530,7 @@ export const generatePdf = async (req, res) => {
         const row = Math.floor(svgIndex / 2);
         const col = svgIndex % 2;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 90); // Increased space for additional info
+        const yPos = startY + row * (imgSize + gap + 90);
 
         try {
           const pathData = projectData.paths[i];
@@ -533,7 +540,7 @@ export const generatePdf = async (req, res) => {
           // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: imgSize * 3, // Increased resolution
+              width: imgSize * 3,
               height: imgSize * 3,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255 },
@@ -556,14 +563,14 @@ export const generatePdf = async (req, res) => {
           // Info below image
           const infoY = yPos + imgH + 15;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
-          const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
+          const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
           const girth = calculateGirth(pathData);
-          
+
           const infoItems = [
             [pathData.color || 'N/A', 'Colour / Material'],
             [pathData.code || 'N/A', 'CODE'],
-            [qxLs || 'N/A', 'Q x L'],
+            [qxL || 'N/A', 'Q x L'],
             [totalFolds.toString(), 'Total Folds'],
             [girth, 'Girth']
           ];
