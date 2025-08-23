@@ -25,9 +25,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Create uploads directory
 const uploadsDir = path.join(__dirname, 'Uploads');
-await fsPromises.mkdir(uploadsDir, { recursive: true }).catch((err) => {
+try {
+  await fsPromises.mkdir(uploadsDir, { recursive: true });
+  console.log('Uploads directory created or already exists:', uploadsDir);
+} catch (err) {
   console.error('Failed to create uploads directory:', err.message);
-});
+}
 
 // Path to company logo
 const logoPath = path.join(__dirname, 'assets', 'company.png');
@@ -340,7 +343,7 @@ export const generatePdf = async (req, res) => {
     // Initialize PDF document with A3 size
     const doc = new PDFDocument({ size: 'A3', bufferPages: true });
     const timestamp = Date.now();
-    const pdfPath = path.join(UploadsDir, `project-${timestamp}.pdf`);
+    const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
 
     // Create a write stream and pipe the document to it
@@ -424,7 +427,7 @@ export const generatePdf = async (req, res) => {
     });
     y += rowHeight;
 
-    // Group QuantitiesAndLengths by path (assuming 2 entries per path)
+    // Group QuantitiesAndLengths by path (assuming multiple entries per path)
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / projectData.paths.length);
     const groupedQuantitiesAndLengths = [];
     for (let i = 0; i < projectData.paths.length; i++) {
@@ -675,6 +678,7 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
