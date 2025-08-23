@@ -446,16 +446,20 @@ export const generatePdf = async (req, res) => {
 
     // Draw table header with solid borders
     let xPos = margin;
-    doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
-    headers.forEach((h, i) => {
-      doc.rect(xPos, y, colWidths[i], rowHeight)
-        .lineWidth(1)
-        .fillColor('#E6E6E6')
-        .fillAndStroke('black');
-      doc.fillColor('black').text(h, xPos + 6, y + 6, { width: colWidths[i] - 12, align: 'center' });
-      xPos += colWidths[i];
-    });
-    y += rowHeight;
+doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
+headers.forEach((h, i) => {
+  // White background box
+  doc.rect(xPos, y, colWidths[i], rowHeight)
+    .fillColor('#FFFFFF') // White background
+    .fill();               // Apply fill (no stroke here)
+
+  // Black text
+  doc.fillColor('black')
+    .text(h, xPos + 6, y + 6, { width: colWidths[i] - 12, align: 'center' });
+
+  xPos += colWidths[i];
+});
+y += rowHeight;
 
     // Group QuantitiesAndLengths by path
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / projectData.paths.length);
