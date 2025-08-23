@@ -101,6 +101,27 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
   return offsetSegments;
 };
 
+// Helper function to calculate total folds
+const calculateTotalFolds = (path) => {
+  let totalFolds = 0;
+  path.segments.forEach(segment => {
+    const foldType = segment.fold || 'None';
+    if (foldType !== 'None') {
+      totalFolds += foldType === 'Crush' ? 2 : 1;
+    }
+  });
+  return totalFolds;
+};
+
+// Helper function to calculate girth (sum of segment lengths)
+const calculateGirth = (path) => {
+  let totalLength = 0;
+  path.segments.forEach(segment => {
+    totalLength += parseFloat(segment.length) || 0;
+  });
+  return totalLength.toFixed(2);
+};
+
 // Helper function to generate SVG string
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   const viewBox = `${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`;
@@ -413,21 +434,22 @@ export const generatePdf = async (req, res) => {
     y += notes.length * 20 + 24;
 
     // Table Header
-    const headers = ['#', 'Name', 'Code', 'Color', 'Quantity', 'Length', 'Q x L'];
-    const colWidths = [40, 150, 80, 100, 100, 100, 100];
+    const headers = ['#', 'Name', 'Code', 'Color', 'Quantity', 'Length', 'Q x L', 'Folds', 'Girth'];
+    const colWidths = [40, 120, 80, 80, 80, 80, 80, 80, 80];
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
     const rowHeight = 24;
 
-    doc.rect(margin, y, totalWidth, rowHeight).fill('#E6E6E6');
+    // Draw table header with borders
     let xPos = margin;
     doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
     headers.forEach((h, i) => {
-      doc.text(h, xPos + 6, y + 6);
+      doc.rect(xPos, y, colWidths[i], rowHeight).fill('#E6E6E6').stroke('#000000');
+      doc.text(h, xPos + 6, y + 6, { width: colWidths[i] - 12, align: 'center' });
       xPos += colWidths[i];
     });
     y += rowHeight;
 
-    // Group QuantitiesAndLengths by path (assuming multiple entries per path)
+    // Group QuantitiesAndLengths by path
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / projectData.paths.length);
     const groupedQuantitiesAndLengths = [];
     for (let i = 0; i < projectData.paths.length; i++) {
@@ -436,13 +458,15 @@ export const generatePdf = async (req, res) => {
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
     }
 
-    // Table Rows (Using grouped QuantitiesAndLengths)
+    // Table Rows with borders
     doc.font('Helvetica').fontSize(12);
     projectData.paths.forEach((path, index) => {
       const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
       const quantities = pathQuantitiesAndLengths.map(item => item.quantity.toString()).join(', ');
       const lengths = pathQuantitiesAndLengths.map(item => item.length.toString()).join(', ');
       const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
+      const totalFolds = calculateTotalFolds(path);
+      const girth = calculateGirth(path);
 
       const row = [
         `${index + 1}`,
@@ -452,10 +476,13 @@ export const generatePdf = async (req, res) => {
         quantities || 'N/A',
         lengths || 'N/A',
         qxLs || 'N/A',
+        totalFolds.toString(),
+        girth
       ];
 
       xPos = margin;
       row.forEach((val, i) => {
+        doc.rect(xPos, y, colWidths[i], rowHeight).stroke('#000000');
         doc.text(val, xPos + 6, y + 6, { width: colWidths[i] - 12, align: i > 0 ? 'left' : 'center' });
         xPos += colWidths[i];
       });
@@ -496,18 +523,18 @@ export const generatePdf = async (req, res) => {
         const row = Math.floor(svgIndex / 2);
         const col = svgIndex % 2;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 70);
+        const yPos = startY + row * (imgSize + gap + 90); // Increased space for additional info
 
         try {
           const pathData = projectData.paths[i];
           const bounds = calculateBounds(pathData, scale);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
-          // Convert SVG to PNG
+          // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: imgSize * 2,
-              height: imgSize * 2,
+              width: imgSize * 3, // Increased resolution
+              height: imgSize * 3,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255 },
             })
@@ -530,10 +557,15 @@ export const generatePdf = async (req, res) => {
           const infoY = yPos + imgH + 15;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
+          const totalFolds = calculateTotalFolds(pathData);
+          const girth = calculateGirth(pathData);
+          
           const infoItems = [
             [pathData.color || 'N/A', 'Colour / Material'],
             [pathData.code || 'N/A', 'CODE'],
             [qxLs || 'N/A', 'Q x L'],
+            [totalFolds.toString(), 'Total Folds'],
+            [girth, 'Girth']
           ];
 
           doc.font('Helvetica-Bold').fontSize(12);
@@ -543,7 +575,7 @@ export const generatePdf = async (req, res) => {
           });
 
           // Dashed line below image
-          const lineY = yPos + imgH + 60;
+          const lineY = yPos + imgH + 75;
           const length = pathQuantitiesAndLengths[0]?.length || 410;
 
           doc.lineWidth(1.5).dash(7, { space: 7 })
@@ -677,7 +709,7 @@ export const generatePdf = async (req, res) => {
     console.error('GeneratePdf error:', error.message);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
-}; 
+};
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
