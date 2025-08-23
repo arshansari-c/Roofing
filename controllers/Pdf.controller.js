@@ -340,7 +340,7 @@ export const generatePdf = async (req, res) => {
     // Initialize PDF document with A3 size
     const doc = new PDFDocument({ size: 'A3', bufferPages: true });
     const timestamp = Date.now();
-    const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
+    const pdfPath = path.join(UploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
 
     // Create a write stream and pipe the document to it
@@ -411,7 +411,7 @@ export const generatePdf = async (req, res) => {
 
     // Table Header
     const headers = ['#', 'Name', 'Code', 'Color', 'Quantity', 'Length', 'Q x L'];
-    const colWidths = [40, 150, 80, 100, 80, 80, 80];
+    const colWidths = [40, 150, 80, 100, 100, 100, 100];
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
     const rowHeight = 24;
 
@@ -424,23 +424,36 @@ export const generatePdf = async (req, res) => {
     });
     y += rowHeight;
 
-    // Table Rows (Using QuantitiesAndLengths)
-    doc.font('Helvetica').fontSize(14);
-    QuantitiesAndLengths.forEach((item, index) => {
-      const qxL = (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2);
+    // Group QuantitiesAndLengths by path (assuming 2 entries per path)
+    const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / projectData.paths.length);
+    const groupedQuantitiesAndLengths = [];
+    for (let i = 0; i < projectData.paths.length; i++) {
+      const startIndex = i * itemsPerPath;
+      const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
+      groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
+    }
+
+    // Table Rows (Using grouped QuantitiesAndLengths)
+    doc.font('Helvetica').fontSize(12);
+    projectData.paths.forEach((path, index) => {
+      const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
+      const quantities = pathQuantitiesAndLengths.map(item => item.quantity.toString()).join(', ');
+      const lengths = pathQuantitiesAndLengths.map(item => item.length.toString()).join(', ');
+      const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
+
       const row = [
         `${index + 1}`,
-        projectData.paths[index]?.name || 'N/A',
-        projectData.paths[index]?.code || 'N/A',
-        projectData.paths[index]?.color || 'N/A',
-        item.quantity.toString(),
-        item.length.toString(),
-        qxL,
+        path.name || 'N/A',
+        path.code || 'N/A',
+        path.color || 'N/A',
+        quantities || 'N/A',
+        lengths || 'N/A',
+        qxLs || 'N/A',
       ];
 
       xPos = margin;
       row.forEach((val, i) => {
-        doc.text(val, xPos + 6, y + 6);
+        doc.text(val, xPos + 6, y + 6, { width: colWidths[i] - 12, align: i > 0 ? 'left' : 'center' });
         xPos += colWidths[i];
       });
       y += rowHeight;
@@ -512,22 +525,23 @@ export const generatePdf = async (req, res) => {
 
           // Info below image
           const infoY = yPos + imgH + 15;
-          const qxL = QuantitiesAndLengths[i] ? (parseFloat(QuantitiesAndLengths[i].quantity) * parseFloat(QuantitiesAndLengths[i].length)).toFixed(2) : 'N/A';
+          const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
+          const qxLs = pathQuantitiesAndLengths.map(item => (parseFloat(item.quantity) * parseFloat(item.length)).toFixed(2)).join(', ');
           const infoItems = [
             [pathData.color || 'N/A', 'Colour / Material'],
             [pathData.code || 'N/A', 'CODE'],
-            [qxL, 'Q x L'],
+            [qxLs || 'N/A', 'Q x L'],
           ];
 
           doc.font('Helvetica-Bold').fontSize(12);
           infoItems.forEach(([label, value], idx) => {
             doc.text(label, x, infoY + idx * 15);
-            doc.font('Helvetica').text(value, x + 120, infoY + idx * 15);
+            doc.font('Helvetica').text(value, x + 120, infoY + idx * 15, { width: imgW - 120 });
           });
 
           // Dashed line below image
           const lineY = yPos + imgH + 60;
-          const length = QuantitiesAndLengths[i]?.length || 410;
+          const length = pathQuantitiesAndLengths[0]?.length || 410;
 
           doc.lineWidth(1.5).dash(7, { space: 7 })
             .moveTo(x, lineY).lineTo(x + imgW, lineY).strokeColor('black').stroke();
@@ -635,7 +649,7 @@ export const generatePdf = async (req, res) => {
         DeliveryAddress: DeliveryAddress || null,
         PickupNotes: PickupNotes || null,
         Notes: Notes || null,
-        QuantitiesAndLengths, // Save QuantitiesAndLengths
+        QuantitiesAndLengths,
       }).save();
       console.log('Project order saved successfully');
     } catch (dbError) {
