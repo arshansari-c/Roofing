@@ -30,6 +30,7 @@ try {
   console.log('Uploads directory created or already exists:', uploadsDir);
 } catch (err) {
   console.error('Failed to create uploads directory:', err.message);
+  throw new Error(`Failed to create uploads directory: ${err.message}`);
 }
 
 // Path to company logo
@@ -478,6 +479,12 @@ export const generatePdf = async (req, res) => {
       return res.status(400).json({ message: 'Valid userId is required' });
     }
 
+    // Validate uploadsDir
+    if (!uploadsDir) {
+      console.error('uploads directory is not defined');
+      return res.status(500).json({ message: 'Uploads directory is not defined' });
+    }
+
     // Validate QuantitiesAndLengths
     const QuantitiesAndLengths = selectedProjectData?.QuantitiesAndLengths || [];
     if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
@@ -530,7 +537,7 @@ export const generatePdf = async (req, res) => {
     // Initialize PDF document with A3 size
     const doc = new PDFDocument({ size: 'A3', bufferPages: true });
     const timestamp = Date.now();
-    const pdfPath = path.join(UploadsDir, `project-${timestamp}.pdf`);
+    const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
 
     // Create a write stream and pipe the document to it
@@ -546,6 +553,10 @@ export const generatePdf = async (req, res) => {
 
     // Filter valid paths
     const validPaths = projectData.paths.filter(path => validatePoints(path.points));
+    if (validPaths.length === 0) {
+      console.warn('No valid paths found in projectData');
+      return res.status(400).json({ message: 'No valid paths found in project data' });
+    }
     const imagePagesNeeded = Math.ceil(validPaths.length / pathsPerPage);
 
     // Page 1: Company Details, Order Details, Notes, Additional Items, and Table
