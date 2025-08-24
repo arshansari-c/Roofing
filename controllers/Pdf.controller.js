@@ -40,8 +40,27 @@ const GRID_SIZE = 20;
 const FOLD_LENGTH = 14;
 const ARROW_SIZE = 10;
 
+// Helper function to validate points
+const validatePoints = (points) => {
+  if (!Array.isArray(points) || points.length === 0) {
+    return false;
+  }
+  return points.every(point => 
+    point && 
+    typeof point.x !== 'undefined' && 
+    typeof point.y !== 'undefined' && 
+    !isNaN(parseFloat(point.x)) && 
+    !isNaN(parseFloat(point.y))
+  );
+};
+
 // Helper function to calculate bounds for a path
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
+  if (!validatePoints(path.points)) {
+    console.warn('Invalid points array in path:', path);
+    return { minX: 0, maxX: 100, minY: 0, maxY: 100 }; // Fallback bounds
+  }
+
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   path.points.forEach((point) => {
     const x = parseFloat(point.x);
@@ -53,6 +72,9 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   });
   const arrowOffset = 20 / scale + ARROW_SIZE + 20; // Extra padding for arrows and labels
   path.segments.forEach((segment, i) => {
+    if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
+      return;
+    }
     const labelX = parseFloat(segment.labelPosition.x);
     const labelY = parseFloat(segment.labelPosition.y);
     minX = Math.min(minX, labelX - 35 / scale);
@@ -63,6 +85,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     if (foldType !== 'None') {
       const p1 = path.points[i];
       const p2 = path.points[i + 1];
+      if (!p1 || !p2) return;
       const dx = parseFloat(p2.x) - parseFloat(p1.x);
       const dy = parseFloat(p2.y) - parseFloat(p1.y);
       const length = Math.sqrt(dx * dx + dy * dy);
@@ -86,6 +109,9 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
   });
   (path.angles || []).forEach((angle) => {
+    if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
+      return;
+    }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
     minX = Math.min(minX, labelX - 35 / scale);
@@ -101,28 +127,31 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       minY = Math.min(minY, seg.p1.y, seg.p2.y);
       maxY = Math.max(maxY, seg.p1.y, seg.p2.y);
     });
-    // Border chevron
     const segment = offsetSegments[0];
-    const midX = (segment.p1.x + segment.p2.x) / 2;
-    const midY = (segment.p1.y + segment.p2.y) / 2;
-    const origP1 = path.points[0];
-    const origP2 = path.points[1];
-    const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
-    const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
-    const length = Math.sqrt(dx * dx + dy * dy);
-    if (length !== 0) {
-      const unitX = dx / length;
-      const unitY = dy / length;
-      const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
-      const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-      const chevronSize = 8 / scale;
-      const chevronBaseDistance = 10 / scale;
-      const chevronX = midX + normalX * chevronBaseDistance;
-      const chevronY = midY + normalY * chevronBaseDistance;
-      minX = Math.min(minX, chevronX - chevronSize);
-      maxX = Math.max(maxX, chevronX + chevronSize);
-      minY = Math.min(minY, chevronY - chevronSize);
-      maxY = Math.max(maxY, chevronY + chevronSize);
+    if (segment) {
+      const midX = (segment.p1.x + segment.p2.x) / 2;
+      const midY = (segment.p1.y + segment.p2.y) / 2;
+      const origP1 = path.points[0];
+      const origP2 = path.points[1];
+      if (origP1 && origP2) {
+        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
+        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length !== 0) {
+          const unitX = dx / length;
+          const unitY = dy / length;
+          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+          const chevronSize = 8 / scale;
+          const chevronBaseDistance = 10 / scale;
+          const chevronX = midX + normalX * chevronBaseDistance;
+          const chevronY = midY + normalY * chevronBaseDistance;
+          minX = Math.min(minX, chevronX - chevronSize);
+          maxX = Math.max(maxX, chevronX + chevronSize);
+          minY = Math.min(minY, chevronY - chevronSize);
+          maxY = Math.max(maxY, chevronY + chevronSize);
+        }
+      }
     }
   }
   const padding = 50;
@@ -136,6 +165,9 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
 
 // Helper function to calculate offset segments for border
 const calculateOffsetSegments = (path, borderOffsetDirection) => {
+  if (!validatePoints(path.points)) {
+    return [];
+  }
   const offsetDistance = 15;
   const offsetSegments = [];
   for (let i = 0; i < path.points.length - 1; i++) {
@@ -162,31 +194,41 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
 // Helper function to calculate total folds
 const calculateTotalFolds = (path) => {
   let totalFolds = 0;
-  path.segments.forEach(segment => {
-    const foldType = segment.fold || 'None';
-    if (foldType !== 'None') {
-      totalFolds += foldType === 'Crush' ? 2 : 1;
-    }
-  });
+  if (Array.isArray(path.segments)) {
+    path.segments.forEach(segment => {
+      const foldType = segment.fold || 'None';
+      if (foldType !== 'None') {
+        totalFolds += foldType === 'Crush' ? 2 : 1;
+      }
+    });
+  }
   return totalFolds;
 };
 
 // Helper function to calculate girth (sum of segment lengths)
 const calculateGirth = (path) => {
   let totalLength = 0;
-  path.segments.forEach(segment => {
-    totalLength += parseFloat(segment.length) || 0;
-  });
+  if (Array.isArray(path.segments)) {
+    path.segments.forEach(segment => {
+      totalLength += parseFloat(segment.length) || 0;
+    });
+  }
   return totalLength.toFixed(2);
 };
 
 // Helper function to format Q x L
 const formatQxL = (quantitiesAndLengths) => {
+  if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
 
 // Helper function to generate SVG string
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
+  if (!validatePoints(path.points)) {
+    console.warn('Skipping SVG generation for path due to invalid points:', path);
+    return '<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="50" font-size="14" text-anchor="middle" fill="#000000">Invalid path data</text></svg>';
+  }
+
   const viewBox = `${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`;
   const offsetSegments = showBorder && path.points.length > 1 ? calculateOffsetSegments(path, borderOffsetDirection) : [];
 
@@ -222,41 +264,43 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             stroke="#cccccc" stroke-width="${3 / scale}" stroke-dasharray="${6 / scale},${4 / scale}"/>
     `).join('');
 
-    // Border chevron
     const segment = offsetSegments[0];
-    const midX = (segment.p1.x + segment.p2.x) / 2;
-    const midY = (segment.p1.y + segment.p2.y) / 2;
-    const origP1 = path.points[0];
-    const origP2 = path.points[1];
-    const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
-    const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
-    const length = Math.sqrt(dx * dx + dy * dy);
-    if (length !== 0) {
-      const unitX = dx / length;
-      const unitY = dy / length;
-      const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
-      const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-      const chevronSize = 8 / scale;
-      const chevronBaseDistance = 10 / scale;
-      const chevronX = midX + normalX * chevronBaseDistance;
-      const chevronY = midY + normalY * chevronBaseDistance;
-      const direction = 1;
-      const chevronPath = `
-        M${chevronX + chevronSize * normalX * direction + chevronSize * unitX},${chevronY + chevronSize * normalY * direction + chevronSize * unitY}
-        L${chevronX},${chevronY}
-        L${chevronX + chevronSize * normalX * direction - chevronSize * unitX},${chevronY + chevronSize * normalY * direction - chevronSize * unitY}
-      `;
-      svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+    if (segment) {
+      const midX = (segment.p1.x + segment.p2.x) / 2;
+      const midY = (segment.p1.y + segment.p2.y) / 2;
+      const origP1 = path.points[0];
+      const origP2 = path.points[1];
+      if (origP1 && origP2) {
+        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
+        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length !== 0) {
+          const unitX = dx / length;
+          const unitY = dy / length;
+          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+          const chevronSize = 8 / scale;
+          const chevronBaseDistance = 10 / scale;
+          const chevronX = midX + normalX * chevronBaseDistance;
+          const chevronY = midY + normalY * chevronBaseDistance;
+          const direction = 1;
+          const chevronPath = `
+            M${chevronX + chevronSize * normalX * direction + chevronSize * unitX},${chevronY + chevronSize * normalY * direction + chevronSize * unitY}
+            L${chevronX},${chevronY}
+            L${chevronX + chevronSize * normalX * direction - chevronSize * unitX},${chevronY + chevronSize * normalY * direction - chevronSize * unitY}
+          `;
+          svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+        }
+      }
     }
   }
 
   // Generate segments with labels, arrows, and folds
-  svgContent += path.segments.map((segment, i) => {
+  svgContent += (Array.isArray(path.segments) ? path.segments : []).map((segment, i) => {
     const p1 = path.points[i];
     const p2 = path.points[i + 1];
-    if (!p1 || !p2) return '';
+    if (!p1 || !p2 || !segment.labelPosition) return '';
 
-    // Length label and arrow
     const posX = parseFloat(segment.labelPosition.x);
     const posY = parseFloat(segment.labelPosition.y);
     const midX = (parseFloat(p1.x) + parseFloat(p2.x)) / 2;
@@ -275,7 +319,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       Z
     `;
 
-    // Fold
     let foldElement = '';
     const foldType = segment.fold || 'None';
     if (foldType !== 'None') {
@@ -339,7 +382,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           foldElement = `<path d="${zigzagPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
         }
 
-        // Fold label and arrow
         const foldLabelPosX = foldEndX + normalX * 25 / scale;
         const foldLabelPosY = foldEndY + normalY * 25 / scale;
         const foldArrowX = foldLabelPosX;
@@ -377,12 +419,14 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     `;
   }).join('');
 
-  // Generate angles with labels and arrows
-  svgContent += (path.angles || []).map((angle) => {
+  svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
+    if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
+      return '';
+    }
     const anglePosX = parseFloat(angle.labelPosition.x);
     const anglePosY = parseFloat(angle.labelPosition.y);
-    const vertexX = parseFloat(path.points[angle.vertexIndex].x);
-    const vertexY = parseFloat(path.points[angle.vertexIndex].y);
+    const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? parseFloat(path.points[angle.vertexIndex].x) : anglePosX;
+    const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? parseFloat(path.points[angle.vertexIndex].y) : anglePosY;
     const angleArrowX = anglePosX;
     const angleArrowY = anglePosY + 20 / scale;
     const angleArrowDx = vertexX - angleArrowX;
@@ -486,7 +530,7 @@ export const generatePdf = async (req, res) => {
     // Initialize PDF document with A3 size
     const doc = new PDFDocument({ size: 'A3', bufferPages: true });
     const timestamp = Date.now();
-    const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
+    const pdfPath = path.join(UploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
 
     // Create a write stream and pipe the document to it
@@ -499,7 +543,10 @@ export const generatePdf = async (req, res) => {
     const imgSize = 300;
     const gap = 40;
     const pathsPerPage = 4;
-    const imagePagesNeeded = Math.ceil(projectData.paths.length / pathsPerPage);
+
+    // Filter valid paths
+    const validPaths = projectData.paths.filter(path => validatePoints(path.points));
+    const imagePagesNeeded = Math.ceil(validPaths.length / pathsPerPage);
 
     // Page 1: Company Details, Order Details, Notes, Additional Items, and Table
     let y = margin;
@@ -584,9 +631,9 @@ export const generatePdf = async (req, res) => {
     y += rowHeight;
 
     // Group QuantitiesAndLengths by path
-    const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / projectData.paths.length);
+    const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
     const groupedQuantitiesAndLengths = [];
-    for (let i = 0; i < projectData.paths.length; i++) {
+    for (let i = 0; i < validPaths.length; i++) {
       const startIndex = i * itemsPerPath;
       const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
@@ -594,7 +641,7 @@ export const generatePdf = async (req, res) => {
 
     // Table Rows
     doc.font('Helvetica').fontSize(12);
-    projectData.paths.forEach((path, index) => {
+    validPaths.forEach((path, index) => {
       const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
       const qxL = formatQxL(pathQuantitiesAndLengths);
       const totalFolds = calculateTotalFolds(path);
@@ -602,9 +649,9 @@ export const generatePdf = async (req, res) => {
 
       const row = [
         `${index + 1}`,
-        req.body.Name || 'N/A',
-        req.body.Code || 'N/A',
-        req.body.Color || 'N/A',
+        path.name || 'N/A',
+        path.code || 'N/A',
+        path.color || 'N/A',
         qxL || 'N/A',
         totalFolds.toString(),
         girth
@@ -643,7 +690,7 @@ export const generatePdf = async (req, res) => {
 
       // Images & Info
       const startPath = pageIndex * pathsPerPage;
-      const endPath = Math.min(startPath + pathsPerPage, projectData.paths.length);
+      const endPath = Math.min(startPath + pathsPerPage, validPaths.length);
       const startX = margin;
       const startY = y;
 
@@ -655,7 +702,7 @@ export const generatePdf = async (req, res) => {
         const yPos = startY + row * (imgSize + gap + 90);
 
         try {
-          const pathData = projectData.paths[i];
+          const pathData = validPaths[i];
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
@@ -690,8 +737,8 @@ export const generatePdf = async (req, res) => {
           const girth = calculateGirth(pathData);
 
           const infoItems = [
-            [req.body.Color || 'N/A', 'Colour / Material'],
-            [req.body.Code || 'N/A', 'CODE'],
+            [pathData.color || 'N/A', 'Colour / Material'],
+            [pathData.code || 'N/A', 'CODE'],
             [qxL || 'N/A', 'Q x L'],
             [totalFolds.toString(), 'Total Folds'],
             [girth, 'Girth']
