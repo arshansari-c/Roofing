@@ -41,17 +41,12 @@ const GRID_SIZE = 20;
 const FOLD_LENGTH = 14;
 const ARROW_SIZE = 10;
 
-// Color scheme for modern design
+// Color scheme (black and white only)
 const COLORS = {
-  primary: '#2c3e50',       // Dark blue for headers
-  secondary: '#e74c3c',     // Red for accents
-  accent: '#3498db',        // Blue for highlights
-  lightBg: '#f8f9fa',       // Light background
-  darkText: '#2c3e50',      // Dark text
-  lightText: '#7f8c8d',     // Light text
-  border: '#dee2e6',        // Border color
-  success: '#27ae60',       // Green for positive elements
-  warning: '#f39c12',       // Yellow/orange for warnings
+  primary: '#000000',    // Black for headers
+  lightBg: '#FFFFFF',    // White background
+  darkText: '#000000',   // Black text
+  border: '#000000',     // Black border
 };
 
 // Helper function to validate points
@@ -84,16 +79,21 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     minY = Math.min(minY, y);
     maxY = Math.max(maxY, y);
   });
-  const arrowOffset = 20 / scale + ARROW_SIZE + 20; // Extra padding for arrows and labels
+
+  // Adjust for large drawings
+  const maxDimension = Math.max(maxX - minX, maxY - minY);
+  const adjustedScale = Math.min(scale, 1000 / maxDimension); // Prevent collapse for large drawings
+
+  const arrowOffset = 20 / adjustedScale + ARROW_SIZE + 20;
   path.segments.forEach((segment, i) => {
     if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
       return;
     }
     const labelX = parseFloat(segment.labelPosition.x);
     const labelY = parseFloat(segment.labelPosition.y);
-    minX = Math.min(minX, labelX - 35 / scale);
-    maxX = Math.max(maxX, labelX + 35 / scale);
-    minY = Math.min(minY, labelY - 20 / scale);
+    minX = Math.min(minX, labelX - 35 / adjustedScale);
+    maxX = Math.max(maxX, labelX + 35 / adjustedScale);
+    minY = Math.min(minY, labelY - 20 / adjustedScale);
     maxY = Math.max(maxY, labelY + arrowOffset);
     const foldType = segment.fold || 'None';
     if (foldType !== 'None') {
@@ -111,13 +111,13 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const isFirstSegment = i === 0;
         const foldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
         const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
-        const foldEndX = foldBaseX + normalX * FOLD_LENGTH / scale;
-        const foldEndY = foldBaseY + normalY * FOLD_LENGTH / scale;
-        const foldLabelX = foldEndX + normalX * 25 / scale;
-        const foldLabelY = foldEndY + normalY * 25 / scale;
-        minX = Math.min(minX, foldLabelX - 35 / scale, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 35 / scale, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 20 / scale, foldEndY, foldBaseY);
+        const foldEndX = foldBaseX + normalX * FOLD_LENGTH / adjustedScale;
+        const foldEndY = foldBaseY + normalY * FOLD_LENGTH / adjustedScale;
+        const foldLabelX = foldEndX + normalX * 25 / adjustedScale;
+        const foldLabelY = foldEndY + normalY * 25 / adjustedScale;
+        minX = Math.min(minX, foldLabelX - 35 / adjustedScale, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 35 / adjustedScale, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 20 / adjustedScale, foldEndY, foldBaseY);
         maxY = Math.max(maxY, foldLabelY + arrowOffset, foldEndY, foldBaseY);
       }
     }
@@ -128,9 +128,9 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
-    minX = Math.min(minX, labelX - 35 / scale);
-    maxX = Math.max(maxX, labelX + 35 / scale);
-    minY = Math.min(minY, labelY - 20 / scale);
+    minX = Math.min(minX, labelX - 35 / adjustedScale);
+    maxX = Math.max(maxX, labelX + 35 / adjustedScale);
+    minY = Math.min(minY, labelY - 20 / adjustedScale);
     maxY = Math.max(maxY, labelY + arrowOffset);
   });
   if (showBorder && path.points.length > 1) {
@@ -156,8 +156,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
           const unitY = dy / length;
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-          const chevronSize = 8 / scale;
-          const chevronBaseDistance = 10 / scale;
+          const chevronSize = 8 / adjustedScale;
+          const chevronBaseDistance = 10 / adjustedScale;
           const chevronX = midX + normalX * chevronBaseDistance;
           const chevronY = midY + normalY * chevronBaseDistance;
           minX = Math.min(minX, chevronX - chevronSize);
@@ -174,6 +174,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxX: maxX + padding,
     minY: minY - padding,
     maxY: maxY + padding,
+    adjustedScale
   };
 };
 
@@ -219,7 +220,7 @@ const calculateTotalFolds = (path) => {
   return totalFolds;
 };
 
-// Helper function to calculate girth (sum of segment lengths)
+// Helper function to calculate girth
 const calculateGirth = (path) => {
   let totalLength = 0;
   if (Array.isArray(path.segments)) {
@@ -243,6 +244,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     return '<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="50" font-size="14" text-anchor="middle" fill="#000000">Invalid path data</text></svg>';
   }
 
+  const adjustedScale = bounds.adjustedScale || scale;
   const viewBox = `${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`;
   const offsetSegments = showBorder && path.points.length > 1 ? calculateOffsetSegments(path, borderOffsetDirection) : [];
 
@@ -253,21 +255,21 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   const gridEndY = Math.ceil(bounds.maxY / GRID_SIZE) * GRID_SIZE;
   let gridLines = '';
   for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
-    gridLines += `<line x1="${x}" y1="${gridStartY}" x2="${x}" y2="${gridEndY}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
+    gridLines += `<line x1="${x}" y1="${gridStartY}" x2="${x}" y2="${gridEndY}" stroke="#AAAAAA" stroke-width="${0.5 / adjustedScale}"/>`;
   }
   for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
-    gridLines += `<line x1="${gridStartX}" y1="${y}" x2="${gridEndX}" y2="${y}" stroke="#AAAAAA" stroke-width="${0.5 / scale}"/>`;
+    gridLines += `<line x1="${gridStartX}" y1="${y}" x2="${gridEndX}" y2="${y}" stroke="#AAAAAA" stroke-width="${0.5 / adjustedScale}"/>`;
   }
 
   // Generate path points and lines
   let svgContent = path.points.map((point) => `
-    <circle cx="${parseFloat(point.x)}" cy="${parseFloat(point.y)}" r="${3 / scale}" fill="#29313b"/>
+    <circle cx="${parseFloat(point.x)}" cy="${parseFloat(point.y)}" r="${3 / adjustedScale}" fill="#000000"/>
   `).join('');
 
   if (path.points.length > 1) {
     svgContent += `
       <path d="M${path.points.map(p => `${parseFloat(p.x)},${parseFloat(p.y)}`).join(' L')}"
-            stroke="#000000" stroke-width="${2.5 / scale}" fill="none"/>
+            stroke="#000000" stroke-width="${2.5 / adjustedScale}" fill="none"/>
     `;
   }
 
@@ -275,7 +277,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   if (showBorder && offsetSegments.length > 0) {
     svgContent += offsetSegments.map((segment) => `
       <line x1="${segment.p1.x}" y1="${segment.p1.y}" x2="${segment.p2.x}" y2="${segment.p2.y}"
-            stroke="#cccccc" stroke-width="${3 / scale}" stroke-dasharray="${6 / scale},${4 / scale}"/>
+            stroke="#000000" stroke-width="${3 / adjustedScale}" stroke-dasharray="${6 / adjustedScale},${4 / adjustedScale}"/>
     `).join('');
 
     const segment = offsetSegments[0];
@@ -293,8 +295,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const unitY = dy / length;
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-          const chevronSize = 8 / scale;
-          const chevronBaseDistance = 10 / scale;
+          const chevronSize = 8 / adjustedScale;
+          const chevronBaseDistance = 10 / adjustedScale;
           const chevronX = midX + normalX * chevronBaseDistance;
           const chevronY = midY + normalY * chevronBaseDistance;
           const direction = 1;
@@ -303,7 +305,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${chevronX},${chevronY}
             L${chevronX + chevronSize * normalX * direction - chevronSize * unitX},${chevronY + chevronSize * normalY * direction - chevronSize * unitY}
           `;
-          svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+          svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / adjustedScale}" fill="none"/>`;
         }
       }
     }
@@ -320,7 +322,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const midX = (parseFloat(p1.x) + parseFloat(p2.x)) / 2;
     const midY = (parseFloat(p1.y) + parseFloat(p2.y)) / 2;
     const arrowX = posX;
-    const arrowY = posY + 20 / scale;
+    const arrowY = posY + 20 / adjustedScale;
     const arrowDx = midX - arrowX;
     const arrowDy = midY - arrowY;
     const arrowDist = Math.sqrt(arrowDx * arrowDx + arrowDy * arrowDy) || 1;
@@ -347,16 +349,16 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         const isFirstSegment = i === 0;
         const foldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
         const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
-        const foldEndX = foldBaseX + normalX * FOLD_LENGTH / scale;
-        const foldEndY = foldBaseY + normalY * FOLD_LENGTH / scale;
+        const foldEndX = foldBaseX + normalX * FOLD_LENGTH / adjustedScale;
+        const foldEndY = foldBaseY + normalY * FOLD_LENGTH / adjustedScale;
         const foldDir = isFirstSegment ? 1 : -1;
 
         if (foldType === 'Crush') {
           const chevron1X = foldEndX;
           const chevron1Y = foldEndY;
-          const chevron2X = foldEndX - normalX * 3 / scale;
-          const chevron2Y = foldEndY - normalY * 3 / scale;
-          const chevronSize = 9 / scale;
+          const chevron2X = foldEndX - normalX * 3 / adjustedScale;
+          const chevron2Y = foldEndY - normalY * 3 / adjustedScale;
+          const chevronSize = 9 / adjustedScale;
           const chevronPath = `
             M${chevron1X + chevronSize * normalX + chevronSize * unitX * foldDir},${chevron1Y + chevronSize * normalY + chevronSize * unitY * foldDir}
             L${chevron1X},${chevron1Y}
@@ -365,9 +367,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${chevron2X},${chevron2Y}
             L${chevron2X + chevronSize * normalX - chevronSize * unitX * foldDir},${chevron2Y + chevronSize * normalY - chevronSize * unitY * foldDir}
           `;
-          foldElement = `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+          foldElement = `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / adjustedScale}" fill="none"/>`;
         } else if (foldType === 'Open') {
-          foldElement = `<line x1="${foldBaseX}" y1="${foldBaseY}" x2="${foldEndX}" y2="${foldEndY}" stroke="#000000" stroke-width="${2 / scale}"/>`;
+          foldElement = `<line x1="${foldBaseX}" y1="${foldBaseY}" x2="${foldEndX}" y2="${foldEndY}" stroke="#000000" stroke-width="${2 / adjustedScale}"/>`;
         } else if (foldType === 'Crush Hook') {
           let unitDirX = unitX;
           let unitDirY = unitY;
@@ -375,9 +377,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             unitDirX = -unitX;
             unitDirY = -unitY;
           }
-          const hookRadius = 8 / scale;
+          const hookRadius = 8 / adjustedScale;
           const arcPath = `M${foldBaseX},${foldBaseY} L${foldEndX},${foldEndY} A${hookRadius},${hookRadius} 0 0 1 ${foldEndX + hookRadius * unitDirX},${foldEndY + hookRadius * unitDirY}`;
-          foldElement = `<path d="${arcPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+          foldElement = `<path d="${arcPath}" stroke="#000000" stroke-width="${2 / adjustedScale}" fill="none"/>`;
         } else if (foldType === 'Break') {
           let zigzagDirX = unitX;
           let zigzagDirY = unitY;
@@ -385,21 +387,21 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             zigzagDirX = -unitX;
             zigzagDirY = -unitY;
           }
-          const midX = foldBaseX + normalX * (FOLD_LENGTH / 2) / scale;
-          const midY = foldBaseY + normalY * (FOLD_LENGTH / 2) / scale;
+          const midX = foldBaseX + normalX * (FOLD_LENGTH / 2) / adjustedScale;
+          const midY = foldBaseY + normalY * (FOLD_LENGTH / 2) / adjustedScale;
           const zigzagPath = `
             M${foldBaseX},${foldBaseY}
-            L${midX + (9 / scale) * zigzagDirX},${midY + (9 / scale) * zigzagDirY}
-            L${midX - (9 / scale) * zigzagDirX},${midY - (9 / scale) * zigzagDirY}
+            L${midX + (9 / adjustedScale) * zigzagDirX},${midY + (9 / adjustedScale) * zigzagDirY}
+            L${midX - (9 / adjustedScale) * zigzagDirX},${midY - (9 / adjustedScale) * zigzagDirY}
             L${foldEndX},${foldEndY}
           `;
-          foldElement = `<path d="${zigzagPath}" stroke="#000000" stroke-width="${2 / scale}" fill="none"/>`;
+          foldElement = `<path d="${zigzagPath}" stroke="#000000" stroke-width="${2 / adjustedScale}" fill="none"/>`;
         }
 
-        const foldLabelPosX = foldEndX + normalX * 25 / scale;
-        const foldLabelPosY = foldEndY + normalY * 25 / scale;
+        const foldLabelPosX = foldEndX + normalX * 25 / adjustedScale;
+        const foldLabelPosY = foldEndY + normalY * 25 / adjustedScale;
         const foldArrowX = foldLabelPosX;
-        const foldArrowY = foldLabelPosY + 20 / scale;
+        const foldArrowY = foldLabelPosY + 20 / adjustedScale;
         const foldArrowDx = foldBaseX - foldArrowX;
         const foldArrowDy = foldBaseY - foldArrowY;
         const foldArrowDist = Math.sqrt(foldArrowDx * foldArrowDx + foldArrowDy * foldArrowDy) || 1;
@@ -411,23 +413,22 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           L${foldArrowX - foldArrowUnitX * ARROW_SIZE + foldArrowUnitY * ARROW_SIZE * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE - foldArrowUnitX * ARROW_SIZE * 0.5}
           Z
         `;
-        const foldLabel = `
-          <text x="${foldLabelPosX}" y="${foldLabelPosY}" font-size="${14 / scale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
+        foldElement += `
+          <text x="${foldLabelPosX}" y="${foldLabelPosY}" font-size="${14 / adjustedScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
             ${foldType}
           </text>
-          <path d="${foldArrowPath}" stroke="#000000" stroke-width="${1 / scale}" fill="#000000"/>
+          <path d="${foldArrowPath}" stroke="#000000" stroke-width="${1 / adjustedScale}" fill="#000000"/>
         `;
-        foldElement += foldLabel;
       }
     }
 
     return `
       <g>
-        <rect x="${posX - 35 / scale}" y="${posY - 20 / scale}" width="${70 / scale}" height="${25 / scale}" fill="#ffffff" fill-opacity="0.9" rx="${5 / scale}" stroke="#1a3c34" stroke-width="${0.5 / scale}"/>
-        <text x="${posX}" y="${posY}" font-size="${14 / scale}" fill="#361a3c" text-anchor="middle" alignment-baseline="middle">
+        <rect x="${posX - 35 / adjustedScale}" y="${posY - 20 / adjustedScale}" width="${70 / adjustedScale}" height="${25 / adjustedScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${5 / adjustedScale}" stroke="#000000" stroke-width="${0.5 / adjustedScale}"/>
+        <text x="${posX}" y="${posY}" font-size="${14 / adjustedScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
-        <path d="${arrowPath}" stroke="#666666" stroke-width="${1 / scale}" fill="#666666"/>
+        <path d="${arrowPath}" stroke="#000000" stroke-width="${1 / adjustedScale}" fill="#000000"/>
         ${foldElement}
       </g>
     `;
@@ -442,7 +443,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? parseFloat(path.points[angle.vertexIndex].x) : anglePosX;
     const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? parseFloat(path.points[angle.vertexIndex].y) : anglePosY;
     const angleArrowX = anglePosX;
-    const angleArrowY = anglePosY + 20 / scale;
+    const angleArrowY = anglePosY + 20 / adjustedScale;
     const angleArrowDx = vertexX - angleArrowX;
     const angleArrowDy = vertexY - angleArrowY;
     const angleArrowDist = Math.sqrt(angleArrowDx * angleArrowDx + angleArrowDy * angleArrowDy) || 1;
@@ -456,11 +457,11 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     `;
     return `
       <g>
-        <rect x="${anglePosX - 35 / scale}" y="${anglePosY - 20 / scale}" width="${70 / scale}" height="${25 / scale}" fill="#ffffff" fill-opacity="0.9" rx="${5 / scale}" stroke="#e76f51" stroke-width="${0.5 / scale}"/>
-        <text x="${anglePosX}" y="${anglePosY}" font-size="${14 / scale}" fill="#e76f51" text-anchor="middle" alignment-baseline="middle">
+        <rect x="${anglePosX - 35 / adjustedScale}" y="${anglePosY - 20 / adjustedScale}" width="${70 / adjustedScale}" height="${25 / adjustedScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${5 / adjustedScale}" stroke="#000000" stroke-width="${0.5 / adjustedScale}"/>
+        <text x="${anglePosX}" y="${anglePosY}" font-size="${14 / adjustedScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
           ${angle.angle}
         </text>
-        <path d="${angleArrowPath}" stroke="#e76f51" stroke-width="${1 / scale}" fill="#e76f51"/>
+        <path d="${angleArrowPath}" stroke="#000000" stroke-width="${1 / adjustedScale}" fill="#000000"/>
       </g>
     `;
   }).join('');
@@ -496,20 +497,20 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   // Company name
   doc.font('Helvetica-Bold')
      .fontSize(20)
-     .fillColor('white')
+     .fillColor('#FFFFFF')
      .text('Commercial Roofers Pty Ltd', margin, 30);
   
   // Contact info
   doc.font('Helvetica')
      .fontSize(10)
-     .fillColor('white')
+     .fillColor('#FFFFFF')
      .text('contact@commercialroofers.net.au | 0421259430', margin, 55);
   
   // Page number if provided
   if (pageNumber !== null) {
     doc.font('Helvetica')
        .fontSize(10)
-       .fillColor('white')
+       .fillColor('#FFFFFF')
        .text(`Page ${pageNumber}`, pageWidth - margin, 55, { align: 'right' });
   }
   
@@ -541,7 +542,7 @@ const drawInfoCard = (doc, title, value, x, y, width) => {
   // Title
   doc.font('Helvetica')
      .fontSize(10)
-     .fillColor(COLORS.lightText)
+     .fillColor(COLORS.darkText)
      .text(title, x + 10, y + 8);
   
   // Value
@@ -589,7 +590,7 @@ export const generatePdf = async (req, res) => {
       }
     }
 
-    // Validate AdditionalItems (optional, can be empty string or null)
+    // Validate AdditionalItems
     const additionalItemsText = AdditionalItems || '';
 
     // Find user
@@ -664,7 +665,7 @@ export const generatePdf = async (req, res) => {
     // Track page numbers
     let pageNumber = 1;
 
-    // Page 1: Header, Order Details, Notes, Additional Items, and Table
+    // Page 1: Header and Order Details
     let y = drawHeader(doc, pageWidth, 0, pageNumber);
 
     // Order Details Section
@@ -710,7 +711,7 @@ export const generatePdf = async (req, res) => {
       
       doc.font('Helvetica')
          .fontSize(11)
-         .fillColor(COLORS.warning)
+         .fillColor(COLORS.darkText)
          .text(additionalItemsText, margin, y, {
            width: pageWidth - 2 * margin,
            align: 'left'
@@ -742,103 +743,13 @@ export const generatePdf = async (req, res) => {
     
     y += 10;
 
-    // Table Section
-    y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
-
-    // Table Header
-    const headers = ['#', 'Name', 'Code', 'Color', 'Q x L', 'Folds', 'Girth'];
-    const colWidths = [40, 150, 100, 100, 120, 80, 80];
-    const rowHeight = 30;
-
-    // Draw table header with background
-    let xPos = margin;
-    doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-       .fill(COLORS.primary);
-    
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('white');
-    headers.forEach((h, i) => {
-      doc.text(h, xPos + 10, y + 9, { width: colWidths[i] - 20, align: i > 0 ? 'left' : 'center' });
-      xPos += colWidths[i];
-    });
-    y += rowHeight;
-
-    // Group QuantitiesAndLengths by path
-    const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
-    const groupedQuantitiesAndLengths = [];
-    for (let i = 0; i < validPaths.length; i++) {
-      const startIndex = i * itemsPerPath;
-      const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
-      groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
-    }
-
-    // Table Rows with alternating background
-    doc.font('Helvetica').fontSize(11);
-    validPaths.forEach((path, index) => {
-      const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
-      const qxL = formatQxL(pathQuantitiesAndLengths);
-      const totalFolds = calculateTotalFolds(path);
-      const girth = calculateGirth(path);
-
-      // Alternate row background
-      if (index % 2 === 0) {
-        doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill(COLORS.lightBg);
-      }
-
-      const row = [
-        `${index + 1}`,
-        path.name || 'N/A',
-        path.code || 'N/A',
-        path.color || 'N/A',
-        qxL || 'N/A',
-        totalFolds.toString(),
-        girth
-      ];
-
-      xPos = margin;
-      row.forEach((val, i) => {
-        doc.fillColor(COLORS.darkText).text(val, xPos + 10, y + 9, { 
-          width: colWidths[i] - 20, 
-          align: i > 0 ? 'left' : 'center' 
-        });
-        xPos += colWidths[i];
-      });
-      
-      // Row border
-      doc.moveTo(margin, y + rowHeight)
-         .lineTo(pageWidth - margin, y + rowHeight)
-         .strokeColor(COLORS.border)
-         .lineWidth(0.5)
-         .stroke();
-      
-      y += rowHeight;
-      
-      // Check if we need a new page
-      if (y > pageHeight - 100) {
+    // Image pages
+    for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
+      if (pageIndex > 0 || y > pageHeight - 100) {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', y);
-        
-        // Redraw table header
-        xPos = margin;
-        doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill(COLORS.primary);
-        
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('white');
-        headers.forEach((h, i) => {
-          doc.text(h, xPos + 10, y + 9, { width: colWidths[i] - 20, align: i > 0 ? 'left' : 'center' });
-          xPos += colWidths[i];
-        });
-        y += rowHeight;
       }
-    });
-
-    // Image pages
-    for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
-      doc.addPage();
-      pageNumber++;
-      y = drawHeader(doc, pageWidth, 0, pageNumber);
       
       y = drawSectionHeader(doc, `DETAILED VIEWS - PART ${pageIndex + 1} OF ${imagePagesNeeded}`, y);
 
@@ -925,7 +836,104 @@ export const generatePdf = async (req, res) => {
             .text(`Image unavailable`, x, yPos);
         }
       }
+      y = startY + Math.ceil((endPath - startPath) / 2) * (imgSize + gap + 100);
     }
+
+    // Table Section (after images)
+    if (y > pageHeight - 100) {
+      doc.addPage();
+      pageNumber++;
+      y = drawHeader(doc, pageWidth, 0, pageNumber);
+    }
+    
+    y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
+
+    // Table Header
+    const headers = ['#', 'Name', 'Code', 'Color', 'Q x L', 'Folds', 'Girth'];
+    const colWidths = [40, 150, 100, 100, 120, 80, 80];
+    const rowHeight = 30;
+
+    // Draw table header with background
+    let xPos = margin;
+    doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
+       .fill(COLORS.primary);
+    
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('#FFFFFF');
+    headers.forEach((h, i) => {
+      doc.text(h, xPos + 10, y + 9, { width: colWidths[i] - 20, align: i > 0 ? 'left' : 'center' });
+      xPos += colWidths[i];
+    });
+    y += rowHeight;
+
+    // Group QuantitiesAndLengths by path
+    const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
+    const groupedQuantitiesAndLengths = [];
+    for (let i = 0; i < validPaths.length; i++) {
+      const startIndex = i * itemsPerPath;
+      const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
+      groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
+    }
+
+    // Table Rows
+    doc.font('Helvetica').fontSize(11);
+    validPaths.forEach((path, index) => {
+      const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
+      const qxL = formatQxL(pathQuantitiesAndLengths);
+      const totalFolds = calculateTotalFolds(path);
+      const girth = calculateGirth(path);
+
+      // Row background
+      doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
+         .fill(COLORS.lightBg);
+
+      const row = [
+        `${index + 1}`,
+        path.name || 'N/A',
+        path.code || 'N/A',
+        path.color || 'N/A',
+        qxL || 'N/A',
+        totalFolds.toString(),
+        girth
+      ];
+
+      xPos = margin;
+      row.forEach((val, i) => {
+        doc.fillColor(COLORS.darkText).text(val, xPos + 10, y + 9, { 
+          width: colWidths[i] - 20, 
+          align: i > 0 ? 'left' : 'center' 
+        });
+        xPos += colWidths[i];
+      });
+      
+      // Row border
+      doc.moveTo(margin, y + rowHeight)
+         .lineTo(pageWidth - margin, y + rowHeight)
+         .strokeColor(COLORS.border)
+         .lineWidth(0.5)
+         .stroke();
+      
+      y += rowHeight;
+      
+      // Check if we need a new page
+      if (y > pageHeight - 100) {
+        doc.addPage();
+        pageNumber++;
+        y = drawHeader(doc, pageWidth, 0, pageNumber);
+        y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', y);
+        
+        // Redraw table header
+        xPos = margin;
+        doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
+           .fill(COLORS.primary);
+        
+        doc.font('Helvetica-Bold').fontSize(12).fillColor('#FFFFFF');
+        headers.forEach((h, i) => {
+          doc.text(h, xPos + 10, y + 9, { width: colWidths[i] - 20, align: i > 0 ? 'left' : 'center' });
+          xPos += colWidths[i];
+        });
+        y += rowHeight;
+      }
+    });
 
     // Finalize the PDF
     doc.flushPages();
@@ -977,14 +985,14 @@ export const generatePdf = async (req, res) => {
         subject: `New Flashing Order - ${JobReference}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #2c3e50; color: white; padding: 20px; text-align: center;">
+            <div style="background-color: #000000; color: white; padding: 20px; text-align: center;">
               <h1>Commercial Roofers Pty Ltd</h1>
             </div>
-            <div style="padding: 20px; border: 1px solid #ddd;">
-              <h2 style="color: #2c3e50;">New Flashing Order</h2>
+            <div style="padding: 20px; border: 1px solid #000000;">
+              <h2 style="color: #000000;">New Flashing Order</h2>
               <p>Please find the attached flashing order PDF.</p>
               
-              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <div style="background-color: #FFFFFF; padding: 15px; border-radius: 5px; margin: 15px 0;">
                 <p><strong>Job Reference:</strong> ${JobReference}</p>
                 <p><strong>PO Number:</strong> ${Number}</p>
                 <p><strong>Order Contact:</strong> ${OrderContact}</p>
@@ -994,15 +1002,15 @@ export const generatePdf = async (req, res) => {
               </div>
               
               ${additionalItemsText ? `
-              <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <h3 style="color: #856404; margin-top: 0;">Additional Items</h3>
+              <div style="background-color: #FFFFFF; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <h3 style="color: #000000; margin-top: 0;">Additional Items</h3>
                 <p>${additionalItemsText.split('\n').map(line => line.trim()).filter(Boolean).join('<br>')}</p>
               </div>
               ` : ''}
               
               <p>For any questions, please contact us at <a href="mailto:info@commercialroofers.net.au">info@commercialroofers.net.au</a> or call 0421259430.</p>
             </div>
-            <div style="background-color: #f8f9fa; padding: 10px; text-align: center; font-size: 12px; color: #6c757d;">
+            <div style="background-color: #FFFFFF; padding: 10px; text-align: center; font-size: 12px; color: #000000;">
               <p>This email was automatically generated by Commercial Roofers Order System</p>
             </div>
           </div>
