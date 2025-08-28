@@ -459,7 +459,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       <g>
         <rect x="${anglePosX - 35 / adjustedScale}" y="${anglePosY - 20 / adjustedScale}" width="${70 / adjustedScale}" height="${25 / adjustedScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${5 / adjustedScale}" stroke="#000000" stroke-width="${0.5 / adjustedScale}"/>
         <text x="${anglePosX}" y="${anglePosY}" font-size="${14 / adjustedScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
-          ${angle.angle}
+          ${Math.floor(parseFloat(angle.angle))}
         </text>
         <path d="${angleArrowPath}" stroke="#000000" stroke-width="${1 / adjustedScale}" fill="#000000"/>
       </g>
@@ -628,6 +628,20 @@ export const generatePdf = async (req, res) => {
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
 
+    // Initialize groupedQuantitiesAndLengths early
+    const validPaths = projectData.paths.filter(path => validatePoints(path.points));
+    if (validPaths.length === 0) {
+      console.warn('No valid paths found in projectData');
+      return res.status(400).json({ message: 'No valid paths found in project data' });
+    }
+    const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
+    const groupedQuantitiesAndLengths = [];
+    for (let i = 0; i < validPaths.length; i++) {
+      const startIndex = i * itemsPerPath;
+      const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
+      groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
+    }
+
     // Initialize PDF document with A3 size
     const doc = new PDFDocument({ 
       size: 'A3', 
@@ -654,12 +668,6 @@ export const generatePdf = async (req, res) => {
     const gap = 40;
     const pathsPerPage = 4;
 
-    // Filter valid paths
-    const validPaths = projectData.paths.filter(path => validatePoints(path.points));
-    if (validPaths.length === 0) {
-      console.warn('No valid paths found in projectData');
-      return res.status(400).json({ message: 'No valid paths found in project data' });
-    }
     const imagePagesNeeded = Math.ceil(validPaths.length / pathsPerPage);
 
     // Track page numbers
@@ -864,15 +872,6 @@ export const generatePdf = async (req, res) => {
       xPos += colWidths[i];
     });
     y += rowHeight;
-
-    // Group QuantitiesAndLengths by path
-    const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
-    const groupedQuantitiesAndLengths = [];
-    for (let i = 0; i < validPaths.length; i++) {
-      const startIndex = i * itemsPerPath;
-      const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
-      groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
-    }
 
     // Table Rows
     doc.font('Helvetica').fontSize(11);
