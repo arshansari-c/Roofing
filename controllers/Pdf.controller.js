@@ -225,7 +225,7 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
 
 // Helper function to calculate total folds
 const calculateTotalFolds = (path) => {
-  let totalFolds = 0;
+  let totalFolds = (path.angles || []).length;
   if (Array.isArray(path.segments)) {
     path.segments.forEach(segment => {
       let foldType = 'None';
