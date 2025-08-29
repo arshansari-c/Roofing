@@ -67,7 +67,7 @@ const validatePoints = (points) => {
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Invalid points array in path:', path);
-    return { minX: 0, maxX: 100, minY: 0, maxY: 100, adjustedScale: scale }; // Fallback bounds
+    return { minX: 0, maxX: 100, minY: 0, maxY: 100 }; // Fallback bounds
   }
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -80,46 +80,28 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxY = Math.max(maxY, y);
   });
 
-  // Calculate max dimension and adjust scale
+  // Adjust for large drawings
   const maxDimension = Math.max(maxX - minX, maxY - minY);
-  const maxAllowedDimension = 2000; // Cap for large paths
-  let adjustedScale = scale;
-  if (maxDimension > maxAllowedDimension) {
-    adjustedScale = (maxAllowedDimension / maxDimension) * scale;
-  } else if (maxDimension < 100) {
-    adjustedScale = (100 / maxDimension) * scale; // Ensure small paths are visible
-  }
-
-  // Normalize coordinates to fit within a reasonable range
-  const normalizedPoints = path.points.map(point => ({
-    x: (parseFloat(point.x) - minX) * adjustedScale,
-    y: (parseFloat(point.y) - minY) * adjustedScale
-  }));
-
-  // Recalculate bounds based on normalized points
-  minX = 0;
-  maxX = (maxX - minX) * adjustedScale;
-  minY = 0;
-  maxY = (maxY - minY) * adjustedScale;
+  const adjustedScale = Math.min(scale, 1000 / maxDimension); // Prevent collapse for large drawings
 
   const arrowOffset = 20 / adjustedScale + ARROW_SIZE + 20;
   path.segments.forEach((segment, i) => {
     if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
       return;
     }
-    const labelX = (parseFloat(segment.labelPosition.x) - minX) * adjustedScale;
-    const labelY = (parseFloat(segment.labelPosition.y) - minY) * adjustedScale;
+    const labelX = parseFloat(segment.labelPosition.x);
+    const labelY = parseFloat(segment.labelPosition.y);
     minX = Math.min(minX, labelX - 35 / adjustedScale);
     maxX = Math.max(maxX, labelX + 35 / adjustedScale);
     minY = Math.min(minY, labelY - 20 / adjustedScale);
     maxY = Math.max(maxY, labelY + arrowOffset);
     const foldType = segment.fold || 'None';
     if (foldType !== 'None') {
-      const p1 = normalizedPoints[i];
-      const p2 = normalizedPoints[i + 1];
+      const p1 = path.points[i];
+      const p2 = path.points[i + 1];
       if (!p1 || !p2) return;
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
+      const dx = parseFloat(p2.x) - parseFloat(p1.x);
+      const dy = parseFloat(p2.y) - parseFloat(p1.y);
       const length = Math.sqrt(dx * dx + dy * dy);
       if (length) {
         const unitX = dx / length;
@@ -127,8 +109,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const normalX = unitY;
         const normalY = -unitX;
         const isFirstSegment = i === 0;
-        const foldBaseX = isFirstSegment ? p1.x : p2.x;
-        const foldBaseY = isFirstSegment ? p1.y : p2.y;
+        const foldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
+        const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
         const foldEndX = foldBaseX + normalX * FOLD_LENGTH / adjustedScale;
         const foldEndY = foldBaseY + normalY * FOLD_LENGTH / adjustedScale;
         const foldLabelX = foldEndX + normalX * 25 / adjustedScale;
@@ -144,15 +126,15 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
       return;
     }
-    const labelX = (parseFloat(angle.labelPosition.x) - minX) * adjustedScale;
-    const labelY = (parseFloat(angle.labelPosition.y) - minY) * adjustedScale;
+    const labelX = parseFloat(angle.labelPosition.x);
+    const labelY = parseFloat(angle.labelPosition.y);
     minX = Math.min(minX, labelX - 35 / adjustedScale);
     maxX = Math.max(maxX, labelX + 35 / adjustedScale);
     minY = Math.min(minY, labelY - 20 / adjustedScale);
     maxY = Math.max(maxY, labelY + arrowOffset);
   });
-  if (showBorder && normalizedPoints.length > 1) {
-    const offsetSegments = calculateOffsetSegments({ points: normalizedPoints, segments: path.segments }, borderOffsetDirection);
+  if (showBorder && path.points.length > 1) {
+    const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
     offsetSegments.forEach((seg) => {
       minX = Math.min(minX, seg.p1.x, seg.p2.x);
       maxX = Math.max(maxX, seg.p1.x, seg.p2.x);
@@ -163,11 +145,11 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     if (segment) {
       const midX = (segment.p1.x + segment.p2.x) / 2;
       const midY = (segment.p1.y + segment.p2.y) / 2;
-      const origP1 = normalizedPoints[0];
-      const origP2 = normalizedPoints[1];
+      const origP1 = path.points[0];
+      const origP2 = path.points[1];
       if (origP1 && origP2) {
-        const dx = origP2.x - origP1.x;
-        const dy = origP2.y - origP1.y;
+        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
+        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
         const length = Math.sqrt(dx * dx + dy * dy);
         if (length !== 0) {
           const unitX = dx / length;
@@ -186,14 +168,13 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       }
     }
   }
-  const padding = 50 / adjustedScale;
+  const padding = 50;
   return {
     minX: minX - padding,
     maxX: maxX + padding,
     minY: minY - padding,
     maxY: maxY + padding,
-    adjustedScale,
-    normalizedPoints
+    adjustedScale
   };
 };
 
@@ -264,9 +245,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
 
   const adjustedScale = bounds.adjustedScale || scale;
-  const normalizedPoints = bounds.normalizedPoints || path.points;
   const viewBox = `${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`;
-  const offsetSegments = showBorder && normalizedPoints.length > 1 ? calculateOffsetSegments({ points: normalizedPoints, segments: path.segments }, borderOffsetDirection) : [];
+  const offsetSegments = showBorder && path.points.length > 1 ? calculateOffsetSegments(path, borderOffsetDirection) : [];
 
   // Generate grid
   const gridStartX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
@@ -282,13 +262,13 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
 
   // Generate path points and lines
-  let svgContent = normalizedPoints.map((point) => `
+  let svgContent = path.points.map((point) => `
     <circle cx="${parseFloat(point.x)}" cy="${parseFloat(point.y)}" r="${3 / adjustedScale}" fill="#000000"/>
   `).join('');
 
-  if (normalizedPoints.length > 1) {
+  if (path.points.length > 1) {
     svgContent += `
-      <path d="M${normalizedPoints.map(p => `${parseFloat(p.x)},${parseFloat(p.y)}`).join(' L')}"
+      <path d="M${path.points.map(p => `${parseFloat(p.x)},${parseFloat(p.y)}`).join(' L')}"
             stroke="#000000" stroke-width="${2.5 / adjustedScale}" fill="none"/>
     `;
   }
@@ -304,8 +284,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     if (segment) {
       const midX = (segment.p1.x + segment.p2.x) / 2;
       const midY = (segment.p1.y + segment.p2.y) / 2;
-      const origP1 = normalizedPoints[0];
-      const origP2 = normalizedPoints[1];
+      const origP1 = path.points[0];
+      const origP2 = path.points[1];
       if (origP1 && origP2) {
         const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
         const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
@@ -333,14 +313,14 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   // Generate segments with labels, arrows, and folds
   svgContent += (Array.isArray(path.segments) ? path.segments : []).map((segment, i) => {
-    const p1 = normalizedPoints[i];
-    const p2 = normalizedPoints[i + 1];
+    const p1 = path.points[i];
+    const p2 = path.points[i + 1];
     if (!p1 || !p2 || !segment.labelPosition) return '';
 
-    const posX = (parseFloat(segment.labelPosition.x) - parseFloat(path.points[0].x)) * adjustedScale;
-    const posY = (parseFloat(segment.labelPosition.y) - parseFloat(path.points[0].y)) * adjustedScale;
-    const midX = (p1.x + p2.x) / 2;
-    const midY = (p1.y + p2.y) / 2;
+    const posX = parseFloat(segment.labelPosition.x);
+    const posY = parseFloat(segment.labelPosition.y);
+    const midX = (parseFloat(p1.x) + parseFloat(p2.x)) / 2;
+    const midY = (parseFloat(p1.y) + parseFloat(p2.y)) / 2;
     const arrowX = posX;
     const arrowY = posY + 20 / adjustedScale;
     const arrowDx = midX - arrowX;
@@ -358,8 +338,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     let foldElement = '';
     const foldType = segment.fold || 'None';
     if (foldType !== 'None') {
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
+      const dx = parseFloat(p2.x) - parseFloat(p1.x);
+      const dy = parseFloat(p2.y) - parseFloat(p1.y);
       const length = Math.sqrt(dx * dx + dy * dy);
       if (length) {
         const unitX = dx / length;
@@ -367,8 +347,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         const normalX = unitY;
         const normalY = -unitX;
         const isFirstSegment = i === 0;
-        const foldBaseX = isFirstSegment ? p1.x : p2.x;
-        const foldBaseY = isFirstSegment ? p1.y : p2.y;
+        const foldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
+        const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
         const foldEndX = foldBaseX + normalX * FOLD_LENGTH / adjustedScale;
         const foldEndY = foldBaseY + normalY * FOLD_LENGTH / adjustedScale;
         const foldDir = isFirstSegment ? 1 : -1;
@@ -458,10 +438,10 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
       return '';
     }
-    const anglePosX = (parseFloat(angle.labelPosition.x) - parseFloat(path.points[0].x)) * adjustedScale;
-    const anglePosY = (parseFloat(angle.labelPosition.y) - parseFloat(path.points[0].y)) * adjustedScale;
-    const vertexX = angle.vertexIndex && normalizedPoints[angle.vertexIndex] ? parseFloat(normalizedPoints[angle.vertexIndex].x) : anglePosX;
-    const vertexY = angle.vertexIndex && normalizedPoints[angle.vertexIndex] ? parseFloat(normalizedPoints[angle.vertexIndex].y) : anglePosY;
+    const anglePosX = parseFloat(angle.labelPosition.x);
+    const anglePosY = parseFloat(angle.labelPosition.y);
+    const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? parseFloat(path.points[angle.vertexIndex].x) : anglePosX;
+    const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? parseFloat(path.points[angle.vertexIndex].y) : anglePosY;
     const angleArrowX = anglePosX;
     const angleArrowY = anglePosY + 20 / adjustedScale;
     const angleArrowDx = vertexX - angleArrowX;
@@ -771,15 +751,9 @@ export const generatePdf = async (req, res) => {
     
     y += 10;
 
-    // Estimate space needed for table section
-    const tableHeaderHeight = 30;
-    const tableRowHeight = 30;
-    const tableRows = validPaths.length;
-    const tableSectionHeight = tableHeaderHeight + (tableRows * tableRowHeight) + 30; // 30 for section header
-
     // Image pages
     for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
-      if (pageIndex > 0 || y > pageHeight - tableSectionHeight - 100) {
+      if (pageIndex > 0 || y > pageHeight - 100) {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
@@ -806,11 +780,10 @@ export const generatePdf = async (req, res) => {
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
           // Convert SVG to PNG with higher resolution
-          const maxImageSize = Math.min(imgSize * 4, 1200); // Cap image size to avoid memory issues
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: maxImageSize,
-              height: maxImageSize,
+              width: imgSize * 3,
+              height: imgSize * 3,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255 },
             })
@@ -875,7 +848,7 @@ export const generatePdf = async (req, res) => {
     }
 
     // Table Section (after images)
-    if (y > pageHeight - tableSectionHeight - 100) {
+    if (y > pageHeight - 100) {
       doc.addPage();
       pageNumber++;
       y = drawHeader(doc, pageWidth, 0, pageNumber);
@@ -941,7 +914,7 @@ export const generatePdf = async (req, res) => {
       y += rowHeight;
       
       // Check if we need a new page
-      if (y > pageHeight - 100 && index < validPaths.length - 1) {
+      if (y > pageHeight - 100) {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
