@@ -116,8 +116,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       if (length) {
         const unitX = dx / length;
         const unitY = dy / length;
-        const normalX = unitY;
-        const normalY = -unitX;
+        let normalX = unitY;
+        let normalY = -unitX;
         const angleRad = foldAngle * Math.PI / 180;
         const cosA = Math.cos(angleRad);
         const sinA = Math.sin(angleRad);
@@ -292,8 +292,28 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   // Adjusted sizes (since we normalized, adjust sizes accordingly)
   const adjScale = scale / normalizeScale; // To make sizes consistent
 
-  // Skip grid for PDF to save ink and improve clarity
+  // Generate grid
   let gridLines = '';
+  const origGridSize = GRID_SIZE;
+  const gridStartX = Math.floor(bounds.minX / origGridSize) * origGridSize;
+  const gridStartY = Math.floor(bounds.minY / origGridSize) * origGridSize;
+  const gridEndX = Math.ceil(bounds.maxX / origGridSize) * origGridSize;
+  const gridEndY = Math.ceil(bounds.maxY / origGridSize) * origGridSize;
+
+  for (let x = gridStartX; x <= gridEndX; x += origGridSize) {
+    const tx1 = (x + transX) * normalizeScale;
+    const ty1 = (gridStartY + transY) * normalizeScale;
+    const tx2 = tx1;
+    const ty2 = (gridEndY + transY) * normalizeScale;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+  }
+  for (let y = gridStartY; y <= gridEndY; y += origGridSize) {
+    const tx1 = (gridStartX + transX) * normalizeScale;
+    const ty1 = (y + transY) * normalizeScale;
+    const tx2 = (gridEndX + transX) * normalizeScale;
+    const ty2 = ty1;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+  }
 
   // Generate path points and lines
   let svgContent = path.points.map((point) => {
@@ -338,8 +358,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const chevronX = midX + normalX * chevronBaseDistance;
           const chevronY = midY + normalY * chevronBaseDistance;
           const direction = 1;
-          const cx = transformCoord(chevronX, chevronY).x;
-          const cy = transformCoord(chevronX, chevronY).y;
+          const {x: cx, y: cy} = transformCoord(chevronX, chevronY);
           const chevronPath = `
             M${cx + chevronSize * normalX * direction + chevronSize * unitX},${cy + chevronSize * normalY * direction + chevronSize * unitY}
             L${cx},${cy}
@@ -513,11 +532,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       L${arrowX - arrowUnitX * ARROW_SIZE + arrowUnitY * ARROW_SIZE * 0.5},${arrowY - arrowUnitY * ARROW_SIZE - arrowUnitX * ARROW_SIZE * 0.5}
       Z
     `;
+    const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
     return `
       <g>
         <rect x="${posX - 35 / adjScale}" y="${posY - 20 / adjScale}" width="${70 / adjScale}" height="${25 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${5 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
         <text x="${posX}" y="${posY}" font-size="${14 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
-          ${angle.angle}
+          ${roundedAngle}°
         </text>
         <path d="${arrowPath}" stroke="#000000" stroke-width="${1 / adjScale}" fill="#000000"/>
       </g>
