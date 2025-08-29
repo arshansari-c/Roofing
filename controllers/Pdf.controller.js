@@ -67,7 +67,7 @@ const validatePoints = (points) => {
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Invalid points array in path:', path);
-    return { minX: 0, maxX: 100, minY: 0, maxY: 100 }; // Fallback bounds
+    return { minX: 0, maxX: 100, minY: 0, maxY: 100, adjustedScale: 1 };
   }
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -80,9 +80,14 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxY = Math.max(maxY, y);
   });
 
-  // Adjust for large drawings
-  const maxDimension = Math.max(maxX - minX, maxY - minY);
-  const adjustedScale = Math.min(scale, 1000 / maxDimension); // Prevent collapse for large drawings
+  // Calculate dimensions
+  const width = maxX - minX;
+  const height = maxY - minY;
+  const maxDimension = Math.max(width, height);
+
+  // Adjust scale for large diagrams (e.g., 2000m)
+  const targetDimension = 500; // Target size in PDF units
+  const adjustedScale = maxDimension > 0 ? Math.min(scale, targetDimension / maxDimension) : scale;
 
   const arrowOffset = 20 / adjustedScale + ARROW_SIZE + 20;
   path.segments.forEach((segment, i) => {
@@ -168,7 +173,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       }
     }
   }
-  const padding = 50;
+  const padding = 50 / adjustedScale; // Scale padding to maintain consistent margins
   return {
     minX: minX - padding,
     maxX: maxX + padding,
@@ -628,7 +633,7 @@ export const generatePdf = async (req, res) => {
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
 
-    // Initialize groupedQuantitiesAndLengths early
+    // Initialize groupedQuantitiesAndLengths
     const validPaths = projectData.paths.filter(path => validatePoints(path.points));
     if (validPaths.length === 0) {
       console.warn('No valid paths found in projectData');
@@ -664,9 +669,9 @@ export const generatePdf = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
-    const imgSize = 300;
+    const imgSize = 400; // Increased image size for better visibility
     const gap = 40;
-    const pathsPerPage = 4;
+    const pathsPerPage = 2; // Reduced to 2 images per page
 
     const imagePagesNeeded = Math.ceil(validPaths.length / pathsPerPage);
 
@@ -728,6 +733,13 @@ export const generatePdf = async (req, res) => {
       y += doc.heightOfString(additionalItemsText, { width: pageWidth - 2 * margin }) + 30;
     }
 
+    // Check if we need a new page for Important Notes
+    if (y > pageHeight - 150) {
+      doc.addPage();
+      pageNumber++;
+      y = drawHeader(doc, pageWidth, 0, pageNumber);
+    }
+
     // General Notes
     y = drawSectionHeader(doc, 'IMPORTANT NOTES', y);
     
@@ -753,7 +765,7 @@ export const generatePdf = async (req, res) => {
 
     // Image pages
     for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
-      if (pageIndex > 0 || y > pageHeight - 100) {
+      if (pageIndex > 0 || y > pageHeight - (imgSize + 150)) {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
@@ -769,10 +781,8 @@ export const generatePdf = async (req, res) => {
 
       for (let i = startPath; i < endPath; i++) {
         const svgIndex = i - startPath;
-        const row = Math.floor(svgIndex / 2);
-        const col = svgIndex % 2;
-        const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 100);
+        const x = startX;
+        const yPos = startY + svgIndex * (imgSize + gap + 100);
 
         try {
           const pathData = validPaths[i];
@@ -844,7 +854,7 @@ export const generatePdf = async (req, res) => {
             .text(`Image unavailable`, x, yPos);
         }
       }
-      y = startY + Math.ceil((endPath - startPath) / 2) * (imgSize + gap + 100);
+      y = startY + (endPath - startPath) * (imgSize + gap + 100);
     }
 
     // Table Section (after images)
