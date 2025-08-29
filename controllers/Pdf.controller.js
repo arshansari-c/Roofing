@@ -771,9 +771,15 @@ export const generatePdf = async (req, res) => {
     
     y += 10;
 
+    // Estimate space needed for table section
+    const tableHeaderHeight = 30;
+    const tableRowHeight = 30;
+    const tableRows = validPaths.length;
+    const tableSectionHeight = tableHeaderHeight + (tableRows * tableRowHeight) + 30; // 30 for section header
+
     // Image pages
     for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
-      if (pageIndex > 0 || y > pageHeight - 100) {
+      if (pageIndex > 0 || y > pageHeight - tableSectionHeight - 100) {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
@@ -869,7 +875,7 @@ export const generatePdf = async (req, res) => {
     }
 
     // Table Section (after images)
-    if (y > pageHeight - 100) {
+    if (y > pageHeight - tableSectionHeight - 100) {
       doc.addPage();
       pageNumber++;
       y = drawHeader(doc, pageWidth, 0, pageNumber);
@@ -935,7 +941,7 @@ export const generatePdf = async (req, res) => {
       y += rowHeight;
       
       // Check if we need a new page
-      if (y > pageHeight - 100) {
+      if (y > pageHeight - 100 && index < validPaths.length - 1) {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
