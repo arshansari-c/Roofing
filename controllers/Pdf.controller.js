@@ -186,7 +186,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
   }
 
-  const padding = 50;
+  const padding = 100;
   return {
     minX: minX - padding,
     minY: minY - padding,
@@ -269,18 +269,31 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
 
   // Normalization
-  const width = bounds.maxX - bounds.minX;
-  const height = bounds.maxY - bounds.minY;
+  let width = bounds.maxX - bounds.minX;
+  let height = bounds.maxY - bounds.minY;
   const maxDim = Math.max(width, height);
   let normalizeScale = 1;
-  if (maxDim > 5000) {
-    normalizeScale = 5000 / maxDim;
+  if (maxDim > 10000) {
+    normalizeScale = 10000 / maxDim;
   }
   const transX = -bounds.minX;
   const transY = -bounds.minY;
   const vbWidth = width * normalizeScale;
   const vbHeight = height * normalizeScale;
-  const viewBox = `0 0 ${vbWidth} ${vbHeight}`;
+  let viewBox = `0 0 ${vbWidth} ${vbHeight}`;
+  let gridLinesTransform = '';
+  let svgContentTransform = '';
+  let isRotated = false;
+
+  if (width > height) {
+    isRotated = true;
+    [vbWidth, vbHeight] = [vbHeight, vbWidth];
+    viewBox = `0 0 ${vbWidth} ${vbHeight}`;
+    const centerX = vbWidth / 2;
+    const centerY = vbHeight / 2;
+    gridLinesTransform = `transform="rotate(90 ${centerX} ${centerY})"`;
+    svgContentTransform = `transform="rotate(90 ${centerX} ${centerY})"`;
+  }
 
   const transformCoord = (x, y) => {
     return {
@@ -545,8 +558,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }).join('');
 
   return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
-    <g>${gridLines}</g>
-    <g>${svgContent}</g>
+    <g ${gridLinesTransform}>${gridLines}</g>
+    <g ${svgContentTransform}>${svgContent}</g>
   </svg>`;
 };
 
@@ -718,9 +731,10 @@ export const generatePdf = async (req, res) => {
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
     }
 
-    // Initialize PDF document with A3 size
+    // Initialize PDF document with A3 size in landscape
     const doc = new PDFDocument({ 
       size: 'A3', 
+      layout: 'landscape',
       bufferPages: true,
       info: {
         Title: `Flashing Order - ${JobReference}`,
@@ -740,8 +754,13 @@ export const generatePdf = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
-    const imgSize = 300;
+    const imgWidth = 500;
+    const imgHeight = 300;
     const gap = 40;
+    const pathsPerFirstPage = 2;
+    const pathsPerSubsequentPage = 4;
+
+    const imagePagesNeeded = validPaths.length > 0 ? 1 + Math.ceil(Math.max(0, validPaths.length - pathsPerFirstPage) / pathsPerSubsequentPage) : 0;
 
     // Track page numbers
     let pageNumber = 1;
@@ -825,18 +844,10 @@ export const generatePdf = async (req, res) => {
     y += 10;
 
     // Image handling
-    const pathsPerFirstPage = 2;
-    const pathsPerSubsequentPage = 4;
-    let totalImagePages = 0;
-    if (validPaths.length > 0) {
-      totalImagePages = 1 + Math.ceil(Math.max(0, validPaths.length - pathsPerFirstPage) / pathsPerSubsequentPage);
-    }
-
-    // First part: Up to 2 images on the current page
     let firstPagePaths = 0;
     if (validPaths.length > 0) {
       firstPagePaths = Math.min(pathsPerFirstPage, validPaths.length);
-      y = drawSectionHeader(doc, `DETAILED VIEWS - PART 1 OF ${totalImagePages}`, y);
+      y = drawSectionHeader(doc, `DETAILED VIEWS - PART 1 OF ${imagePagesNeeded}`, y);
 
       const startX = margin;
       const startY = y;
@@ -845,8 +856,8 @@ export const generatePdf = async (req, res) => {
         const svgIndex = i;
         const row = Math.floor(svgIndex / 2);
         const col = svgIndex % 2;
-        const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 100);
+        const x = startX + col * (imgWidth + gap);
+        const yPos = startY + row * (imgHeight + gap + 100);
 
         try {
           const pathData = validPaths[i];
@@ -856,8 +867,8 @@ export const generatePdf = async (req, res) => {
           // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: imgSize * 4,
-              height: imgSize * 4,
+              width: imgWidth * 4,
+              height: imgHeight * 4,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255, alpha: 1 },
             })
@@ -865,22 +876,17 @@ export const generatePdf = async (req, res) => {
             .toBuffer();
 
           // Card background for image
-          doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
+          doc.roundedRect(x - 10, yPos - 10, imgWidth + 20, imgHeight + 80, 5)
              .fill('white')
              .stroke(COLORS.border)
              .lineWidth(1)
              .stroke();
 
           // Embed image in PDF
-          const img = doc.openImage(imageBuffer);
-          const imgW = imgSize;
-          const imgH = (img.height * imgW) / img.width;
-
-          // Image
-          doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+          doc.image(imageBuffer, x, yPos, { fit: [imgWidth, imgHeight], align: 'center', valign: 'center' });
 
           // Info below image
-          const infoY = yPos + imgH + 15;
+          const infoY = yPos + imgHeight + 15;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
@@ -918,7 +924,7 @@ export const generatePdf = async (req, res) => {
             .text(`Image unavailable`, x, yPos);
         }
       }
-      y = startY + Math.ceil(firstPagePaths / 2) * (imgSize + gap + 100);
+      y = startY + Math.ceil(firstPagePaths / 2) * (imgHeight + gap + 100);
     }
 
     // Remaining images: 4 per page on new pages
@@ -930,7 +936,7 @@ export const generatePdf = async (req, res) => {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, `DETAILED VIEWS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
+        y = drawSectionHeader(doc, `DETAILED VIEWS - PART ${pageIndex + 2} OF ${imagePagesNeeded}`, y);
 
         const startPath = firstPagePaths + pageIndex * pathsPerSubsequentPage;
         const endPath = Math.min(startPath + pathsPerSubsequentPage, validPaths.length);
@@ -943,8 +949,8 @@ export const generatePdf = async (req, res) => {
           const svgIndex = j;
           const row = Math.floor(svgIndex / 2);
           const col = svgIndex % 2;
-          const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 100);
+          const x = startX + col * (imgWidth + gap);
+          const yPos = startY + row * (imgHeight + gap + 100);
 
           try {
             const pathData = validPaths[i];
@@ -954,8 +960,8 @@ export const generatePdf = async (req, res) => {
             // Convert SVG to PNG with higher resolution
             const imageBuffer = await sharp(Buffer.from(svgString))
               .resize({
-                width: imgSize * 4,
-                height: imgSize * 4,
+                width: imgWidth * 4,
+                height: imgHeight * 4,
                 fit: 'contain',
                 background: { r: 255, g: 255, b: 255, alpha: 1 },
               })
@@ -963,22 +969,17 @@ export const generatePdf = async (req, res) => {
               .toBuffer();
 
             // Card background for image
-            doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
+            doc.roundedRect(x - 10, yPos - 10, imgWidth + 20, imgHeight + 80, 5)
                .fill('white')
                .stroke(COLORS.border)
                .lineWidth(1)
                .stroke();
 
             // Embed image in PDF
-            const img = doc.openImage(imageBuffer);
-            const imgW = imgSize;
-            const imgH = (img.height * imgW) / img.width;
-
-            // Image
-            doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+            doc.image(imageBuffer, x, yPos, { fit: [imgWidth, imgHeight], align: 'center', valign: 'center' });
 
             // Info below image
-            const infoY = yPos + imgH + 15;
+            const infoY = yPos + imgHeight + 15;
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
@@ -1016,7 +1017,7 @@ export const generatePdf = async (req, res) => {
               .text(`Image unavailable`, x, yPos);
           }
         }
-        y = startY + Math.ceil((endPath - startPath) / 2) * (imgSize + gap + 100);
+        y = startY + Math.ceil((endPath - startPath) / 2) * (imgHeight + gap + 100);
       }
     }
 
