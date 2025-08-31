@@ -52,17 +52,6 @@ const COLORS = {
   border: '#000000',     // Black border
 };
 
-// Helper function to format large measurements
-const formatLargeMeasurement = (value, unit = 'm') => {
-  const numValue = parseFloat(value);
-  if (isNaN(numValue)) return value + unit;
-  
-  if (numValue >= 1000) {
-    return (numValue / 1000).toFixed(1) + 'km';
-  }
-  return Math.round(numValue) + unit;
-};
-
 // Helper function to validate points
 const validatePoints = (points) => {
   if (!Array.isArray(points) || points.length === 0) {
@@ -267,36 +256,18 @@ const calculateGirth = (path) => {
   if (Array.isArray(path.segments)) {
     path.segments.forEach(segment => {
       const lengthStr = segment.length || '0 m';
-      // Extract numeric value and handle large numbers safely
-      const lengthMatch = lengthStr.match(/(\d+(?:\.\d+)?)\s*(m|km)/);
-      if (lengthMatch) {
-        let lengthNum = parseFloat(lengthMatch[1]);
-        const unit = lengthMatch[2];
-        
-        // Convert to meters for consistent calculation
-        if (unit === 'km') {
-          lengthNum *= 1000;
-        }
-        
-        totalLength += lengthNum;
-      }
+      // Handle large numbers safely
+      const lengthNum = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
+      totalLength += lengthNum;
     });
   }
-  
-  // Format the result appropriately
-  if (totalLength >= 1000) {
-    return (totalLength / 1000).toFixed(2) + 'km';
-  }
-  return totalLength.toFixed(2) + 'm';
+  return totalLength.toFixed(2);
 };
 
 // Helper function to format Q x L
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
-  return quantitiesAndLengths.map(item => {
-    const formattedLength = formatLargeMeasurement(item.length);
-    return `${item.quantity}x${formattedLength}`;
-  }).join(', ');
+  return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
 
 // Helper function to generate SVG string with better handling for large diagrams
@@ -542,14 +513,11 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       }
     }
 
-    // Format the length label for large measurements
-    const formattedLength = formatLargeMeasurement(segment.length.replace(/[^\d.]/g, ''), 'm');
-
     return `
       <g>
         <rect x="${posX - 35 / adjScale}" y="${posY - 20 / adjScale}" width="${70 / adjScale}" height="${25 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${5 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
         <text x="${posX}" y="${posY}" font-size="${14 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
-          ${formattedLength}
+          ${segment.length}
         </text>
         <path d="${arrowPath}" stroke="#000000" stroke-width="${1 / adjScale}" fill="#000000"/>
         ${foldElement}
