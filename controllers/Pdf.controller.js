@@ -87,9 +87,6 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
 
   // For very large diagrams, adjust calculations to prevent overflow
   const isLargeDiagram = (maxX - minX > 10000 || maxY - minY > 10000);
-  const precisionFactor = isLargeDiagram ? 1000 : 1;
-  const scaledArrowSize = ARROW_SIZE / precisionFactor;
-  const scaledFoldLength = FOLD_LENGTH / precisionFactor;
 
   path.segments.forEach((segment, i) => {
     if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
@@ -100,14 +97,14 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     minX = Math.min(minX, labelX - 35 / scale);
     maxX = Math.max(maxX, labelX + 35 / scale);
     minY = Math.min(minY, labelY - 20 / scale);
-    maxY = Math.max(maxY, labelY + scaledArrowSize + 20 / scale);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 20 / scale);
 
     let foldType = 'None';
-    let foldLength = scaledFoldLength;
+    let foldLength = FOLD_LENGTH;
     let foldAngle = 0;
     if (typeof segment.fold === 'object' && segment.fold) {
       foldType = segment.fold.type || 'None';
-      foldLength = parseFloat(segment.fold.length) || scaledFoldLength;
+      foldLength = parseFloat(segment.fold.length) || FOLD_LENGTH;
       foldAngle = parseFloat(segment.fold.angle) || 0;
     } else {
       foldType = segment.fold || 'None';
@@ -140,7 +137,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         minX = Math.min(minX, foldLabelX - 35, foldEndX, foldBaseX);
         maxX = Math.max(maxX, foldLabelX + 35, foldEndX, foldBaseX);
         minY = Math.min(minY, foldLabelY - 20, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + scaledArrowSize + 20, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 20, foldEndY, foldBaseY);
       }
     }
   });
@@ -154,7 +151,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     minX = Math.min(minX, labelX - 35);
     maxX = Math.max(maxX, labelX + 35);
     minY = Math.min(minY, labelY - 20);
-    maxY = Math.max(maxY, labelY + scaledArrowSize + 20);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 20);
   });
 
   if (showBorder && path.points.length > 1) {
@@ -281,7 +278,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const isLargeDiagram = (width > 10000 || height > 10000);
-  const precisionFactor = isLargeDiagram ? 1000 : 1;
   
   // Normalization with better handling for large diagrams
   const maxDim = Math.max(width, height);
