@@ -5,6 +5,7 @@ import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../cont
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
 import { approveOrder, cancelOrder, ChangePassword, ConversetionChat, fetchChatUser, fetchclientDetails, fetchConversationChat, fetchOrders, fetchSelectedOrderDetails, fetchUserPdf, fetchUserSendOrderList, rejectOrder, SaveUserPdf, SendOrderToContractor } from '../controllers/conversation.controller.js'
 import { generatePdf, UpdateGerantePdfOrder } from '../controllers/Pdf.controller.js'
+import { generatePdfDownload } from '../controllers/download.controller.js'
 
 export const AuthRouter = express.Router()
 
@@ -44,3 +45,4 @@ AuthRouter.put('/updatejoborder/:userId/:orderId',UpdateJobOrder)
 AuthRouter.get('/fetchuploadorder/:userId',fetchUploadOrder)
 AuthRouter.post('/generatepdfandsendteam/:userId',generatePdf)
 AuthRouter.put('/updategeneratepdfandsendteam/:userId/:orderId',UpdateGerantePdfOrder)
+AuthRouter.post('/genreatepdfpreview/:userId',generatePdfDownload)
