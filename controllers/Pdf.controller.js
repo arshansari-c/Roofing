@@ -66,7 +66,7 @@ const validatePoints = (points) => {
   );
 };
 
-// Helper function to calculate bounds for a path
+// Helper function to calculate bounds for a path with better precision handling
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Invalid points array in path:', path);
@@ -74,6 +74,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   }
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  
+  // Process points with better precision handling
   path.points.forEach((point) => {
     const x = parseFloat(point.x);
     const y = parseFloat(point.y);
@@ -83,7 +85,12 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxY = Math.max(maxY, y);
   });
 
-  const arrowOffset = 20 / scale + ARROW_SIZE + 20;
+  // For very large diagrams, adjust calculations to prevent overflow
+  const isLargeDiagram = (maxX - minX > 10000 || maxY - minY > 10000);
+  const precisionFactor = isLargeDiagram ? 1000 : 1;
+  const scaledArrowSize = ARROW_SIZE / precisionFactor;
+  const scaledFoldLength = FOLD_LENGTH / precisionFactor;
+
   path.segments.forEach((segment, i) => {
     if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
       return;
@@ -93,14 +100,14 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     minX = Math.min(minX, labelX - 35 / scale);
     maxX = Math.max(maxX, labelX + 35 / scale);
     minY = Math.min(minY, labelY - 20 / scale);
-    maxY = Math.max(maxY, labelY + arrowOffset);
+    maxY = Math.max(maxY, labelY + scaledArrowSize + 20 / scale);
 
     let foldType = 'None';
-    let foldLength = FOLD_LENGTH;
+    let foldLength = scaledFoldLength;
     let foldAngle = 0;
     if (typeof segment.fold === 'object' && segment.fold) {
       foldType = segment.fold.type || 'None';
-      foldLength = parseFloat(segment.fold.length) || FOLD_LENGTH;
+      foldLength = parseFloat(segment.fold.length) || scaledFoldLength;
       foldAngle = parseFloat(segment.fold.angle) || 0;
     } else {
       foldType = segment.fold || 'None';
@@ -133,7 +140,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         minX = Math.min(minX, foldLabelX - 35, foldEndX, foldBaseX);
         maxX = Math.max(maxX, foldLabelX + 35, foldEndX, foldBaseX);
         minY = Math.min(minY, foldLabelY - 20, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + arrowOffset, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + scaledArrowSize + 20, foldEndY, foldBaseY);
       }
     }
   });
@@ -147,7 +154,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     minX = Math.min(minX, labelX - 35);
     maxX = Math.max(maxX, labelX + 35);
     minY = Math.min(minY, labelY - 20);
-    maxY = Math.max(maxY, labelY + arrowOffset);
+    maxY = Math.max(maxY, labelY + scaledArrowSize + 20);
   });
 
   if (showBorder && path.points.length > 1) {
@@ -186,7 +193,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
   }
 
-  const padding = 50;
+  // For very large diagrams, adjust padding to be proportional
+  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 50;
   return {
     minX: minX - padding,
     minY: minY - padding,
@@ -248,6 +256,7 @@ const calculateGirth = (path) => {
   if (Array.isArray(path.segments)) {
     path.segments.forEach(segment => {
       const lengthStr = segment.length || '0 m';
+      // Handle large numbers safely
       const lengthNum = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
       totalLength += lengthNum;
     });
@@ -261,19 +270,25 @@ const formatQxL = (quantitiesAndLengths) => {
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
 
-// Helper function to generate SVG string with normalization
+// Helper function to generate SVG string with better handling for large diagrams
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Skipping SVG generation for path due to invalid points:', path);
     return '<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="50" font-size="14" text-anchor="middle" fill="#000000">Invalid path data</text></svg>';
   }
 
-  // Normalization
+  // Check if this is a large diagram
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  const maxDim = Math.max(width, height, 1); // Avoid division by zero
-  const targetMaxDim = 300; // Chosen for reasonable final sizes (~14px text in PDF)
-  const normalizeScale = targetMaxDim / maxDim;
+  const isLargeDiagram = (width > 10000 || height > 10000);
+  const precisionFactor = isLargeDiagram ? 1000 : 1;
+  
+  // Normalization with better handling for large diagrams
+  const maxDim = Math.max(width, height);
+  let normalizeScale = 1;
+  if (maxDim > 5000) {
+    normalizeScale = 5000 / maxDim;
+  }
   const transX = -bounds.minX;
   const transY = -bounds.minY;
   const vbWidth = width * normalizeScale;
@@ -287,30 +302,32 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     };
   };
 
-  // Adjusted sizes (independent of normalization, based on user scale)
-  const adjScale = scale; // Now just user scale, normalization handled separately
+  // Adjusted sizes (since we normalized, adjust sizes accordingly)
+  const adjScale = scale / normalizeScale;
 
-  // Generate grid
+  // Generate grid - skip for very large diagrams to improve performance
   let gridLines = '';
-  const origGridSize = GRID_SIZE;
-  const gridStartX = Math.floor(bounds.minX / origGridSize) * origGridSize;
-  const gridStartY = Math.floor(bounds.minY / origGridSize) * origGridSize;
-  const gridEndX = Math.ceil(bounds.maxX / origGridSize) * origGridSize;
-  const gridEndY = Math.ceil(bounds.maxY / origGridSize) * origGridSize;
+  if (!isLargeDiagram) {
+    const origGridSize = GRID_SIZE;
+    const gridStartX = Math.floor(bounds.minX / origGridSize) * origGridSize;
+    const gridStartY = Math.floor(bounds.minY / origGridSize) * origGridSize;
+    const gridEndX = Math.ceil(bounds.maxX / origGridSize) * origGridSize;
+    const gridEndY = Math.ceil(bounds.maxY / origGridSize) * origGridSize;
 
-  for (let x = gridStartX; x <= gridEndX; x += origGridSize) {
-    const tx1 = (x + transX) * normalizeScale;
-    const ty1 = (gridStartY + transY) * normalizeScale;
-    const tx2 = tx1;
-    const ty2 = (gridEndY + transY) * normalizeScale;
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
-  }
-  for (let y = gridStartY; y <= gridEndY; y += origGridSize) {
-    const tx1 = (gridStartX + transX) * normalizeScale;
-    const ty1 = (y + transY) * normalizeScale;
-    const tx2 = (gridEndX + transX) * normalizeScale;
-    const ty2 = ty1;
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+    for (let x = gridStartX; x <= gridEndX; x += origGridSize) {
+      const tx1 = (x + transX) * normalizeScale;
+      const ty1 = (gridStartY + transY) * normalizeScale;
+      const tx2 = tx1;
+      const ty2 = (gridEndY + transY) * normalizeScale;
+      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 / adjScale}"/>`;
+    }
+    for (let y = gridStartY; y <= gridEndY; y += origGridSize) {
+      const tx1 = (gridStartX + transX) * normalizeScale;
+      const ty1 = (y + transY) * normalizeScale;
+      const tx2 = (gridEndX + transX) * normalizeScale;
+      const ty2 = ty1;
+      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 / adjScale}"/>`;
+    }
   }
 
   // Generate path points and lines
@@ -387,9 +404,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const arrowUnitX = arrowDx / arrowDist;
     const arrowUnitY = arrowDy / arrowDist;
     const arrowPath = `
-      M${arrowX - arrowUnitX * ARROW_SIZE},${arrowY - arrowUnitY * ARROW_SIZE}
+      M${arrowX - arrowUnitX * ARROW_SIZE / adjScale},${arrowY - arrowUnitY * ARROW_SIZE / adjScale}
       L${arrowX},${arrowY}
-      L${arrowX - arrowUnitX * ARROW_SIZE + arrowUnitY * ARROW_SIZE * 0.5},${arrowY - arrowUnitY * ARROW_SIZE - arrowUnitX * ARROW_SIZE * 0.5}
+      L${arrowX - arrowUnitX * ARROW_SIZE / adjScale + arrowUnitY * ARROW_SIZE / adjScale * 0.5},${arrowY - arrowUnitY * ARROW_SIZE / adjScale - arrowUnitX * ARROW_SIZE / adjScale * 0.5}
       Z
     `;
 
@@ -482,9 +499,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         const foldArrowUnitX = foldArrowDx / foldArrowDist;
         const foldArrowUnitY = foldArrowDy / foldArrowDist;
         const foldArrowPath = `
-          M${foldArrowX - foldArrowUnitX * ARROW_SIZE},${foldArrowY - foldArrowUnitY * ARROW_SIZE}
+          M${foldArrowX - foldArrowUnitX * ARROW_SIZE / adjScale},${foldArrowY - foldArrowUnitY * ARROW_SIZE / adjScale}
           L${foldArrowX},${foldArrowY}
-          L${foldArrowX - foldArrowUnitX * ARROW_SIZE + foldArrowUnitY * ARROW_SIZE * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE - foldArrowUnitX * ARROW_SIZE * 0.5}
+          L${foldArrowX - foldArrowUnitX * ARROW_SIZE / adjScale + foldArrowUnitY * ARROW_SIZE / adjScale * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE / adjScale - foldArrowUnitX * ARROW_SIZE / adjScale * 0.5}
           Z
         `;
         foldElement += `
@@ -525,9 +542,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const arrowUnitX = arrowDx / arrowDist;
     const arrowUnitY = arrowDy / arrowDist;
     const arrowPath = `
-      M${arrowX - arrowUnitX * ARROW_SIZE},${arrowY - arrowUnitY * ARROW_SIZE}
+      M${arrowX - arrowUnitX * ARROW_SIZE / adjScale},${arrowY - arrowUnitY * ARROW_SIZE / adjScale}
       L${arrowX},${arrowY}
-      L${arrowX - arrowUnitX * ARROW_SIZE + arrowUnitY * ARROW_SIZE * 0.5},${arrowY - arrowUnitY * ARROW_SIZE - arrowUnitX * ARROW_SIZE * 0.5}
+      L${arrowX - arrowUnitX * ARROW_SIZE / adjScale + arrowUnitY * ARROW_SIZE / adjScale * 0.5},${arrowY - arrowUnitY * ARROW_SIZE / adjScale - arrowUnitX * ARROW_SIZE / adjScale * 0.5}
       Z
     `;
     const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
@@ -543,7 +560,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }).join('');
 
   return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
-    <g>${gridLines}</g>
+    ${!isLargeDiagram ? `<g>${gridLines}</g>` : ''}
     <g>${svgContent}</g>
   </svg>`;
 };
