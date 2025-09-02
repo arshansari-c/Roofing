@@ -252,18 +252,17 @@ const calculateGirth = (path) => {
   if (Array.isArray(path.segments)) {
     path.segments.forEach(segment => {
       const lengthStr = segment.length || '0 m';
-      // Handle large numbers safely
       const lengthNum = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
       totalLength += lengthNum;
     });
   }
-  return totalLength.toFixed(2);
+  return Math.round(totalLength);
 };
 
 // Helper function to format Q x L
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
-  return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
+  return quantitiesAndLengths.map(item => `${item.quantity} x ${parseFloat(item.length).toFixed(3)}`).join(' / ');
 };
 
 // Helper function to generate SVG string with better handling for large diagrams
@@ -368,11 +367,10 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const chevronX = midX + normalX * chevronBaseDistance;
           const chevronY = midY + normalY * chevronBaseDistance;
           const direction = 1;
-          const {x: cx, y: cy} = transformCoord(chevronX, chevronY);
           const chevronPath = `
-            M${cx + chevronSize * normalX * direction + chevronSize * unitX},${cy + chevronSize * normalY * direction + chevronSize * unitY}
-            L${cx},${cy}
-            L${cx + chevronSize * normalX * direction - chevronSize * unitX},${cy + chevronSize * normalY * direction - chevronSize * unitY}
+            M${chevronX + chevronSize * normalX * direction + chevronSize * unitX},${chevronY + chevronSize * normalY * direction + chevronSize * unitY}
+            L${chevronX},${chevronY}
+            L${chevronX + chevronSize * normalX * direction - chevronSize * unitX},${chevronY + chevronSize * normalY * direction - chevronSize * unitY}
           `;
           svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / adjScale}" fill="none"/>`;
         }
@@ -380,7 +378,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     }
   }
 
-  // Generate segments with labels, arrows, and folds
+  // Generate segments with labels, tails, and folds
   svgContent += (Array.isArray(path.segments) ? path.segments : []).map((segment, i) => {
     const p1 = path.points[i];
     const p2 = path.points[i + 1];
@@ -391,19 +389,48 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const {x: p2x, y: p2y} = transformCoord(p2.x, p2.y);
     const midX = (p1x + p2x) / 2;
     const midY = (p1y + p2y) / 2;
-    const arrowX = posX;
-    const arrowY = posY + 20 / adjScale;
-    const arrowDx = midX - arrowX;
-    const arrowDy = midY - arrowY;
-    const arrowDist = Math.sqrt(arrowDx * arrowDx + arrowDy * arrowDy) || 1;
-    const arrowUnitX = arrowDx / arrowDist;
-    const arrowUnitY = arrowDy / arrowDist;
-    const arrowPath = `
-      M${arrowX - arrowUnitX * ARROW_SIZE / adjScale},${arrowY - arrowUnitY * ARROW_SIZE / adjScale}
-      L${arrowX},${arrowY}
-      L${arrowX - arrowUnitX * ARROW_SIZE / adjScale + arrowUnitY * ARROW_SIZE / adjScale * 0.5},${arrowY - arrowUnitY * ARROW_SIZE / adjScale - arrowUnitX * ARROW_SIZE / adjScale * 0.5}
-      Z
-    `;
+
+    // Tail calculation
+    const tailSize = 6 / adjScale;
+    const attachSize = 6 / adjScale;
+    const labelDx = midX - posX;
+    const labelDy = midY - posY;
+    const absLabelDx = Math.abs(labelDx);
+    const absLabelDy = Math.abs(labelDy);
+    let tailPath = '';
+    if (absLabelDx > absLabelDy) {
+      if (labelDx < 0) {
+        // Tail left
+        const baseX = posX - 25 / adjScale;
+        const tipX = baseX - tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      } else {
+        // Tail right
+        const baseX = posX + 25 / adjScale;
+        const tipX = baseX + tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      }
+    } else {
+      if (labelDy < 0) {
+        // Tail up
+        const baseY = posY - 10 / adjScale;
+        const tipY = baseY - tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
+      } else {
+        // Tail down
+        const baseY = posY + 10 / adjScale;
+        const tipY = baseY + tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
+      }
+    }
 
     let foldElement = '';
     let foldType = 'None';
@@ -445,17 +472,19 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           y: foldEnd.y + rotNormalY * 25 * normalizeScale
         };
         const foldColor = '#000000';
+        const foldDirX = unitX;
+        const foldDirY = unitY;
 
         let foldPath = '';
-        const foldDirX = isFirstSegment ? unitX : -unitX;
-        const foldDirY = isFirstSegment ? unitY : -unitY;
+        const chevronSizeAdj = CHEVRON_SIZE / adjScale;
+        const hookRadiusAdj = HOOK_RADIUS / adjScale;
+        const zigzagAdj = ZIGZAG_SIZE / adjScale;
         if (foldType === 'Crush') {
           const chevron1 = foldEnd;
           const chevron2 = {
-            x: foldEnd.x - rotNormalX * 3 * normalizeScale,
-            y: foldEnd.y - rotNormalY * 3 * normalizeScale
+            x: foldBase.x + rotNormalX * (foldLength - 3) * normalizeScale,
+            y: foldBase.y + rotNormalY * (foldLength - 3) * normalizeScale
           };
-          const chevronSizeAdj = CHEVRON_SIZE / adjScale;
           foldPath = `
             M${chevron1.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * foldDirX},${chevron1.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * foldDirY}
             L${chevron1.x},${chevron1.y}
@@ -466,7 +495,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           `;
           foldElement = `<path d="${foldPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
         } else if (foldType === 'Crush Hook') {
-          const hookRadiusAdj = HOOK_RADIUS / adjScale;
           const arcPath = `M${foldBase.x},${foldBase.y} L${foldEnd.x},${foldEnd.y} A${hookRadiusAdj},${hookRadiusAdj} 0 0 1 ${foldEnd.x + hookRadiusAdj * foldDirX},${foldEnd.y + hookRadiusAdj * foldDirY}`;
           foldElement = `<path d="${arcPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
         } else if (foldType === 'Break') {
@@ -474,7 +502,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             x: foldBase.x + rotNormalX * (foldLength / 2) * normalizeScale,
             y: foldBase.y + rotNormalY * (foldLength / 2) * normalizeScale
           };
-          const zigzagAdj = ZIGZAG_SIZE / adjScale;
           const zigzagPath = `
             M${foldBase.x},${foldBase.y}
             L${mid.x + zigzagAdj * foldDirX},${mid.y + zigzagAdj * foldDirY}
@@ -510,17 +537,17 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
     return `
       <g>
-        <rect x="${posX - 35 / adjScale}" y="${posY - 20 / adjScale}" width="${70 / adjScale}" height="${25 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${5 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
-        <text x="${posX}" y="${posY}" font-size="${14 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
+        <rect x="${posX - 25 / adjScale}" y="${posY - 10 / adjScale}" width="${50 / adjScale}" height="${20 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${10 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
+        <path d="${tailPath}" fill="#FFFFFF" fill-opacity="0.9"/>
+        <text x="${posX}" y="${posY}" font-size="${12 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
-        <path d="${arrowPath}" stroke="#000000" stroke-width="${1 / adjScale}" fill="#000000"/>
         ${foldElement}
       </g>
     `;
   }).join('');
 
-  // Generate angles with labels and arrows
+  // Generate angles with labels and tails
   svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
       return '';
@@ -529,27 +556,57 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].x : angle.labelPosition.x;
     const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].y : angle.labelPosition.y;
     const {x: targetX, y: targetY} = transformCoord(vertexX, vertexY);
-    const arrowX = posX;
-    const arrowY = posY + 20 / adjScale;
-    const arrowDx = targetX - arrowX;
-    const arrowDy = targetY - arrowY;
-    const arrowDist = Math.sqrt(arrowDx * arrowDx + arrowDy * arrowDy) || 1;
-    const arrowUnitX = arrowDx / arrowDist;
-    const arrowUnitY = arrowDy / arrowDist;
-    const arrowPath = `
-      M${arrowX - arrowUnitX * ARROW_SIZE / adjScale},${arrowY - arrowUnitY * ARROW_SIZE / adjScale}
-      L${arrowX},${arrowY}
-      L${arrowX - arrowUnitX * ARROW_SIZE / adjScale + arrowUnitY * ARROW_SIZE / adjScale * 0.5},${arrowY - arrowUnitY * ARROW_SIZE / adjScale - arrowUnitX * ARROW_SIZE / adjScale * 0.5}
-      Z
-    `;
+
+    // Tail calculation
+    const tailSize = 6 / adjScale;
+    const attachSize = 6 / adjScale;
+    const labelDx = targetX - posX;
+    const labelDy = targetY - posY;
+    const absLabelDx = Math.abs(labelDx);
+    const absLabelDy = Math.abs(labelDy);
+    let tailPath = '';
+    if (absLabelDx > absLabelDy) {
+      if (labelDx < 0) {
+        // Tail left
+        const baseX = posX - 25 / adjScale;
+        const tipX = baseX - tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      } else {
+        // Tail right
+        const baseX = posX + 25 / adjScale;
+        const tipX = baseX + tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      }
+    } else {
+      if (labelDy < 0) {
+        // Tail up
+        const baseY = posY - 10 / adjScale;
+        const tipY = baseY - tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
+      } else {
+        // Tail down
+        const baseY = posY + 10 / adjScale;
+        const tipY = baseY + tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
+      }
+    }
+
     const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
     return `
       <g>
-        <rect x="${posX - 35 / adjScale}" y="${posY - 20 / adjScale}" width="${70 / adjScale}" height="${25 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${5 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
-        <text x="${posX}" y="${posY}" font-size="${14 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
+        <rect x="${posX - 25 / adjScale}" y="${posY - 10 / adjScale}" width="${50 / adjScale}" height="${20 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${10 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
+        <path d="${tailPath}" fill="#FFFFFF" fill-opacity="0.9"/>
+        <text x="${posX}" y="${posY}" font-size="${10 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
           ${roundedAngle}°
         </text>
-        <path d="${arrowPath}" stroke="#000000" stroke-width="${1 / adjScale}" fill="#000000"/>
       </g>
     `;
   }).join('');
