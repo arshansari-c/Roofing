@@ -112,6 +112,106 @@ export const UploadProjectPdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+export const UpdateProjectPdf = async (req, res) => {
+  try {
+    console.log('Request received:', {
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      params: req.params,
+      body: req.body,
+    });
+
+    const { userId, projectId } = req.params;
+    const { Name, Code, Color, data } = req.body;
+
+    // Parse QuantitiesAndLengths from FormData fields
+    const QuantitiesAndLengths = [];
+    const bodyKeys = Object.keys(req.body);
+    const quantityKeys = bodyKeys.filter((key) => key.match(/^QuantitiesAndLengths\[\d+\]\[quantity\]$/));
+    for (const quantityKey of quantityKeys) {
+      const index = quantityKey.match(/\[(\d+)\]/)[1];
+      const lengthKey = `QuantitiesAndLengths[${index}][length]`;
+      if (bodyKeys.includes(lengthKey)) {
+        QuantitiesAndLengths.push({
+          quantity: req.body[quantityKey],
+          length: req.body[lengthKey],
+        });
+      }
+    }
+
+    console.log('Parsed QuantitiesAndLengths:', QuantitiesAndLengths);
+
+    // Validate IDs
+    if (!userId || !projectId) {
+      return res.status(400).json({ message: 'userId and projectId are required' });
+    }
+
+    // Validate required fields
+    const requiredFields = { Name, Code, Color, QuantitiesAndLengths };
+    const missingField = Object.entries(requiredFields).find(([_, value]) => !value);
+    if (missingField) {
+      return res.status(400).json({ message: `${missingField[0]} is required` });
+    }
+
+    if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
+      return res.status(400).json({ message: 'QuantitiesAndLengths must be a non-empty array' });
+    }
+
+    for (const item of QuantitiesAndLengths) {
+      if (!item.quantity || !item.length) {
+        return res.status(400).json({
+          message: 'Each item in QuantitiesAndLengths must have quantity and length',
+        });
+      }
+    }
+
+    // Parse data
+    let parsedData;
+    try {
+      parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (error) {
+      console.log('Invalid data JSON:', error.message);
+      return res.status(400).json({ message: 'Invalid data format' });
+    }
+
+    // Validate user and project
+    const userExists = await User.exists({ _id: userId });
+    if (!userExists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const existingProject = await ProjectData.findById(projectId);
+    if (!existingProject) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Update project
+    const updatedProject = await ProjectData.findByIdAndUpdate(
+      projectId,
+      {
+        userId,
+        Name,
+        Code,
+        Color,
+        QuantitiesAndLengths,
+        data: parsedData,
+      },
+      { new: true } // return updated document
+    );
+
+    console.log('Project updated:', updatedProject);
+
+    return res.status(200).json({
+      message: 'Project updated successfully',
+      project: updatedProject,
+    });
+  } catch (error) {
+    console.error('UpdateProjectPdf error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const UpdateProfile = async (req, res) => {
   try {
     // Extract token from header
