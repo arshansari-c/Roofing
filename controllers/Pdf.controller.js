@@ -3,7 +3,6 @@ import { promises as fsPromises } from 'fs';
 import fs from 'fs';
 import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
-import sharp from 'sharp';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import { User } from '../models/auth.model.js';
@@ -132,12 +131,13 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
         const foldEndX = foldBaseX + rotNormalX * foldLength;
         const foldEndY = foldBaseY + rotNormalY * foldLength;
-        const foldLabelX = foldEndX + rotNormalX * 25;
-        const foldLabelY = foldEndY + rotNormalY * 25;
-        minX = Math.min(minX, foldLabelX - 35, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 35, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 20, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 20, foldEndY, foldBaseY);
+        // Adjusted for 2 grid space (GRID_SIZE * 2 = 40, added to base offset 25 -> 65)
+        const foldLabelX = foldEndX + rotNormalX * (65 / scale);
+        const foldLabelY = foldEndY + rotNormalY * (65 / scale);
+        minX = Math.min(minX, foldLabelX - 35 / scale, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 35 / scale, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 20 / scale, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 20 / scale, foldEndY, foldBaseY);
       }
     }
   });
@@ -148,10 +148,11 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
-    minX = Math.min(minX, labelX - 35);
-    maxX = Math.max(maxX, labelX + 35);
-    minY = Math.min(minY, labelY - 20);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 20);
+    // Adjusted padding for angles to ensure 2 grid space
+    minX = Math.min(minX, labelX - (35 + GRID_SIZE * 2) / scale);
+    maxX = Math.max(maxX, labelX + (35 + GRID_SIZE * 2) / scale);
+    minY = Math.min(minY, labelY - (20 + GRID_SIZE * 2) / scale);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + (20 + GRID_SIZE * 2) / scale);
   });
 
   if (showBorder && path.points.length > 1) {
@@ -267,358 +268,6 @@ const formatQxL = (quantitiesAndLengths) => {
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
 
-// Helper function to generate SVG string with better handling for large diagrams
-const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
-  if (!validatePoints(path.points)) {
-    console.warn('Skipping SVG generation for path due to invalid points:', path);
-    return '<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="50" font-size="14" text-anchor="middle" fill="#000000">Invalid path data</text></svg>';
-  }
-
-  // Check if this is a large diagram
-  const width = bounds.maxX - bounds.minX;
-  const height = bounds.maxY - bounds.minY;
-  const isLargeDiagram = (width > 10000 || height > 10000);
-  
-  // Normalization with better handling for large diagrams
-  const maxDim = Math.max(width, height);
-  let normalizeScale = 1;
-  if (maxDim > 5000) {
-    normalizeScale = 5000 / maxDim;
-  }
-  const transX = -bounds.minX;
-  const transY = -bounds.minY;
-  const vbWidth = width * normalizeScale;
-  const vbHeight = height * normalizeScale;
-  const viewBox = `0 0 ${vbWidth} ${vbHeight}`;
-
-  const transformCoord = (x, y) => {
-    return {
-      x: (parseFloat(x) + transX) * normalizeScale,
-      y: (parseFloat(y) + transY) * normalizeScale
-    };
-  };
-
-  // Adjusted sizes (since we normalized, adjust sizes accordingly)
-  const adjScale = scale / normalizeScale;
-
-  // Generate grid - skip for very large diagrams to improve performance
-  let gridLines = '';
-  if (!isLargeDiagram) {
-    const origGridSize = GRID_SIZE;
-    const gridStartX = Math.floor(bounds.minX / origGridSize) * origGridSize;
-    const gridStartY = Math.floor(bounds.minY / origGridSize) * origGridSize;
-    const gridEndX = Math.ceil(bounds.maxX / origGridSize) * origGridSize;
-    const gridEndY = Math.ceil(bounds.maxY / origGridSize) * origGridSize;
-
-    for (let x = gridStartX; x <= gridEndX; x += origGridSize) {
-      const tx1 = (x + transX) * normalizeScale;
-      const ty1 = (gridStartY + transY) * normalizeScale;
-      const tx2 = tx1;
-      const ty2 = (gridEndY + transY) * normalizeScale;
-      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 / adjScale}"/>`;
-    }
-    for (let y = gridStartY; y <= gridEndY; y += origGridSize) {
-      const tx1 = (gridStartX + transX) * normalizeScale;
-      const ty1 = (y + transY) * normalizeScale;
-      const tx2 = (gridEndX + transX) * normalizeScale;
-      const ty2 = ty1;
-      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 / adjScale}"/>`;
-    }
-  }
-
-  // Generate path points and lines
-  let svgContent = path.points.map((point) => {
-    const {x: cx, y: cy} = transformCoord(point.x, point.y);
-    return `<circle cx="${cx}" cy="${cy}" r="${3 / adjScale}" fill="#000000"/>`;
-  }).join('');
-
-  if (path.points.length > 1) {
-    const d = path.points.map(p => {
-      const {x, y} = transformCoord(p.x, p.y);
-      return `${x},${y}`;
-    }).join(' L');
-    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 / adjScale}" fill="none"/>`;
-  }
-
-  // Generate offset segments for border
-  if (showBorder && path.points.length > 1) {
-    const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
-    svgContent += offsetSegments.map((segment) => {
-      const {x: x1, y: y1} = transformCoord(segment.p1.x, segment.p1.y);
-      const {x: x2, y: y2} = transformCoord(segment.p2.x, segment.p2.y);
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${3 / adjScale}" stroke-dasharray="${6 / adjScale},${4 / adjScale}"/>`;
-    }).join('');
-
-    const segment = offsetSegments[0];
-    if (segment) {
-      const midX = (segment.p1.x + segment.p2.x) / 2;
-      const midY = (segment.p1.y + segment.p2.y) / 2;
-      const origP1 = path.points[0];
-      const origP2 = path.points[1];
-      if (origP1 && origP2) {
-        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
-        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
-        const length = Math.sqrt(dx * dx + dy * dy);
-        if (length !== 0) {
-          const unitX = dx / length;
-          const unitY = dy / length;
-          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
-          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-          const chevronSize = 8 / adjScale;
-          const chevronBaseDistance = 10 / adjScale;
-          const chevronX = midX + normalX * chevronBaseDistance;
-          const chevronY = midY + normalY * chevronBaseDistance;
-          const direction = 1;
-          const chevronPath = `
-            M${chevronX + chevronSize * normalX * direction + chevronSize * unitX},${chevronY + chevronSize * normalY * direction + chevronSize * unitY}
-            L${chevronX},${chevronY}
-            L${chevronX + chevronSize * normalX * direction - chevronSize * unitX},${chevronY + chevronSize * normalY * direction - chevronSize * unitY}
-          `;
-          svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / adjScale}" fill="none"/>`;
-        }
-      }
-    }
-  }
-
-  // Generate segments with labels, tails, and folds
-  svgContent += (Array.isArray(path.segments) ? path.segments : []).map((segment, i) => {
-    const p1 = path.points[i];
-    const p2 = path.points[i + 1];
-    if (!p1 || !p2 || !segment.labelPosition) return '';
-
-    const {x: posX, y: posY} = transformCoord(segment.labelPosition.x, segment.labelPosition.y);
-    const {x: p1x, y: p1y} = transformCoord(p1.x, p1.y);
-    const {x: p2x, y: p2y} = transformCoord(p2.x, p2.y);
-    const midX = (p1x + p2x) / 2;
-    const midY = (p1y + p2y) / 2;
-
-    // Tail calculation
-    const tailSize = 6 / adjScale;
-    const attachSize = 6 / adjScale;
-    const labelDx = midX - posX;
-    const labelDy = midY - posY;
-    const absLabelDx = Math.abs(labelDx);
-    const absLabelDy = Math.abs(labelDy);
-    let tailPath = '';
-    if (absLabelDx > absLabelDy) {
-      if (labelDx < 0) {
-        // Tail left
-        const baseX = posX - 25 / adjScale;
-        const tipX = baseX - tailSize;
-        const topBaseY = posY - attachSize / 2;
-        const bottomBaseY = posY + attachSize / 2;
-        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
-      } else {
-        // Tail right
-        const baseX = posX + 25 / adjScale;
-        const tipX = baseX + tailSize;
-        const topBaseY = posY - attachSize / 2;
-        const bottomBaseY = posY + attachSize / 2;
-        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
-      }
-    } else {
-      if (labelDy < 0) {
-        // Tail up
-        const baseY = posY - 10 / adjScale;
-        const tipY = baseY - tailSize;
-        const leftBaseX = posX - attachSize / 2;
-        const rightBaseX = posX + attachSize / 2;
-        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
-      } else {
-        // Tail down
-        const baseY = posY + 10 / adjScale;
-        const tipY = baseY + tailSize;
-        const leftBaseX = posX - attachSize / 2;
-        const rightBaseX = posX + attachSize / 2;
-        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
-      }
-    }
-
-    let foldElement = '';
-    let foldType = 'None';
-    let foldLength = FOLD_LENGTH;
-    let foldAngle = 0;
-    if (typeof segment.fold === 'object' && segment.fold) {
-      foldType = segment.fold.type || 'None';
-      foldLength = parseFloat(segment.fold.length) || FOLD_LENGTH;
-      foldAngle = parseFloat(segment.fold.angle) || 0;
-    } else {
-      foldType = segment.fold || 'None';
-    }
-
-    if (foldType !== 'None') {
-      const dx = parseFloat(p2.x) - parseFloat(p1.x);
-      const dy = parseFloat(p2.y) - parseFloat(p1.y);
-      const length = Math.sqrt(dx * dx + dy * dy);
-      if (length) {
-        const unitX = dx / length;
-        const unitY = dy / length;
-        let normalX = unitY;
-        let normalY = -unitX;
-        const angleRad = foldAngle * Math.PI / 180;
-        const cosA = Math.cos(angleRad);
-        const sinA = Math.sin(angleRad);
-        const rotNormalX = normalX * cosA - normalY * sinA;
-        const rotNormalY = normalX * sinA + normalY * cosA;
-        const isFirstSegment = i === 0;
-        const foldBase = transformCoord(
-          isFirstSegment ? p1.x : p2.x,
-          isFirstSegment ? p1.y : p2.y
-        );
-        const foldEnd = {
-          x: foldBase.x + rotNormalX * foldLength * normalizeScale,
-          y: foldBase.y + rotNormalY * foldLength * normalizeScale
-        };
-        const foldLabelPos = {
-          x: foldEnd.x + rotNormalX * 25 * normalizeScale,
-          y: foldEnd.y + rotNormalY * 25 * normalizeScale
-        };
-        const foldColor = '#000000';
-        const foldDirX = unitX;
-        const foldDirY = unitY;
-
-        let foldPath = '';
-        const chevronSizeAdj = CHEVRON_SIZE / adjScale;
-        const hookRadiusAdj = HOOK_RADIUS / adjScale;
-        const zigzagAdj = ZIGZAG_SIZE / adjScale;
-        if (foldType === 'Crush') {
-          const chevron1 = foldEnd;
-          const chevron2 = {
-            x: foldBase.x + rotNormalX * (foldLength - 3) * normalizeScale,
-            y: foldBase.y + rotNormalY * (foldLength - 3) * normalizeScale
-          };
-          foldPath = `
-            M${chevron1.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * foldDirX},${chevron1.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * foldDirY}
-            L${chevron1.x},${chevron1.y}
-            L${chevron1.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * foldDirX},${chevron1.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * foldDirY}
-            M${chevron2.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * foldDirX},${chevron2.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * foldDirY}
-            L${chevron2.x},${chevron2.y}
-            L${chevron2.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * foldDirX},${chevron2.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * foldDirY}
-          `;
-          foldElement = `<path d="${foldPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
-        } else if (foldType === 'Crush Hook') {
-          const arcPath = `M${foldBase.x},${foldBase.y} L${foldEnd.x},${foldEnd.y} A${hookRadiusAdj},${hookRadiusAdj} 0 0 1 ${foldEnd.x + hookRadiusAdj * foldDirX},${foldEnd.y + hookRadiusAdj * foldDirY}`;
-          foldElement = `<path d="${arcPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
-        } else if (foldType === 'Break') {
-          const mid = {
-            x: foldBase.x + rotNormalX * (foldLength / 2) * normalizeScale,
-            y: foldBase.y + rotNormalY * (foldLength / 2) * normalizeScale
-          };
-          const zigzagPath = `
-            M${foldBase.x},${foldBase.y}
-            L${mid.x + zigzagAdj * foldDirX},${mid.y + zigzagAdj * foldDirY}
-            L${mid.x - zigzagAdj * foldDirX},${mid.y - zigzagAdj * foldDirY}
-            L${foldEnd.x},${foldEnd.y}
-          `;
-          foldElement = `<path d="${zigzagPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
-        } else if (foldType === 'Open') {
-          foldElement = `<line x1="${foldBase.x}" y1="${foldBase.y}" x2="${foldEnd.x}" y2="${foldEnd.y}" stroke="${foldColor}" stroke-width="${2 / adjScale}"/>`;
-        }
-
-        const foldArrowX = foldLabelPos.x;
-        const foldArrowY = foldLabelPos.y + 20 / adjScale;
-        const foldArrowDx = foldBase.x - foldArrowX;
-        const foldArrowDy = foldBase.y - foldArrowY;
-        const foldArrowDist = Math.sqrt(foldArrowDx * foldArrowDx + foldArrowDy * foldArrowDy) || 1;
-        const foldArrowUnitX = foldArrowDx / foldArrowDist;
-        const foldArrowUnitY = foldArrowDy / foldArrowDist;
-        const foldArrowPath = `
-          M${foldArrowX - foldArrowUnitX * ARROW_SIZE / adjScale},${foldArrowY - foldArrowUnitY * ARROW_SIZE / adjScale}
-          L${foldArrowX},${foldArrowY}
-          L${foldArrowX - foldArrowUnitX * ARROW_SIZE / adjScale + foldArrowUnitY * ARROW_SIZE / adjScale * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE / adjScale - foldArrowUnitX * ARROW_SIZE / adjScale * 0.5}
-          Z
-        `;
-        foldElement += `
-          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 / adjScale}" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle">
-            ${foldType}
-          </text>
-          <path d="${foldArrowPath}" stroke="${foldColor}" stroke-width="${1 / adjScale}" fill="${foldColor}"/>
-        `;
-      }
-    }
-
-    return `
-      <g>
-        <rect x="${posX - 25 / adjScale}" y="${posY - 10 / adjScale}" width="${50 / adjScale}" height="${20 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${10 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
-        <path d="${tailPath}" fill="#FFFFFF" fill-opacity="0.9"/>
-        <text x="${posX}" y="${posY}" font-size="${12 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
-          ${segment.length}
-        </text>
-        ${foldElement}
-      </g>
-    `;
-  }).join('');
-
-  // Generate angles with labels and tails
-  svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
-    if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
-      return '';
-    }
-    const {x: posX, y: posY} = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
-    const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].x : angle.labelPosition.x;
-    const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].y : angle.labelPosition.y;
-    const {x: targetX, y: targetY} = transformCoord(vertexX, vertexY);
-
-    // Tail calculation
-    const tailSize = 6 / adjScale;
-    const attachSize = 6 / adjScale;
-    const labelDx = targetX - posX;
-    const labelDy = targetY - posY;
-    const absLabelDx = Math.abs(labelDx);
-    const absLabelDy = Math.abs(labelDy);
-    let tailPath = '';
-    if (absLabelDx > absLabelDy) {
-      if (labelDx < 0) {
-        // Tail left
-        const baseX = posX - 25 / adjScale;
-        const tipX = baseX - tailSize;
-        const topBaseY = posY - attachSize / 2;
-        const bottomBaseY = posY + attachSize / 2;
-        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
-      } else {
-        // Tail right
-        const baseX = posX + 25 / adjScale;
-        const tipX = baseX + tailSize;
-        const topBaseY = posY - attachSize / 2;
-        const bottomBaseY = posY + attachSize / 2;
-        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
-      }
-    } else {
-      if (labelDy < 0) {
-        // Tail up
-        const baseY = posY - 10 / adjScale;
-        const tipY = baseY - tailSize;
-        const leftBaseX = posX - attachSize / 2;
-        const rightBaseX = posX + attachSize / 2;
-        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
-      } else {
-        // Tail down
-        const baseY = posY + 10 / adjScale;
-        const tipY = baseY + tailSize;
-        const leftBaseX = posX - attachSize / 2;
-        const rightBaseX = posX + attachSize / 2;
-        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
-      }
-    }
-
-    const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
-    return `
-      <g>
-        <rect x="${posX - 25 / adjScale}" y="${posY - 10 / adjScale}" width="${50 / adjScale}" height="${20 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${10 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
-        <path d="${tailPath}" fill="#FFFFFF" fill-opacity="0.9"/>
-        <text x="${posX}" y="${posY}" font-size="${10 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
-          ${roundedAngle}°
-        </text>
-      </g>
-    `;
-  }).join('');
-
-  return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
-    ${!isLargeDiagram ? `<g>${gridLines}</g>` : ''}
-    <g>${svgContent}</g>
-  </svg>`;
-};
-
 // Helper function to draw header
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
@@ -697,6 +346,407 @@ const drawInfoCard = (doc, title, value, x, y, width) => {
      .text(value, x + 10, y + 22);
   
   return y + 50;
+};
+
+// Helper function to draw the diagram directly in PDF
+const drawDiagram = (doc, path, bounds, posX, posY, w, h, originalScale, showBorder, borderOffsetDirection) => {
+  const diagramW = bounds.maxX - bounds.minX;
+  const diagramH = bounds.maxY - bounds.minY;
+  const fitScale = Math.min(w / diagramW, h / diagramH);
+  const transX = -bounds.minX;
+  const transY = -bounds.minY;
+
+  const toPdfCoord = (mx, my) => {
+    return {
+      x: posX + (mx + transX) * fitScale,
+      y: posY + (my + transY) * fitScale
+    };
+  };
+
+  // Adjusted fixed visual sizes to match frontend (divided by originalScale for consistency)
+  const strokeWidth = 2.5 / originalScale;
+  const pointR = 3 / originalScale;
+  const fontSizeLength = 12 / originalScale;
+  const fontSizeAngle = 10 / originalScale;
+  const fontSizeFold = 14 / originalScale;
+  const rectWidth = 50 / originalScale;
+  const rectHeight = 20 / originalScale;
+  const rectRx = 10 / originalScale;
+  const tailSize = 6 / originalScale;
+  const attachSize = 6 / originalScale;
+  const gridStroke = 0.2;
+  const arrowSize = 10 / originalScale;
+  const chevronSizeAdj = 9 / originalScale;
+  const hookRadiusAdj = 8 / originalScale;
+  const zigzagAdj = 9 / originalScale;
+
+  // Draw grid with dynamic grid size for large diagrams
+  let effectiveGridSize = GRID_SIZE;
+  const minGridSpacingPdf = 10; // Minimum spacing in PDF points to avoid dense grids
+  const minGridSizeDiagram = minGridSpacingPdf / fitScale;
+  if (minGridSizeDiagram > GRID_SIZE) {
+    const magnitude = Math.pow(10, Math.floor(Math.log10(minGridSizeDiagram)));
+    effectiveGridSize = Math.ceil(minGridSizeDiagram / magnitude) * magnitude;
+  }
+
+  const gridStartX = Math.floor(bounds.minX / effectiveGridSize) * effectiveGridSize;
+  const gridStartY = Math.floor(bounds.minY / effectiveGridSize) * effectiveGridSize;
+  const gridEndX = Math.ceil(bounds.maxX / effectiveGridSize) * effectiveGridSize;
+  const gridEndY = Math.ceil(bounds.maxY / effectiveGridSize) * effectiveGridSize;
+
+  for (let gx = gridStartX; gx <= gridEndX; gx += effectiveGridSize) {
+    const {x: x1, y: y1} = toPdfCoord(gx, bounds.minY);
+    const {x: x2, y: y2} = toPdfCoord(gx, bounds.maxY);
+    doc.moveTo(x1, y1)
+       .lineTo(x2, y2)
+       .lineWidth(gridStroke)
+       .stroke('#DDDDDD');
+  }
+
+  for (let gy = gridStartY; gy <= gridEndY; gy += effectiveGridSize) {
+    const {x: x1, y: y1} = toPdfCoord(bounds.minX, gy);
+    const {x: x2, y: y2} = toPdfCoord(bounds.maxX, gy);
+    doc.moveTo(x1, y1)
+       .lineTo(x2, y2)
+       .lineWidth(gridStroke)
+       .stroke('#DDDDDD');
+  }
+
+  // Draw points
+  path.points.forEach(point => {
+    const {x: px, y: py} = toPdfCoord(point.x, point.y);
+    doc.circle(px, py, pointR)
+       .fill(COLORS.darkText);
+  });
+
+  // Draw main path lines
+  if (path.points.length > 1) {
+    let pathStr = '';
+    path.points.forEach((p, idx) => {
+      const {x: px, y: py} = toPdfCoord(p.x, p.y);
+      pathStr += `${idx === 0 ? 'M' : 'L'} ${px} ${py} `;
+    });
+    doc.path(pathStr)
+       .lineWidth(strokeWidth)
+       .stroke(COLORS.darkText);
+  }
+
+  // Draw border offset lines
+  if (showBorder && path.points.length > 1) {
+    const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
+    offsetSegments.forEach(seg => {
+      const {x: x1, y: y1} = toPdfCoord(seg.p1.x, seg.p1.y);
+      const {x: x2, y: y2} = toPdfCoord(seg.p2.x, seg.p2.y);
+      doc.moveTo(x1, y1)
+         .lineTo(x2, y2)
+         .lineWidth(strokeWidth * 1.2)
+         .dash(6 / originalScale, {space: 4 / originalScale})
+         .stroke(COLORS.darkText);
+    });
+
+    // Border chevron
+    const segment = offsetSegments[0];
+    if (segment) {
+      const midX = (segment.p1.x + segment.p2.x) / 2;
+      const midY = (segment.p1.y + segment.p2.y) / 2;
+      const origP1 = path.points[0];
+      const origP2 = path.points[1];
+      if (origP1 && origP2) {
+        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
+        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length !== 0) {
+          const unitX = dx / length;
+          const unitY = dy / length;
+          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+          const chevronBaseDistance = 10;
+          const {x: chevronX, y: chevronY} = toPdfCoord(midX + normalX * chevronBaseDistance, midY + normalY * chevronBaseDistance);
+          const direction = 1;
+          doc.moveTo(chevronX + chevronSizeAdj * normalX * direction + chevronSizeAdj * unitX, chevronY + chevronSizeAdj * normalY * direction + chevronSizeAdj * unitY)
+             .lineTo(chevronX, chevronY)
+             .lineTo(chevronX + chevronSizeAdj * normalX * direction - chevronSizeAdj * unitX, chevronY + chevronSizeAdj * normalY * direction - chevronSizeAdj * unitY)
+             .lineWidth(strokeWidth)
+             .stroke(COLORS.darkText);
+        }
+      }
+    }
+  }
+
+  // Draw segment labels and folds
+  path.segments.forEach((segment, i) => {
+    const p1 = path.points[i];
+    const p2 = path.points[i + 1];
+    if (!p1 || !p2 || !segment.labelPosition) return;
+
+    const {x: posX, y: posY} = toPdfCoord(segment.labelPosition.x, segment.labelPosition.y);
+    const {x: p1x, y: p1y} = toPdfCoord(p1.x, p1.y);
+    const {x: p2x, y: p2y} = toPdfCoord(p2.x, p2.y);
+    const midX = (p1x + p2x) / 2;
+    const midY = (p1y + p2y) / 2;
+
+    // Length label box
+    doc.roundedRect(posX - rectWidth / 2, posY - rectHeight / 2, rectWidth, rectHeight, rectRx)
+       .fillOpacity(0.9)
+       .fill(COLORS.lightBg)
+       .lineWidth(0.5 / originalScale)
+       .stroke(COLORS.border);
+
+    // Length text
+    doc.fontSize(fontSizeLength)
+       .fillColor(COLORS.darkText)
+       .text(segment.length, posX - rectWidth / 2, posY - fontSizeLength / 2 + rectHeight / 2, {
+         width: rectWidth,
+         align: 'center'
+       });
+
+    // Length tail
+    const labelDx = midX - posX;
+    const labelDy = midY - posY;
+    const absLabelDx = Math.abs(labelDx);
+    const absLabelDy = Math.abs(labelDy);
+    if (absLabelDx > absLabelDy) {
+      if (labelDx < 0) {
+        const baseX = posX - rectWidth / 2;
+        const tipX = baseX - tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        doc.moveTo(baseX, topBaseY)
+           .lineTo(baseX, bottomBaseY)
+           .lineTo(tipX, posY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      } else {
+        const baseX = posX + rectWidth / 2;
+        const tipX = baseX + tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        doc.moveTo(baseX, topBaseY)
+           .lineTo(baseX, bottomBaseY)
+           .lineTo(tipX, posY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      }
+    } else {
+      if (labelDy < 0) {
+        const baseY = posY - rectHeight / 2;
+        const tipY = baseY - tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        doc.moveTo(leftBaseX, baseY)
+           .lineTo(rightBaseX, baseY)
+           .lineTo(posX, tipY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      } else {
+        const baseY = posY + rectHeight / 2;
+        const tipY = baseY + tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        doc.moveTo(leftBaseX, baseY)
+           .lineTo(rightBaseX, baseY)
+           .lineTo(posX, tipY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      }
+    }
+
+    // Fold drawing
+    let foldType = 'None';
+    let foldLength = FOLD_LENGTH;
+    let foldAngle = 0;
+    if (typeof segment.fold === 'object' && segment.fold) {
+      foldType = segment.fold.type || 'None';
+      foldLength = parseFloat(segment.fold.length) || FOLD_LENGTH;
+      foldAngle = parseFloat(segment.fold.angle) || 0;
+    } else {
+      foldType = segment.fold || 'None';
+    }
+
+    if (foldType !== 'None') {
+      const dx = parseFloat(p2.x) - parseFloat(p1.x);
+      const dy = parseFloat(p2.y) - parseFloat(p1.y);
+      const length = Math.sqrt(dx * dx + dy * dy);
+      if (length) {
+        const unitX = dx / length;
+        const unitY = dy / length;
+        let normalX = unitY;
+        let normalY = -unitX;
+        const angleRad = foldAngle * Math.PI / 180;
+        const cosA = Math.cos(angleRad);
+        const sinA = Math.sin(angleRad);
+        const rotNormalX = normalX * cosA - normalY * sinA;
+        const rotNormalY = normalX * sinA + normalY * cosA;
+        const isFirstSegment = i === 0;
+        const foldBase = toPdfCoord(
+          isFirstSegment ? p1.x : p2.x,
+          isFirstSegment ? p1.y : p2.y
+        );
+        const foldEnd = toPdfCoord(
+          (isFirstSegment ? p1.x : p2.x) + rotNormalX * foldLength,
+          (isFirstSegment ? p1.y : p2.y) + rotNormalY * foldLength
+        );
+        // Adjusted for 2 grid space (65 / originalScale)
+        const foldLabelPos = toPdfCoord(
+          (isFirstSegment ? p1.x : p2.x) + rotNormalX * (foldLength + 65 / originalScale),
+          (isFirstSegment ? p1.y : p2.y) + rotNormalY * (foldLength + 65 / originalScale)
+        );
+        const foldColor = COLORS.darkText;
+
+        // Draw fold based on type
+        if (foldType === 'Crush') {
+          const chevron1 = foldEnd;
+          const chevron2 = toPdfCoord(
+            (isFirstSegment ? p1.x : p2.x) + rotNormalX * (foldLength - 3),
+            (isFirstSegment ? p1.y : p2.y) + rotNormalY * (foldLength - 3)
+          );
+          doc.moveTo(chevron1.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * unitX, chevron1.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * unitY)
+             .lineTo(chevron1.x, chevron1.y)
+             .lineTo(chevron1.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * unitX, chevron1.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * unitY)
+             .moveTo(chevron2.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * unitX, chevron2.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * unitY)
+             .lineTo(chevron2.x, chevron2.y)
+             .lineTo(chevron2.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * unitX, chevron2.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * unitY)
+             .lineWidth(strokeWidth)
+             .stroke(foldColor);
+        } else if (foldType === 'Crush Hook') {
+          doc.moveTo(foldBase.x, foldBase.y)
+             .lineTo(foldEnd.x, foldEnd.y);
+          // Approximate arc with bezier
+          const controlX = foldEnd.x + hookRadiusAdj * rotNormalX;
+          const controlY = foldEnd.y + hookRadiusAdj * rotNormalY;
+          doc.bezierCurveTo(
+            controlX, controlY,
+            foldEnd.x + hookRadiusAdj * unitX, foldEnd.y + hookRadiusAdj * unitY,
+            foldEnd.x + hookRadiusAdj * unitX, foldEnd.y + hookRadiusAdj * unitY
+          )
+             .lineWidth(strokeWidth)
+             .stroke(foldColor);
+        } else if (foldType === 'Break') {
+          const mid = toPdfCoord(
+            (isFirstSegment ? p1.x : p2.x) + rotNormalX * (foldLength / 2),
+            (isFirstSegment ? p1.y : p2.y) + rotNormalY * (foldLength / 2)
+          );
+          doc.moveTo(foldBase.x, foldBase.y)
+             .lineTo(mid.x + zigzagAdj * unitX, mid.y + zigzagAdj * unitY)
+             .lineTo(mid.x - zigzagAdj * unitX, mid.y - zigzagAdj * unitY)
+             .lineTo(foldEnd.x, foldEnd.y)
+             .lineWidth(strokeWidth)
+             .stroke(foldColor);
+        } else if (foldType === 'Open') {
+          doc.moveTo(foldBase.x, foldBase.y)
+             .lineTo(foldEnd.x, foldEnd.y)
+             .lineWidth(strokeWidth)
+             .stroke(foldColor);
+        }
+
+        // Fold label text (no box, centered like in frontend SVGText)
+        doc.fontSize(fontSizeFold)
+           .fillColor(foldColor);
+        const textWidth = doc.widthOfString(foldType);
+        doc.text(foldType, foldLabelPos.x - textWidth / 2, foldLabelPos.y - fontSizeFold / 2);
+
+        // Fold arrow (adjusted position for space)
+        const arrowX = foldLabelPos.x;
+        const arrowY = foldLabelPos.y + 20 / originalScale;
+        const arrowDx = foldBase.x - arrowX;
+        const arrowDy = foldBase.y - arrowY;
+        const arrowDist = Math.sqrt(arrowDx * arrowDx + arrowDy * arrowDy) || 1;
+        const arrowUnitX = arrowDx / arrowDist;
+        const arrowUnitY = arrowDy / arrowDist;
+        doc.moveTo(arrowX - arrowUnitX * arrowSize, arrowY - arrowUnitY * arrowSize)
+           .lineTo(arrowX, arrowY)
+           .lineTo(arrowX - arrowUnitX * arrowSize + arrowUnitY * arrowSize * 0.5, arrowY - arrowUnitY * arrowSize - arrowUnitX * arrowSize * 0.5)
+           .lineWidth(0.5 / originalScale)
+           .fill(foldColor)
+           .stroke(foldColor);
+      }
+    }
+  });
+
+  // Draw angle labels
+  path.angles.forEach(angle => {
+    if (!angle.labelPosition) return;
+
+    const {x: posX, y: posY} = toPdfCoord(angle.labelPosition.x, angle.labelPosition.y);
+    const vertexIndex = angle.vertexIndex;
+    const p2 = path.points[vertexIndex];
+    if (!p2) return;
+    const {x: targetX, y: targetY} = toPdfCoord(p2.x, p2.y);
+
+    // Angle label box
+    doc.roundedRect(posX - rectWidth / 2, posY - rectHeight / 2, rectWidth, rectHeight, rectRx)
+       .fillOpacity(0.9)
+       .fill(COLORS.lightBg)
+       .lineWidth(0.5 / originalScale)
+       .stroke(COLORS.border);
+
+    // Angle text
+    doc.fontSize(fontSizeAngle)
+       .fillColor(COLORS.darkText)
+       .text(angle.angle, posX - rectWidth / 2, posY - fontSizeAngle / 2 + rectHeight / 2, {
+         width: rectWidth,
+         align: 'center'
+       });
+
+    // Angle tail
+    const labelDx = targetX - posX;
+    const labelDy = targetY - posY;
+    const absLabelDx = Math.abs(labelDx);
+    const absLabelDy = Math.abs(labelDy);
+    if (absLabelDx > absLabelDy) {
+      if (labelDx < 0) {
+        const baseX = posX - rectWidth / 2;
+        const tipX = baseX - tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        doc.moveTo(baseX, topBaseY)
+           .lineTo(baseX, bottomBaseY)
+           .lineTo(tipX, posY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      } else {
+        const baseX = posX + rectWidth / 2;
+        const tipX = baseX + tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        doc.moveTo(baseX, topBaseY)
+           .lineTo(baseX, bottomBaseY)
+           .lineTo(tipX, posY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      }
+    } else {
+      if (labelDy < 0) {
+        const baseY = posY - rectHeight / 2;
+        const tipY = baseY - tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        doc.moveTo(leftBaseX, baseY)
+           .lineTo(rightBaseX, baseY)
+           .lineTo(posX, tipY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      } else {
+        const baseY = posY + rectHeight / 2;
+        const tipY = baseY + tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        doc.moveTo(leftBaseX, baseY)
+           .lineTo(rightBaseX, baseY)
+           .lineTo(posX, tipY)
+           .closePath()
+           .fillOpacity(0.9)
+           .fill(COLORS.lightBg);
+      }
+    }
+  });
 };
 
 export const generatePdf = async (req, res) => {
@@ -920,18 +970,6 @@ export const generatePdf = async (req, res) => {
         try {
           const pathData = validPaths[i];
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
-          const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
-
-          // Convert SVG to PNG with higher resolution
-          const imageBuffer = await sharp(Buffer.from(svgString))
-            .resize({
-              width: imgSize * 4,
-              height: imgSize * 4,
-              fit: 'contain',
-              background: { r: 255, g: 255, b: 255, alpha: 1 },
-            })
-            .png({ quality: 100, compressionLevel: 0 })
-            .toBuffer();
 
           // Card background for image
           doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
@@ -940,16 +978,11 @@ export const generatePdf = async (req, res) => {
              .lineWidth(1)
              .stroke();
 
-          // Embed image in PDF
-          const img = doc.openImage(imageBuffer);
-          const imgW = imgSize;
-          const imgH = (img.height * imgW) / img.width;
-
-          // Image
-          doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+          // Draw diagram directly
+          drawDiagram(doc, pathData, bounds, x, yPos, imgSize, imgSize, scale, showBorder, borderOffsetDirection);
 
           // Info below image
-          const infoY = yPos + imgH + 15;
+          const infoY = yPos + imgSize + 15;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
@@ -982,9 +1015,9 @@ export const generatePdf = async (req, res) => {
             detailY += 15;
           });
         } catch (err) {
-          console.warn(`Image error (path ${i}):`, err.message);
+          console.warn(`Diagram drawing error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
-            .text(`Image unavailable`, x, yPos);
+            .text(`Diagram unavailable`, x, yPos);
         }
       }
       y = startY + Math.ceil(firstPagePaths / 2) * (imgSize + gap + 100);
@@ -1018,18 +1051,6 @@ export const generatePdf = async (req, res) => {
           try {
             const pathData = validPaths[i];
             const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
-            const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
-
-            // Convert SVG to PNG with higher resolution
-            const imageBuffer = await sharp(Buffer.from(svgString))
-              .resize({
-                width: imgSize * 4,
-                height: imgSize * 4,
-                fit: 'contain',
-                background: { r: 255, g: 255, b: 255, alpha: 1 },
-              })
-              .png({ quality: 100, compressionLevel: 0 })
-              .toBuffer();
 
             // Card background for image
             doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
@@ -1038,16 +1059,11 @@ export const generatePdf = async (req, res) => {
                .lineWidth(1)
                .stroke();
 
-            // Embed image in PDF
-            const img = doc.openImage(imageBuffer);
-            const imgW = imgSize;
-            const imgH = (img.height * imgW) / img.width;
-
-            // Image
-            doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+            // Draw diagram directly
+            drawDiagram(doc, pathData, bounds, x, yPos, imgSize, imgSize, scale, showBorder, borderOffsetDirection);
 
             // Info below image
-            const infoY = yPos + imgH + 15;
+            const infoY = yPos + imgSize + 15;
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
@@ -1080,9 +1096,9 @@ export const generatePdf = async (req, res) => {
               detailY += 15;
             });
           } catch (err) {
-            console.warn(`Image error (path ${i}):`, err.message);
+            console.warn(`Diagram drawing error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
-              .text(`Image unavailable`, x, yPos);
+              .text(`Diagram unavailable`, x, yPos);
           }
         }
         y = startY + Math.ceil((endPath - startPath) / 2) * (imgSize + gap + 100);
