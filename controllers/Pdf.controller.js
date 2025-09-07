@@ -285,25 +285,26 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   const viewBox = `0 0 ${targetSize} ${targetSize}`;
 
-  // Generate grid - only if not too many lines
-  let gridLines = '';
-  const approxGridLines = Math.max(effectiveWidth, effectiveHeight) / GRID_SIZE;
-  if (approxGridLines <= 100) { // Limit to reasonable number
-    const gridStartX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
-    const gridStartY = Math.floor(bounds.minY / GRID_SIZE) * GRID_SIZE;
-    const gridEndX = Math.ceil(bounds.maxX / GRID_SIZE) * GRID_SIZE;
-    const gridEndY = Math.ceil(bounds.maxY / GRID_SIZE) * GRID_SIZE;
+  // Dynamic grid size to ensure consistent density
+  const desiredViewboxSpacing = 50;
+  const originalGridSize = Math.max(desiredViewboxSpacing / fitScale, 1); // Avoid zero or negative
 
-    for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
-      const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
-      const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
-    }
-    for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
-      const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
-      const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
-    }
+  // Generate grid
+  let gridLines = '';
+  const gridStartX = Math.floor(bounds.minX / originalGridSize) * originalGridSize;
+  const gridStartY = Math.floor(bounds.minY / originalGridSize) * originalGridSize;
+  const gridEndX = Math.ceil(bounds.maxX / originalGridSize) * originalGridSize;
+  const gridEndY = Math.ceil(bounds.maxY / originalGridSize) * originalGridSize;
+
+  for (let x = gridStartX; x <= gridEndX; x += originalGridSize) {
+    const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
+    const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+  }
+  for (let y = gridStartY; y <= gridEndY; y += originalGridSize) {
+    const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
+    const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
   }
 
   // Generate path points and lines
