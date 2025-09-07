@@ -243,7 +243,7 @@ const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
-// Helper function to generate SVG string with improved label design (modern with drop shadow and arrow pointers)
+// Helper function to generate SVG string with better handling for large diagrams
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Skipping SVG generation for path due to invalid points:', path);
@@ -320,6 +320,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     }
   }
   // Generate path points and lines
+  // Generate path points and lines
   let svgContent = path.points.map((point) => {
     const {x: cx, y: cy} = transformCoord(point.x, point.y);
     return `<circle cx="${cx}" cy="${cy}" r="3" fill="#000000"/>`;
@@ -369,7 +370,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       }
     }
   }
-  // Generate segments with labels, arrows, and folds
+  // Generate segments with labels, tails, and folds
   svgContent += (Array.isArray(path.segments) ? path.segments : []).map((segment, i) => {
     const p1 = path.points[i];
     const p2 = path.points[i + 1];
@@ -379,44 +380,53 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const {x: p2x, y: p2y} = transformCoord(p2.x, p2.y);
     const midX = (p1x + p2x) / 2;
     const midY = (p1y + p2y) / 2;
-    // Modern label design parameters
-    const labelSizeMultiplier = isLargeDiagram ? 1.5 : 1;
+    // Tail calculation
+           const labelSizeMultiplier = isLargeDiagram ? 1.5 : 1;
+   
+    // Tail calculation - use fixed sizes that work for both normal and large diagrams
+  
     const labelWidth = 50 * labelSizeMultiplier;
     const labelHeight = 20 * labelSizeMultiplier;
     const labelRadius = 10 * labelSizeMultiplier;
     const fontSize = 12 * labelSizeMultiplier;
-    // Arrow calculation to point to parent line
-    const dx = midX - posX;
-    const dy = midY - posY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    let arrowElement = '';
-    if (dist >= 1) {
-      const unitX = dx / dist;
-      const unitY = dy / dist;
-      const halfW = labelWidth / 2;
-      const halfH = labelHeight / 2;
-      let t_candidates = [];
-      if (unitX > 0) t_candidates.push(halfW / unitX);
-      else if (unitX < 0) t_candidates.push(-halfW / unitX);
-      if (unitY > 0) t_candidates.push(halfH / unitY);
-      else if (unitY < 0) t_candidates.push(-halfH / unitY);
-      const t = Math.min(...t_candidates.filter(t_val => t_val > 0 && isFinite(t_val)));
-      if (!isNaN(t) && isFinite(t)) {
-        const startX = posX + t * dx;
-        const startY = posY + t * dy;
-        const arrowSize = 5 / adjScale;
-        const lineEndX = midX - unitX * arrowSize;
-        const lineEndY = midY - unitY * arrowSize;
-        const perpX = -unitY;
-        const perpY = unitX;
-        const side1X = midX - unitX * arrowSize + perpX * (arrowSize / 2);
-        const side1Y = midY - unitY * arrowSize + perpY * (arrowSize / 2);
-        const side2X = midX - unitX * arrowSize - perpX * (arrowSize / 2);
-        const side2Y = midY - unitY * arrowSize - perpY * (arrowSize / 2);
-        arrowElement = `
-          <line x1="${startX}" y1="${startY}" x2="${lineEndX}" y2="${lineEndY}" stroke="#000000" stroke-width="${1 / adjScale}"/>
-          <path d="M${side1X} ${side1Y} L${midX} ${midY} L${side2X} ${side2Y} Z" fill="#000000"/>
-        `;
+     const tailSize = 6 * labelSizeMultiplier;
+    const attachSize = 6 * labelSizeMultiplier;
+    const labelDx = midX - posX;
+    const labelDy = midY - posY;
+    const absLabelDx = Math.abs(labelDx);
+    const absLabelDy = Math.abs(labelDy);
+    let tailPath = '';
+    if (absLabelDx > absLabelDy) {
+      if (labelDx < 0) {
+        // Tail left
+        const baseX = posX - labelWidth / 2;
+        const tipX = baseX - tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      } else {
+        // Tail right
+        const baseX = posX + labelWidth / 2;
+        const tipX = baseX + tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      }
+    } else {
+      if (labelDy < 0) {
+        // Tail up
+        const baseY = posY - labelHeight / 2;
+        const tipY = baseY - tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
+      } else {
+        // Tail down
+        const baseY = posY + labelHeight / 2;
+        const tipY = baseY + tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
       }
     }
     let foldElement = '';
@@ -519,21 +529,23 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       }
     }
    return `
-      <g filter="url(#dropShadow)">
-        <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
-              width="${labelWidth}" height="${labelHeight}"
-              fill="#FFFFFF" rx="${labelRadius}"
-              stroke="#000000" stroke-width="0.5"/>
+      <g>
+        <g filter="url(#dropShadow)">
+          <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
+                width="${labelWidth}" height="${labelHeight}"
+                fill="#FFFFFF" rx="${labelRadius}"
+                stroke="#000000" stroke-width="0.5"/>
+          <path d="${tailPath}" fill="#FFFFFF"/>
+        </g>
         <text x="${posX}" y="${posY}" font-size="${fontSize}"
               fill="#000000" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
+        ${foldElement}
       </g>
-      ${arrowElement}
-      ${foldElement}
     `;
   }).join('');
-  // Generate angles with labels and arrows
+  // Generate angles with labels and tails
   svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
       return '';
@@ -542,54 +554,58 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].x : angle.labelPosition.x;
     const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].y : angle.labelPosition.y;
     const {x: targetX, y: targetY} = transformCoord(vertexX, vertexY);
-    // Modern label design parameters for angles
-    const labelWidthAdj = 50 / adjScale;
-    const labelHeightAdj = 20 / adjScale;
-    const labelRadiusAdj = 10 / adjScale;
-    const fontSizeAdj = 10 / adjScale;
-    // Arrow calculation to point to parent vertex
-    const dx = targetX - posX;
-    const dy = targetY - posY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    let arrowElement = '';
-    if (dist >= 1) {
-      const unitX = dx / dist;
-      const unitY = dy / dist;
-      const halfW = labelWidthAdj / 2;
-      const halfH = labelHeightAdj / 2;
-      let t_candidates = [];
-      if (unitX > 0) t_candidates.push(halfW / unitX);
-      else if (unitX < 0) t_candidates.push(-halfW / unitX);
-      if (unitY > 0) t_candidates.push(halfH / unitY);
-      else if (unitY < 0) t_candidates.push(-halfH / unitY);
-      const t = Math.min(...t_candidates.filter(t_val => t_val > 0 && isFinite(t_val)));
-      if (!isNaN(t) && isFinite(t)) {
-        const startX = posX + t * dx;
-        const startY = posY + t * dy;
-        const arrowSize = 5 / adjScale;
-        const lineEndX = targetX - unitX * arrowSize;
-        const lineEndY = targetY - unitY * arrowSize;
-        const perpX = -unitY;
-        const perpY = unitX;
-        const side1X = targetX - unitX * arrowSize + perpX * (arrowSize / 2);
-        const side1Y = targetY - unitY * arrowSize + perpY * (arrowSize / 2);
-        const side2X = targetX - unitX * arrowSize - perpX * (arrowSize / 2);
-        const side2Y = targetY - unitY * arrowSize - perpY * (arrowSize / 2);
-        arrowElement = `
-          <line x1="${startX}" y1="${startY}" x2="${lineEndX}" y2="${lineEndY}" stroke="#000000" stroke-width="${1 / adjScale}"/>
-          <path d="M${side1X} ${side1Y} L${targetX} ${targetY} L${side2X} ${side2Y} Z" fill="#000000"/>
-        `;
+    // Tail calculation
+    const tailSize = 6 / adjScale;
+    const attachSize = 6 / adjScale;
+    const labelDx = targetX - posX;
+    const labelDy = targetY - posY;
+    const absLabelDx = Math.abs(labelDx);
+    const absLabelDy = Math.abs(labelDy);
+    let tailPath = '';
+    if (absLabelDx > absLabelDy) {
+      if (labelDx < 0) {
+        // Tail left
+        const baseX = posX - 25 / adjScale;
+        const tipX = baseX - tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      } else {
+        // Tail right
+        const baseX = posX + 25 / adjScale;
+        const tipX = baseX + tailSize;
+        const topBaseY = posY - attachSize / 2;
+        const bottomBaseY = posY + attachSize / 2;
+        tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
+      }
+    } else {
+      if (labelDy < 0) {
+        // Tail up
+        const baseY = posY - 10 / adjScale;
+        const tipY = baseY - tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
+      } else {
+        // Tail down
+        const baseY = posY + 10 / adjScale;
+        const tipY = baseY + tailSize;
+        const leftBaseX = posX - attachSize / 2;
+        const rightBaseX = posX + attachSize / 2;
+        tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
       }
     }
     const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
     return `
-      <g filter="url(#dropShadow)">
-        <rect x="${posX - labelWidthAdj / 2}" y="${posY - labelHeightAdj / 2}" width="${labelWidthAdj}" height="${labelHeightAdj}" fill="#FFFFFF" rx="${labelRadiusAdj}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
-        <text x="${posX}" y="${posY}" font-size="${fontSizeAdj}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
+      <g>
+        <g filter="url(#dropShadow)">
+          <rect x="${posX - 25 / adjScale}" y="${posY - 10 / adjScale}" width="${50 / adjScale}" height="${20 / adjScale}" fill="#FFFFFF" rx="${10 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
+          <path d="${tailPath}" fill="#FFFFFF"/>
+        </g>
+        <text x="${posX}" y="${posY}" font-size="${10 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
           ${roundedAngle}°
         </text>
       </g>
-      ${arrowElement}
     `;
   }).join('');
 return `<svg width="100%" height="100%" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
