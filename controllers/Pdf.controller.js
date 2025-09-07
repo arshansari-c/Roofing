@@ -11,6 +11,7 @@ import { ProjectOrder } from '../models/ProjectOrder.model.js';
 import { transporter } from '../util/EmailTransporter.js';
 import dotenv from 'dotenv';
 
+
 dotenv.config();
 
 // Cloudinary config
@@ -277,11 +278,32 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   // Check if this is a large diagram
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  const isLargeDiagram = (width > 10000 || height > 10000);
+  
+  // Determine if this is a large diagram
+  const isLargeDiagram = (width > 5000 || height > 5000);
+   const targetViewBoxSize = 1000;
+  let viewBoxWidth, viewBoxHeight, contentScale;
+  
+  if (isLargeDiagram) {
+    // For large diagrams, we'll scale them down to fit a consistent viewBox
+    const scaleFactor = targetViewBoxSize / Math.max(width, height);
+    viewBoxWidth = width * scaleFactor;
+    viewBoxHeight = height * scaleFactor;
+    contentScale = scaleFactor;
+  } else {
+    // For normal diagrams, use a 1:1 scale with padding
+    const padding = 50;
+    viewBoxWidth = width + padding * 2;
+    viewBoxHeight = height + padding * 2;
+    contentScale = 1;
+  }
   
   // Normalization with better handling for large diagrams
   const maxDim = Math.max(width, height);
-  let normalizeScale = 5000 / maxDim; // Always normalize
+  let normalizeScale = 1;
+  if (maxDim > 5000) {
+    normalizeScale = 5000 / maxDim;
+  }
   const transX = -bounds.minX;
   const transY = -bounds.minY;
   const vbWidth = width * normalizeScale;
@@ -289,42 +311,52 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   const viewBox = `0 0 ${vbWidth} ${vbHeight}`;
 
   const transformCoord = (x, y) => {
-    return {
-      x: (parseFloat(x) + transX) * normalizeScale,
-      y: (parseFloat(y) + transY) * normalizeScale
-    };
+    if (isLargeDiagram) {
+      // Scale down large diagrams
+      return {
+        x: (parseFloat(x) - bounds.minX) * contentScale,
+        y: (parseFloat(y) - bounds.minY) * contentScale
+      };
+    } else {
+      // Normal diagrams with padding
+      return {
+        x: (parseFloat(x) - bounds.minX) + 50,
+        y: (parseFloat(y) - bounds.minY) + 50
+      };
+    }
   };
 
+
   // Adjusted sizes (since we normalized, adjust sizes accordingly)
-  const adjScale = scale; // Changed to scale only
+  const adjScale = scale / normalizeScale;
 
-  // Generate grid
-  let gridLines = '';
-  const origGridSize = GRID_SIZE;
-  const gridStartX = Math.floor(bounds.minX / origGridSize) * origGridSize;
-  const gridStartY = Math.floor(bounds.minY / origGridSize) * origGridSize;
-  const gridEndX = Math.ceil(bounds.maxX / origGridSize) * origGridSize;
-  const gridEndY = Math.ceil(bounds.maxY / origGridSize) * origGridSize;
+  // Generate grid - skip for very large diagrams to improve performance
+   let gridLines = '';
+  if (!isLargeDiagram) {
+    const gridSize = GRID_SIZE;
+    const gridStartX = Math.floor(bounds.minX / gridSize) * gridSize;
+    const gridStartY = Math.floor(bounds.minY / gridSize) * gridSize;
+    const gridEndX = Math.ceil(bounds.maxX / gridSize) * gridSize;
+    const gridEndY = Math.ceil(bounds.maxY / gridSize) * gridSize;
 
-  for (let x = gridStartX; x <= gridEndX; x += origGridSize) {
-    const tx1 = (x + transX) * normalizeScale;
-    const ty1 = (gridStartY + transY) * normalizeScale;
-    const tx2 = tx1;
-    const ty2 = (gridEndY + transY) * normalizeScale;
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 / adjScale}"/>`;
+    for (let x = gridStartX; x <= gridEndX; x += gridSize) {
+      const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
+      const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
+      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+    }
+    for (let y = gridStartY; y <= gridEndY; y += gridSize) {
+      const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
+      const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
+      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+    }
   }
-  for (let y = gridStartY; y <= gridEndY; y += origGridSize) {
-    const tx1 = (gridStartX + transX) * normalizeScale;
-    const ty1 = (y + transY) * normalizeScale;
-    const tx2 = (gridEndX + transX) * normalizeScale;
-    const ty2 = ty1;
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 / adjScale}"/>`;
-  }
+
+  // Generate path points and lines
 
   // Generate path points and lines
   let svgContent = path.points.map((point) => {
     const {x: cx, y: cy} = transformCoord(point.x, point.y);
-    return `<circle cx="${cx}" cy="${cy}" r="${3 / adjScale}" fill="#000000"/>`;
+    return `<circle cx="${cx}" cy="${cy}" r="3" fill="#000000"/>`;
   }).join('');
 
   if (path.points.length > 1) {
@@ -332,7 +364,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       const {x, y} = transformCoord(p.x, p.y);
       return `${x},${y}`;
     }).join(' L');
-    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 / adjScale}" fill="none"/>`;
+    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="2.5" fill="none"/>`;
   }
 
   // Generate offset segments for border
@@ -341,7 +373,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     svgContent += offsetSegments.map((segment) => {
       const {x: x1, y: y1} = transformCoord(segment.p1.x, segment.p1.y);
       const {x: x2, y: y2} = transformCoord(segment.p2.x, segment.p2.y);
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${3 / adjScale}" stroke-dasharray="${6 / adjScale},${4 / adjScale}"/>`;
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="3" stroke-dasharray="6,4"/>`;
     }).join('');
 
     const segment = offsetSegments[0];
@@ -384,12 +416,22 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const {x: posX, y: posY} = transformCoord(segment.labelPosition.x, segment.labelPosition.y);
     const {x: p1x, y: p1y} = transformCoord(p1.x, p1.y);
     const {x: p2x, y: p2y} = transformCoord(p2.x, p2.y);
+
     const midX = (p1x + p2x) / 2;
     const midY = (p1y + p2y) / 2;
 
     // Tail calculation
-    const tailSize = 6 / adjScale;
-    const attachSize = 6 / adjScale;
+           const labelSizeMultiplier = isLargeDiagram ? 1.5 : 1;
+    
+    // Tail calculation - use fixed sizes that work for both normal and large diagrams
+   
+    const labelWidth = 50 * labelSizeMultiplier;
+    const labelHeight = 20 * labelSizeMultiplier;
+    const labelRadius = 10 * labelSizeMultiplier;
+    const fontSize = 12 * labelSizeMultiplier;
+
+     const tailSize = 6 * labelSizeMultiplier;
+    const attachSize = 6 * labelSizeMultiplier;
     const labelDx = midX - posX;
     const labelDy = midY - posY;
     const absLabelDx = Math.abs(labelDx);
@@ -532,17 +574,22 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       }
     }
 
-    return `
+   return `
       <g>
-        <rect x="${posX - 25 / adjScale}" y="${posY - 10 / adjScale}" width="${50 / adjScale}" height="${20 / adjScale}" fill="#FFFFFF" fill-opacity="0.9" rx="${10 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
+        <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}" 
+              width="${labelWidth}" height="${labelHeight}" 
+              fill="#FFFFFF" fill-opacity="0.9" rx="${labelRadius}" 
+              stroke="#000000" stroke-width="0.5"/>
         <path d="${tailPath}" fill="#FFFFFF" fill-opacity="0.9"/>
-        <text x="${posX}" y="${posY}" font-size="${12 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
+        <text x="${posX}" y="${posY}" font-size="${fontSize}" 
+              fill="#000000" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
         ${foldElement}
       </g>
     `;
   }).join('');
+
 
   // Generate angles with labels and tails
   svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
@@ -608,8 +655,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     `;
   }).join('');
 
-  return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
-    <g>${gridLines}</g>
+return `<svg width="100%" height="100%" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
+    ${!isLargeDiagram ? `<g>${gridLines}</g>` : ''}
     <g>${svgContent}</g>
   </svg>`;
 };
