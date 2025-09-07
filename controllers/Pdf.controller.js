@@ -74,6 +74,422 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxX = Math.max(maxX, x);
     maxY = Math.max(maxY, y);
   });
+  path.segments.forEach((segment, i) => {
+    if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
+      return;
+    }
+    const labelX = parseFloat(segment.labelPosition.x);
+    const labelY = parseFloat(segment.labelPosition.y);
+    minX = Math.min(minX, labelX - 35 / scale);
+    maxX = Math.max(maxX, labelX + 35 / scale);
+    minY = Math.min(minY, labelY - 20 / scale);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 20 / scale);
+    let foldType = 'None';
+    let foldLength = FOLD_LENGTH;
+    let foldAngle = 0;
+    if (typeof segment.fold === 'object' && segment.fold) {
+      foldType = segment.fold.type || 'None';
+      foldLength = parseFloat(segment.fold.length) || FOLD_LENGTH;
+      foldAngle = parseFloat(segment.fold.angle) || 0;
+    } else {
+      foldType = segment.fold || 'None';
+    }
+    if (foldType !== 'None') {
+      const p1 = path.points[i];
+      const p2 = path.points[i + 1];
+      if (!p1 || !p2) return;
+      const dx = parseFloat(p2.x) - parseFloat(p1.x);
+      const dy = parseFloat(p2.y) - parseFloat(p1.y);
+      const length = Math.sqrt(dx * dx + dy * dy);
+      if (length) {
+        const unitX = dx / length;
+        const unitY = dy / length;
+        let normalX = unitY;
+        let normalY = -unitX;
+        const angleRad = foldAngle * Math.PI / 180;
+        const cosA = Math.cos(angleRad);
+        const sinA = Math.sin(angleRad);
+        const rotNormalX = normalX * cosA - normalY * sinA;
+        const rotNormalY = normalX * sinA + normalY * cosA;
+        const isFirstSegment = i === 0;
+        const foldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
+        const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
+        const foldEndX = foldBaseX + rotNormalX * foldLength;
+        const foldEndY = foldBaseY + rotNormalY * foldLength;
+        const foldLabelX = foldEndX + rotNormalX * 25;
+        const foldLabelY = foldEndY + rotNormalY * 25;
+        minX = Math.min(minX, foldLabelX - 35, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 35, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 20, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 20, foldEndY, foldBaseY);
+      }
+    }
+  });
+  (path.angles || []).forEach((angle) => {
+    if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
+      return;
+    }
+    const labelX = parseFloat(angle.labelPosition.x);
+    const labelY = parseFloat(angle.labelPosition.y);
+    minX = Math.min(minX, labelX - 35);
+    maxX = Math.max(maxX, labelX + 35);
+    minY = Math.min(minY, labelY - 20);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 20);
+  });
+  if (showBorder && path.points.length > 1) {
+    const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
+    offsetSegments.forEach((seg) => {
+      minX = Math.min(minX, seg.p1.x, seg.p2.x);
+      maxX = Math.max(maxX, seg.p1.x, seg.p2.x);
+      minY = Math.min(minY, seg.p1.y, seg.p2.y);
+      maxY = Math.max(maxY, seg.p1.y, seg.p2.y);
+    });
+    const segment = offsetSegments[0];
+    if (segment) {
+      const midX = (segment.p1.x + segment.p2.x) / 2;
+      const midY = (segment.p1.y + segment.p2.y) / 2;
+      const origP1 = path.points[0];
+      const origP2 = path.points[1];
+      if (origP1 && origP2) {
+        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
+        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length !== 0) {
+          const unitX = dx / length;
+          const unitY = dy / length;
+          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+          const chevronSize = 8;
+          const chevronBaseDistance = 10;
+          const chevronX = midX + normalX * chevronBaseDistance;
+          const chevronY = midY + normalY * chevronBaseDistance;
+          minX = Math.min(minX, chevronX - chevronSize);
+          maxX = Math.max(maxX, chevronX + chevronSize);
+          minY = Math.min(minY, chevronY - chevronSize);
+          maxY = Math.max(maxY, chevronY + chevronSize);
+        }
+      }
+    }
+  }
+  const padding = Math.max(100, Math.max(maxX - minX, maxY - minY) * 0.05);
+  return {
+    minX: minX - padding,
+    minY: minY - padding,
+    maxX: maxX + padding,
+    maxY: maxY + padding,
+  };
+};
+// Helper function to calculate offset segments for border
+const calculateOffsetSegments = (path, borderOffsetDirection) => {
+  if (!validatePoints(path.points)) {
+    return [];
+  }
+  const offsetDistance = 15;
+  const offsetSegments = [];
+  for (let i = 0; i < path.points.length - 1; i++) {
+    const p1 = path.points[i];
+    const p2 = path.points[i + 1];
+    const dx = parseFloat(p2.x) - parseFloat(p1.x);
+    const dy = parseFloat(p2.y) - parseFloat(p1.y);
+    const length = Math.sqrt(dx * dx + dy * dy);
+    if (length === 0) continue;
+    const unitX = dx / length;
+    const unitY = dy / length;
+    const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+    const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+    offsetSegments.push({
+      p1: { x: parseFloat(p1.x) + normalX * offsetDistance, y: parseFloat(p1.y) + normalY * offsetDistance },
+      p2: { x: parseFloat(p2.x) + normalX * offsetDistance, y: parseFloat(p2.y) + normalY * offsetDistance },
+    });
+  }
+  return offsetSegments;
+};
+// Helper function to calculate total folds
+const calculateTotalFolds = (path) => {
+  let totalFolds = (path.angles || []).length;
+  if (Array.isArray(path.segments)) {
+    path.segments.forEach(segment => {
+      let foldType = 'None';
+      if (typeof segment.fold === 'object' && segment.fold) {
+        foldType = segment.fold.type || 'None';
+      } else {
+        foldType = segment.fold || 'None';
+      }
+      if (foldType !== 'None') {
+        totalFolds += foldType === 'Crush' ? 2 : 1;
+      }
+    });
+  }
+  return totalFolds;
+};
+// Helper function to calculate girth
+const calculateGirth = (path) => {
+  let totalLength = 0;
+  if (Array.isArray(path.segments)) {
+    path.segments.forEach(segment => {
+      const lengthStr = segment.length || '0 m';
+      const lengthNum = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
+      totalLength += lengthNum;
+    });
+  }
+  return totalLength.toFixed(2);
+};
+// Helper function to format Q x L
+const formatQxL = (quantitiesAndLengths) => {
+  if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
+  return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
+};
+// Helper function to generate SVG string with consistent label sizes
+const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
+  if (!validatePoints(path.points)) {
+    console.warn('Skipping SVG generation for path due to invalid points:', path);
+    return '<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="50" font-size="14" text-anchor="middle" fill="#000000">Invalid path data</text></svg>';
+  }
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  const targetViewBoxSize = 1000;
+  const scaleFactor = targetViewBoxSize * 0.8 / Math.max(width, height, 1);
+  const offsetX = (targetViewBoxSize - width * scaleFactor) / 2;
+  const offsetY = (targetViewBoxSize - height * scaleFactor) / 2;
+  const viewBox = `0 0 ${targetViewBoxSize} ${targetViewBoxSize}`;
+  const transformCoord = (x, y) => ({
+    x: (parseFloat(x) - bounds.minX) * scaleFactor + offsetX,
+    y: (parseFloat(y) - bounds.minY) * scaleFactor + offsetY
+  });
+  const adjScale = scale;
+  let gridLines = '';
+  const gridSize = GRID_SIZE;
+  const gridStartX = Math.floor(bounds.minX / gridSize) * gridSize;
+  const gridStartY = Math.floor(bounds.minY / gridSize) * gridSize;
+  const gridEndX = Math.ceil(bounds.maxX / gridSize) * gridSize;
+  const gridEndY = Math.ceil(bounds.maxY / gridSize) * gridSize;
+  for (let x = gridStartX; x <= gridEndX; x += gridSize) {
+    const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
+    const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
+  }
+  for (let y = gridStartY; y <= gridEndY; y += gridSize) {
+    const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
+    const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
+  }
+  let svgContent = path.points.map((point) => {
+    const {x: cx, y: cy} = transformCoord(point.x, point.y);
+    return `<circle cx="${cx}" cy="${cy}" r="${3 * scaleFactor}" fill="#000000"/>`;
+  }).join('');
+  if (path.points.length > 1) {
+    const d = path.points.map(p => {
+      const {x, y} = transformCoord(p.x, p.y);
+      return `${x},${y}`;
+    }).join(' L');
+    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" fill="none"/>`;
+  }
+  if (showBorder && path.points.length > 1) {
+    const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
+    svgContent += offsetSegments.map((segment) => {
+      const {x: x1, y: y1} = transformCoord(segment.p1.x, segment.p1.y);
+      const {x: x2, y: y2} = transformCoord(segment.p2.x, segment.p2.y);
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${3 * scaleFactor}" stroke-dasharray="${6 * scaleFactor},${4 * scaleFactor}"/>`;
+    }).join('');
+    const segment = offsetSegments[0];
+    if (segment) {
+      const midX = (segment.p1.x + segment.p2.x) / 2;
+      const midY = (segment.p1.y + segment.p2.y) / 2;
+      const origP1 = path.points[0];
+      const origP2 = path.points[1];
+      if (origP1 && origP2) {
+        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
+        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length !== 0) {
+          const unitX = dx / length;
+          const unitY = dy / length;
+          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+          const chevronSize = 8 * scaleFactor;
+          const chevronBaseDistance = 10 * scaleFactor;
+          const chevronX = midX * scaleFactor + normalX * chevronBaseDistance; wait, no.
+          The midX is in data, need to transform midX, but the code is in data? No.
+          The midX = (segment.p1.x + segment.p2.x) /2 , segment.p1.x is data + offset, so midX is data
+
+The code is in the svgContent, the midX is (data)
+So, to get view, the midX view = transform(midX, midY).x
+
+So, to fix, I need to calculate in view.
+
+Let's move the calculation to after transform.
+
+So, the code for the chevron is after transformCoord.
+
+The origP1, p2 is data.
+
+dx = origP2.x - origP1.x data
+
+unitX data
+
+Then chevronX = midX + normalX * chevronBaseDistance
+
+But midX is data, chevronBaseDistance =10, data
+
+But to view, all need * scaleFactor
+
+But since all linear, I can calculate in data, then transform the chevronX
+
+But the midX is from offsetSegment, which is p1.x + normal *15, p1.x is data
+
+Yes, all in data.
+
+So, to add the chevronX in data, then transform to view.
+
+Yes, the code is midX = (segment.p1.x + segment.p2.x) /2 , data
+
+chevronX = midX + normalX * chevronBaseDistance , data
+
+Then in svg, the chevronPath using chevronX, but need to transform
+
+In the code, the chevronPath is M chevronX + ... 
+
+But the chevronX is data, not transformed.
+
+That's a bug in the original code.
+
+In the original, for normal, no scale, transform = (x - minX) +50, so linear.
+
+But for large, (x - minX) * contentScale
+
+So, to correctly, I need to calculate the mid view = transform(midX, midY)
+
+The unitX is the direction in data, but in view, the direction is the same, since uniform scale.
+
+So, the normalX in data, in view same, because unit vectors.
+
+The chevronBaseDistance =10 in data, so in view, 10 * scaleFactor
+
+The chevronSize in data, in view * scaleFactor
+
+So, to fix, first get the mid view
+
+const {x: midXView, y: midYView} = transformCoord(midX, midY)
+
+Then, to get the unit in view, but since scale uniform, unit same.
+
+But normalX is calculated from dx data, but it's unit, same.
+
+Then, chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor
+
+chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor
+
+Then, the chevronPath M chevronXView + chevronSize * normalX * direction + chevronSize * unitX , ... 
+
+Yes, and the chevronSize =8 * scaleFactor
+
+Yes.
+
+So, I need to adjust the code for that.
+
+Similarly for other parts.
+
+For the fold, the foldBase = transformCoord(...)
+
+Then rotNormalX is from unitX = dx / length, dx = p2.x - p1.x data
+
+But since unit, same.
+
+Then foldEnd.x = foldBase.x + rotNormalX * foldLength * scaleFactor
+
+Yes.
+
+Yes.
+
+Ok.
+
+Now, for the function call, but since no tool needed, just the code.
+
+Yes. 
+
+The current date is given, but not needed.
+
+The tools are for if needed, but here no.
+
+The response is the code.
+
+Yes.```javascript
+import PDFDocument from 'pdfkit';
+import { promises as fsPromises } from 'fs';
+import fs from 'fs';
+import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+import sharp from 'sharp';
+import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
+import { User } from '../models/auth.model.js';
+import { ProjectOrder } from '../models/ProjectOrder.model.js';
+import { transporter } from '../util/EmailTransporter.js';
+import dotenv from 'dotenv';
+dotenv.config();
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDNARY_NAME,
+  api_key: process.env.CLOUDNARY_API,
+  api_secret: process.env.CLOUDNARY_SECRET,
+});
+// Derive __dirname for ES modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Create uploads directory
+const uploadsDir = path.join(__dirname, 'Uploads');
+try {
+  await fsPromises.mkdir(uploadsDir, { recursive: true });
+  console.log('Uploads directory created or already exists:', uploadsDir);
+} catch (err) {
+  console.error('Failed to create uploads directory:', err.message);
+  throw new Error(`Failed to create uploads directory: ${err.message}`);
+}
+// Path to company logo
+const logoPath = path.join(__dirname, 'assets', 'company.png');
+// Configuration constants
+const GRID_SIZE = 20;
+const FOLD_LENGTH = 14;
+const ARROW_SIZE = 10;
+const CHEVRON_SIZE = 9;
+const HOOK_RADIUS = 8;
+const ZIGZAG_SIZE = 9;
+// Color scheme (black and white only)
+const COLORS = {
+  primary: '#000000', // Black for headers
+  lightBg: '#FFFFFF', // White background
+  darkText: '#000000', // Black text
+  border: '#000000', // Black border
+};
+// Helper function to validate points
+const validatePoints = (points) => {
+  if (!Array.isArray(points) || points.length === 0) {
+    return false;
+  }
+  return points.every(point =>
+    point &&
+    typeof point.x !== 'undefined' &&
+    typeof point.y !== 'undefined' &&
+    !isNaN(parseFloat(point.x)) &&
+    !isNaN(parseFloat(point.y))
+  );
+};
+// Helper function to calculate bounds for a path with better precision handling
+const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
+  if (!validatePoints(path.points)) {
+    console.warn('Invalid points array in path:', path);
+    return { minX: 0, minY: 0, maxX: 100, maxY: 100 }; // Fallback bounds
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+ 
+  // Process points with better precision handling
+  path.points.forEach((point) => {
+    const x = parseFloat(point.x);
+    const y = parseFloat(point.y);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  });
   // For very large diagrams, adjust calculations to prevent overflow
   const isLargeDiagram = (maxX - minX > 10000 || maxY - minY > 10000);
   path.segments.forEach((segment, i) => {
@@ -253,84 +669,48 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
  
-  // Determine if this is a large diagram
-  const isLargeDiagram = (width > 5000 || height > 5000);
-   const targetViewBoxSize = 1000;
-  let viewBoxWidth, viewBoxHeight, contentScale;
+  const targetViewBoxSize = 1000;
+  const scaleFactor = targetViewBoxSize * 0.8 / Math.max(width, height, 1);
+  const offsetX = (targetViewBoxSize - width * scaleFactor) / 2;
+  const offsetY = (targetViewBoxSize - height * scaleFactor) / 2;
  
-  if (isLargeDiagram) {
-    // For large diagrams, we'll scale them down to fit a consistent viewBox
-    const scaleFactor = targetViewBoxSize / Math.max(width, height);
-    viewBoxWidth = width * scaleFactor;
-    viewBoxHeight = height * scaleFactor;
-    contentScale = scaleFactor;
-  } else {
-    // For normal diagrams, use a 1:1 scale with padding
-    const padding = 50;
-    viewBoxWidth = width + padding * 2;
-    viewBoxHeight = height + padding * 2;
-    contentScale = 1;
-  }
- 
-  // Normalization with better handling for large diagrams
-  const maxDim = Math.max(width, height);
-  let normalizeScale = 1;
-  if (maxDim > 5000) {
-    normalizeScale = 5000 / maxDim;
-  }
-  const transX = -bounds.minX;
-  const transY = -bounds.minY;
-  const vbWidth = width * normalizeScale;
-  const vbHeight = height * normalizeScale;
-  const viewBox = `0 0 ${vbWidth} ${vbHeight}`;
+  const viewBox = `0 0 ${targetViewBoxSize} ${targetViewBoxSize}`;
   const transformCoord = (x, y) => {
-    if (isLargeDiagram) {
-      // Scale down large diagrams
-      return {
-        x: (parseFloat(x) - bounds.minX) * contentScale,
-        y: (parseFloat(y) - bounds.minY) * contentScale
-      };
-    } else {
-      // Normal diagrams with padding
-      return {
-        x: (parseFloat(x) - bounds.minX) + 50,
-        y: (parseFloat(y) - bounds.minY) + 50
-      };
-    }
+    return {
+      x: (parseFloat(x) - bounds.minX) * scaleFactor + offsetX,
+      y: (parseFloat(y) - bounds.minY) * scaleFactor + offsetY
+    };
   };
   // Adjusted sizes (since we normalized, adjust sizes accordingly)
-  const adjScale = scale / normalizeScale;
+  const adjScale = scale;
   // Generate grid - skip for very large diagrams to improve performance
    let gridLines = '';
-  if (!isLargeDiagram) {
-    const gridSize = GRID_SIZE;
-    const gridStartX = Math.floor(bounds.minX / gridSize) * gridSize;
-    const gridStartY = Math.floor(bounds.minY / gridSize) * gridSize;
-    const gridEndX = Math.ceil(bounds.maxX / gridSize) * gridSize;
-    const gridEndY = Math.ceil(bounds.maxY / gridSize) * gridSize;
-    for (let x = gridStartX; x <= gridEndX; x += gridSize) {
-      const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
-      const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
-    }
-    for (let y = gridStartY; y <= gridEndY; y += gridSize) {
-      const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
-      const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-      gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
-    }
+  const gridSize = GRID_SIZE;
+  const gridStartX = Math.floor(bounds.minX / gridSize) * gridSize;
+  const gridStartY = Math.floor(bounds.minY / gridSize) * gridSize;
+  const gridEndX = Math.ceil(bounds.maxX / gridSize) * gridSize;
+  const gridEndY = Math.ceil(bounds.maxY / gridSize) * gridSize;
+  for (let x = gridStartX; x <= gridEndX; x += gridSize) {
+    const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
+    const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
   }
-  // Generate path points and lines
+  for (let y = gridStartY; y <= gridEndY; y += gridSize) {
+    const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
+    const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
+  }
   // Generate path points and lines
   let svgContent = path.points.map((point) => {
     const {x: cx, y: cy} = transformCoord(point.x, point.y);
-    return `<circle cx="${cx}" cy="${cy}" r="3" fill="#000000"/>`;
+    return `<circle cx="${cx}" cy="${cy}" r="${3 * scaleFactor}" fill="#000000"/>`;
   }).join('');
   if (path.points.length > 1) {
     const d = path.points.map(p => {
       const {x, y} = transformCoord(p.x, p.y);
       return `${x},${y}`;
     }).join(' L');
-    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="2.5" fill="none"/>`;
+    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" fill="none"/>`;
   }
   // Generate offset segments for border
   if (showBorder && path.points.length > 1) {
@@ -338,12 +718,13 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     svgContent += offsetSegments.map((segment) => {
       const {x: x1, y: y1} = transformCoord(segment.p1.x, segment.p1.y);
       const {x: x2, y: y2} = transformCoord(segment.p2.x, segment.p2.y);
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="3" stroke-dasharray="6,4"/>`;
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${3 * scaleFactor}" stroke-dasharray="${6 * scaleFactor},${4 * scaleFactor}"/>`;
     }).join('');
     const segment = offsetSegments[0];
     if (segment) {
       const midX = (segment.p1.x + segment.p2.x) / 2;
       const midY = (segment.p1.y + segment.p2.y) / 2;
+      const {x: midXView, y: midYView} = transformCoord(midX, midY);
       const origP1 = path.points[0];
       const origP2 = path.points[1];
       if (origP1 && origP2) {
@@ -355,21 +736,31 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const unitY = dy / length;
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-          const chevronSize = 8 / adjScale;
-          const chevronBaseDistance = 10 / adjScale;
-          const chevronX = midX + normalX * chevronBaseDistance;
-          const chevronY = midY + normalY * chevronBaseDistance;
+          const chevronBaseDistance = 10;
+          const chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor;
+          const chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor;
+          const chevronSize = 8 * scaleFactor;
           const direction = 1;
           const chevronPath = `
-            M${chevronX + chevronSize * normalX * direction + chevronSize * unitX},${chevronY + chevronSize * normalY * direction + chevronSize * unitY}
-            L${chevronX},${chevronY}
-            L${chevronX + chevronSize * normalX * direction - chevronSize * unitX},${chevronY + chevronSize * normalY * direction - chevronSize * unitY}
+            M${chevronXView + chevronSize * normalX * direction + chevronSize * unitX},${chevronYView + chevronSize * normalY * direction + chevronSize * unitY}
+            L${chevronXView},${chevronYView}
+            L${chevronXView + chevronSize * normalX * direction - chevronSize * unitX},${chevronYView + chevronSize * normalY * direction - chevronSize * unitY}
           `;
-          svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 / adjScale}" fill="none"/>`;
+          svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 * scaleFactor}" fill="none"/>`;
         }
       }
     }
   }
+  // Label design parameters (fixed in view units)
+  const labelWidth = 50;
+  const labelHeight = 20;
+  const labelRadius = 10;
+  const fontSize = 12;
+  const tailSize = 6;
+  const attachSize = 6;
+  const labelBg = '#FFFFFF';
+  const labelText = '#000000';
+  const tailFill = '#000000';
   // Generate segments with labels, tails, and folds
   svgContent += (Array.isArray(path.segments) ? path.segments : []).map((segment, i) => {
     const p1 = path.points[i];
@@ -380,17 +771,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const {x: p2x, y: p2y} = transformCoord(p2.x, p2.y);
     const midX = (p1x + p2x) / 2;
     const midY = (p1y + p2y) / 2;
-    // Tail calculation
-           const labelSizeMultiplier = isLargeDiagram ? 1.5 : 1;
-   
-    // Tail calculation - use fixed sizes that work for both normal and large diagrams
-  
-    const labelWidth = 50 * labelSizeMultiplier;
-    const labelHeight = 20 * labelSizeMultiplier;
-    const labelRadius = 10 * labelSizeMultiplier;
-    const fontSize = 12 * labelSizeMultiplier;
-     const tailSize = 6 * labelSizeMultiplier;
-    const attachSize = 6 * labelSizeMultiplier;
     const labelDx = midX - posX;
     const labelDy = midY - posY;
     const absLabelDx = Math.abs(labelDx);
@@ -460,25 +840,25 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           isFirstSegment ? p1.y : p2.y
         );
         const foldEnd = {
-          x: foldBase.x + rotNormalX * foldLength * normalizeScale,
-          y: foldBase.y + rotNormalY * foldLength * normalizeScale
+          x: foldBase.x + rotNormalX * foldLength * scaleFactor,
+          y: foldBase.y + rotNormalY * foldLength * scaleFactor
         };
         const foldLabelPos = {
-          x: foldEnd.x + rotNormalX * 25 * normalizeScale,
-          y: foldEnd.y + rotNormalY * 25 * normalizeScale
+          x: foldEnd.x + rotNormalX * 25 * scaleFactor,
+          y: foldEnd.y + rotNormalY * 25 * scaleFactor
         };
         const foldColor = '#000000';
         const foldDirX = unitX;
         const foldDirY = unitY;
         let foldPath = '';
-        const chevronSizeAdj = CHEVRON_SIZE / adjScale;
-        const hookRadiusAdj = HOOK_RADIUS / adjScale;
-        const zigzagAdj = ZIGZAG_SIZE / adjScale;
+        const chevronSizeAdj = CHEVRON_SIZE * scaleFactor;
+        const hookRadiusAdj = HOOK_RADIUS * scaleFactor;
+        const zigzagAdj = ZIGZAG_SIZE * scaleFactor;
         if (foldType === 'Crush') {
           const chevron1 = foldEnd;
           const chevron2 = {
-            x: foldBase.x + rotNormalX * (foldLength - 3) * normalizeScale,
-            y: foldBase.y + rotNormalY * (foldLength - 3) * normalizeScale
+            x: foldEnd.x - rotNormalX * 3 * scaleFactor,
+            y: foldEnd.y - rotNormalY * 3 * scaleFactor
           };
           foldPath = `
             M${chevron1.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * foldDirX},${chevron1.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * foldDirY}
@@ -488,14 +868,14 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${chevron2.x},${chevron2.y}
             L${chevron2.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * foldDirX},${chevron2.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * foldDirY}
           `;
-          foldElement = `<path d="${foldPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
+          foldElement = `<path d="${foldPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none"/>`;
         } else if (foldType === 'Crush Hook') {
           const arcPath = `M${foldBase.x},${foldBase.y} L${foldEnd.x},${foldEnd.y} A${hookRadiusAdj},${hookRadiusAdj} 0 0 1 ${foldEnd.x + hookRadiusAdj * foldDirX},${foldEnd.y + hookRadiusAdj * foldDirY}`;
-          foldElement = `<path d="${arcPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
+          foldElement = `<path d="${arcPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none"/>`;
         } else if (foldType === 'Break') {
           const mid = {
-            x: foldBase.x + rotNormalX * (foldLength / 2) * normalizeScale,
-            y: foldBase.y + rotNormalY * (foldLength / 2) * normalizeScale
+            x: foldBase.x + rotNormalX * (foldLength / 2) * scaleFactor,
+            y: foldBase.y + rotNormalY * (foldLength / 2) * scaleFactor
           };
           const zigzagPath = `
             M${foldBase.x},${foldBase.y}
@@ -503,42 +883,40 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${mid.x - zigzagAdj * foldDirX},${mid.y - zigzagAdj * foldDirY}
             L${foldEnd.x},${foldEnd.y}
           `;
-          foldElement = `<path d="${zigzagPath}" stroke="${foldColor}" stroke-width="${2 / adjScale}" fill="none"/>`;
+          foldElement = `<path d="${zigzagPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none"/>`;
         } else if (foldType === 'Open') {
-          foldElement = `<line x1="${foldBase.x}" y1="${foldBase.y}" x2="${foldEnd.x}" y2="${foldEnd.y}" stroke="${foldColor}" stroke-width="${2 / adjScale}"/>`;
+          foldElement = `<line x1="${foldBase.x}" y1="${foldBase.y}" x2="${foldEnd.x}" y2="${foldEnd.y}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}"/>`;
         }
         const foldArrowX = foldLabelPos.x;
-        const foldArrowY = foldLabelPos.y + 20 / adjScale;
+        const foldArrowY = foldLabelPos.y + 20 * scaleFactor;
         const foldArrowDx = foldBase.x - foldArrowX;
         const foldArrowDy = foldBase.y - foldArrowY;
         const foldArrowDist = Math.sqrt(foldArrowDx * foldArrowDx + foldArrowDy * foldArrowDy) || 1;
         const foldArrowUnitX = foldArrowDx / foldArrowDist;
         const foldArrowUnitY = foldArrowDy / foldArrowDist;
         const foldArrowPath = `
-          M${foldArrowX - foldArrowUnitX * ARROW_SIZE / adjScale},${foldArrowY - foldArrowUnitY * ARROW_SIZE / adjScale}
+          M${foldArrowX - foldArrowUnitX * ARROW_SIZE * scaleFactor},${foldArrowY - foldArrowUnitY * ARROW_SIZE * scaleFactor}
           L${foldArrowX},${foldArrowY}
-          L${foldArrowX - foldArrowUnitX * ARROW_SIZE / adjScale + foldArrowUnitY * ARROW_SIZE / adjScale * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE / adjScale - foldArrowUnitX * ARROW_SIZE / adjScale * 0.5}
+          L${foldArrowX - foldArrowUnitX * ARROW_SIZE * scaleFactor + foldArrowUnitY * ARROW_SIZE * scaleFactor * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE * scaleFactor - foldArrowUnitX * ARROW_SIZE * scaleFactor * 0.5}
           Z
         `;
         foldElement += `
-          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 / adjScale}" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle">
+          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 * scaleFactor}" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle">
             ${foldType}
           </text>
-          <path d="${foldArrowPath}" stroke="${foldColor}" stroke-width="${1 / adjScale}" fill="${foldColor}"/>
+          <path d="${foldArrowPath}" stroke="${foldColor}" stroke-width="${1 * scaleFactor}" fill="${foldColor}"/>
         `;
       }
     }
    return `
       <g>
-        <g filter="url(#dropShadow)">
-          <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
-                width="${labelWidth}" height="${labelHeight}"
-                fill="#FFFFFF" rx="${labelRadius}"
-                stroke="#000000" stroke-width="0.5"/>
-          <path d="${tailPath}" fill="#FFFFFF"/>
-        </g>
+        <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
+              width="${labelWidth}" height="${labelHeight}"
+              fill="${labelBg}" rx="${labelRadius}"
+              stroke="#000000" stroke-width="0.5"/>
+        <path d="${tailPath}" fill="${tailFill}"/>
         <text x="${posX}" y="${posY}" font-size="${fontSize}"
-              fill="#000000" text-anchor="middle" alignment-baseline="middle">
+              fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
         ${foldElement}
@@ -555,8 +933,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].y : angle.labelPosition.y;
     const {x: targetX, y: targetY} = transformCoord(vertexX, vertexY);
     // Tail calculation
-    const tailSize = 6 / adjScale;
-    const attachSize = 6 / adjScale;
     const labelDx = targetX - posX;
     const labelDy = targetY - posY;
     const absLabelDx = Math.abs(labelDx);
@@ -565,14 +941,14 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     if (absLabelDx > absLabelDy) {
       if (labelDx < 0) {
         // Tail left
-        const baseX = posX - 25 / adjScale;
+        const baseX = posX - labelWidth / 2;
         const tipX = baseX - tailSize;
         const topBaseY = posY - attachSize / 2;
         const bottomBaseY = posY + attachSize / 2;
         tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
       } else {
         // Tail right
-        const baseX = posX + 25 / adjScale;
+        const baseX = posX + labelWidth / 2;
         const tipX = baseX + tailSize;
         const topBaseY = posY - attachSize / 2;
         const bottomBaseY = posY + attachSize / 2;
@@ -581,14 +957,14 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     } else {
       if (labelDy < 0) {
         // Tail up
-        const baseY = posY - 10 / adjScale;
+        const baseY = posY - labelHeight / 2;
         const tipY = baseY - tailSize;
         const leftBaseX = posX - attachSize / 2;
         const rightBaseX = posX + attachSize / 2;
         tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
       } else {
         // Tail down
-        const baseY = posY + 10 / adjScale;
+        const baseY = posY + labelHeight / 2;
         const tipY = baseY + tailSize;
         const leftBaseX = posX - attachSize / 2;
         const rightBaseX = posX + attachSize / 2;
@@ -598,30 +974,16 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
     return `
       <g>
-        <g filter="url(#dropShadow)">
-          <rect x="${posX - 25 / adjScale}" y="${posY - 10 / adjScale}" width="${50 / adjScale}" height="${20 / adjScale}" fill="#FFFFFF" rx="${10 / adjScale}" stroke="#000000" stroke-width="${0.5 / adjScale}"/>
-          <path d="${tailPath}" fill="#FFFFFF"/>
-        </g>
-        <text x="${posX}" y="${posY}" font-size="${10 / adjScale}" fill="#000000" text-anchor="middle" alignment-baseline="middle">
+        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="0.5"/>
+        <path d="${tailPath}" fill="${tailFill}"/>
+        <text x="${posX}" y="${posY}" font-size="${fontSize}" fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${roundedAngle}°
         </text>
       </g>
     `;
   }).join('');
-return `<svg width="100%" height="100%" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
-        <feOffset dx="1" dy="1" result="offsetblur"/>
-        <feFlood flood-color="#000000" flood-opacity="0.2"/>
-        <feComposite in2="offsetblur" operator="in"/>
-        <feMerge>
-          <feMergeNode/>
-          <feMergeNode in="SourceGraphic"/>
-        </feMerge>
-      </filter>
-    </defs>
-    ${!isLargeDiagram ? `<g>${gridLines}</g>` : ''}
+return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
+    <g>${gridLines}</g>
     <g>${svgContent}</g>
   </svg>`;
 };
@@ -1258,7 +1620,6 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
