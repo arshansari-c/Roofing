@@ -1,3 +1,4 @@
+
 import PDFDocument from 'pdfkit';
 import { promises as fsPromises } from 'fs';
 import fs from 'fs';
@@ -352,7 +353,16 @@ const drawInfoCard = (doc, title, value, x, y, width) => {
 const drawDiagram = (doc, path, bounds, posX, posY, w, h, originalScale, showBorder, borderOffsetDirection) => {
   const diagramW = bounds.maxX - bounds.minX;
   const diagramH = bounds.maxY - bounds.minY;
+  
+  // Calculate scale to fit the diagram within the available space
   const fitScale = Math.min(w / diagramW, h / diagramH);
+  
+  // For very large diagrams, we need to adjust visual element sizes
+  const isLargeDiagram = diagramW > 5000 || diagramH > 5000;
+  
+  // Adjust visual element sizes for large diagrams
+  const visualScaleFactor = isLargeDiagram ? 0.5 : 1;
+  
   const transX = -bounds.minX;
   const transY = -bounds.minY;
 
@@ -364,37 +374,32 @@ const drawDiagram = (doc, path, bounds, posX, posY, w, h, originalScale, showBor
   };
 
   // Adjusted fixed visual sizes to match frontend (divided by originalScale for consistency)
-  const strokeWidth = 2.5 / originalScale;
-  const pointR = 3 / originalScale;
-  const fontSizeLength = 12 / originalScale;
-  const fontSizeAngle = 10 / originalScale;
-  const fontSizeFold = 14 / originalScale;
-  const rectWidth = 50 / originalScale;
-  const rectHeight = 20 / originalScale;
-  const rectRx = 10 / originalScale;
-  const tailSize = 6 / originalScale;
-  const attachSize = 6 / originalScale;
+  const strokeWidth = 2.5 / originalScale * visualScaleFactor;
+  const pointR = 3 / originalScale * visualScaleFactor;
+  const fontSizeLength = 12 / originalScale * visualScaleFactor;
+  const fontSizeAngle = 10 / originalScale * visualScaleFactor;
+  const fontSizeFold = 14 / originalScale * visualScaleFactor;
+  const rectWidth = 50 / originalScale * visualScaleFactor;
+  const rectHeight = 20 / originalScale * visualScaleFactor;
+  const rectRx = 10 / originalScale * visualScaleFactor;
+  const tailSize = 6 / originalScale * visualScaleFactor;
+  const attachSize = 6 / originalScale * visualScaleFactor;
   const gridStroke = 0.2;
-  const arrowSize = 10 / originalScale;
-  const chevronSizeAdj = 9 / originalScale;
-  const hookRadiusAdj = 8 / originalScale;
-  const zigzagAdj = 9 / originalScale;
+  const arrowSize = 10 / originalScale * visualScaleFactor;
+  const chevronSizeAdj = 9 / originalScale * visualScaleFactor;
+  const hookRadiusAdj = 8 / originalScale * visualScaleFactor;
+  const zigzagAdj = 9 / originalScale * visualScaleFactor;
 
-  // Draw grid with dynamic grid size for large diagrams
-  let effectiveGridSize = GRID_SIZE;
-  const minGridSpacingPdf = 10; // Minimum spacing in PDF points to avoid dense grids
-  const minGridSizeDiagram = minGridSpacingPdf / fitScale;
-  if (minGridSizeDiagram > GRID_SIZE) {
-    const magnitude = Math.pow(10, Math.floor(Math.log10(minGridSizeDiagram)));
-    effectiveGridSize = Math.ceil(minGridSizeDiagram / magnitude) * magnitude;
-  }
+  // For large diagrams, adjust grid spacing to be more appropriate
+  const gridSpacing = isLargeDiagram ? GRID_SIZE * 5 : GRID_SIZE;
+  
+  // Draw grid
+  const gridStartX = Math.floor(bounds.minX / gridSpacing) * gridSpacing;
+  const gridStartY = Math.floor(bounds.minY / gridSpacing) * gridSpacing;
+  const gridEndX = Math.ceil(bounds.maxX / gridSpacing) * gridSpacing;
+  const gridEndY = Math.ceil(bounds.maxY / gridSpacing) * gridSpacing;
 
-  const gridStartX = Math.floor(bounds.minX / effectiveGridSize) * effectiveGridSize;
-  const gridStartY = Math.floor(bounds.minY / effectiveGridSize) * effectiveGridSize;
-  const gridEndX = Math.ceil(bounds.maxX / effectiveGridSize) * effectiveGridSize;
-  const gridEndY = Math.ceil(bounds.maxY / effectiveGridSize) * effectiveGridSize;
-
-  for (let gx = gridStartX; gx <= gridEndX; gx += effectiveGridSize) {
+  for (let gx = gridStartX; gx <= gridEndX; gx += gridSpacing) {
     const {x: x1, y: y1} = toPdfCoord(gx, bounds.minY);
     const {x: x2, y: y2} = toPdfCoord(gx, bounds.maxY);
     doc.moveTo(x1, y1)
@@ -403,7 +408,7 @@ const drawDiagram = (doc, path, bounds, posX, posY, w, h, originalScale, showBor
        .stroke('#DDDDDD');
   }
 
-  for (let gy = gridStartY; gy <= gridEndY; gy += effectiveGridSize) {
+  for (let gy = gridStartY; gy <= gridEndY; gy += gridSpacing) {
     const {x: x1, y: y1} = toPdfCoord(bounds.minX, gy);
     const {x: x2, y: y2} = toPdfCoord(bounds.maxX, gy);
     doc.moveTo(x1, y1)
