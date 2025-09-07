@@ -1,3 +1,16 @@
+import PDFDocument from 'pdfkit';
+import { promises as fsPromises } from 'fs';
+import fs from 'fs';
+import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+import sharp from 'sharp';
+import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
+import { User } from '../models/auth.model.js';
+import { ProjectOrder } from '../models/ProjectOrder.model.js';
+import { transporter } from '../util/EmailTransporter.js';
+import dotenv from 'dotenv';
+
 dotenv.config();
 
 // Cloudinary config
