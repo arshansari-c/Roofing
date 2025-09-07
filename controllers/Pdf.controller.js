@@ -2,11 +2,11 @@ import { promises as fsPromises } from 'fs';
 import fs from 'fs';
 import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
-import PDFDocument from 'pdfkit'; // Add this line
 import sharp from 'sharp';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import { User } from '../models/auth.model.js';
+import PDFDocument from 'pdfkit';
 import { ProjectOrder } from '../models/ProjectOrder.model.js';
 import { transporter } from '../util/EmailTransporter.js';
 import dotenv from 'dotenv';
@@ -336,10 +336,10 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     }
   }
   // Label design parameters (fixed in view units)
-  const labelWidth = 50;
-  const labelHeight = 20;
+  const labelWidth = 65;
+  const labelHeight = 30;
   const labelRadius = 10;
-  const fontSize = 12;
+  const fontSize = 16;
   const tailSize = 6;
   const attachSize = 6;
   const labelBg = '#FFFFFF';
