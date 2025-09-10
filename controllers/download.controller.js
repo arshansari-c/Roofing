@@ -1,13 +1,12 @@
-import { promises as fsPromises } from 'fs';
-import fs from 'fs';
-import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
+import dotenv from 'dotenv';
+import fs, { promises as fsPromises } from 'fs';
+import mongoose from 'mongoose';
+import path from 'path';
+import PDFDocument from 'pdfkit';
 import sharp from 'sharp';
 import { fileURLToPath } from 'url';
-import mongoose from 'mongoose';
 import { User } from '../models/auth.model.js';
-import PDFDocument from 'pdfkit';
-import dotenv from 'dotenv';
 import { UserPdf } from '../models/userpdf.model.js';
 dotenv.config();
 // Cloudinary config
@@ -507,10 +506,17 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     `;
   }).join('');
   // Generate angles with labels and tails
-  svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
+ svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
-      return '';
+        return '';
     }
+
+    // Parse angle value and skip rendering for 90° and 270°
+    const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
+    if (angleValue === 90 || angleValue === 270) {
+        return ''; // Skip rendering for 90° and 270° angles
+    }
+
     const {x: posX, y: posY} = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
     const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].x : angle.labelPosition.x;
     const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].y : angle.labelPosition.y;
