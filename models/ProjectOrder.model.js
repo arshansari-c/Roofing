@@ -23,7 +23,7 @@ export const ProjectOrderSchema = new Schema(
       type : Schema.Types.Mixed,
       required : true
   },
-   emailList: [String]
+   emailList: [String],
     JobReference: {
       type: String,
       required: true
