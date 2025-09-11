@@ -130,7 +130,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
- 
+
 
   // Process points with better precision handling
 
@@ -506,7 +506,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   const height = bounds.maxY - bounds.minY;
 
- 
+
 
   const targetViewBoxSize = 1000;
 
@@ -516,7 +516,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   const offsetY = (targetViewBoxSize - height * scaleFactor) / 2;
 
- 
+
 
   const viewBox = `0 0 ${targetViewBoxSize} ${targetViewBoxSize}`;
 
@@ -538,7 +538,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   // Generate grid - skip for very large diagrams to improve performance
 
-   let gridLines = '';
+  let gridLines = '';
 
   const gridSize = GRID_SIZE;
 
@@ -552,9 +552,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   for (let x = gridStartX; x <= gridEndX; x += gridSize) {
 
-    const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
+    const { x: tx1, y: ty1 } = transformCoord(x, gridStartY);
 
-    const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
+    const { x: tx2, y: ty2 } = transformCoord(x, gridEndY);
 
     gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
 
@@ -562,9 +562,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   for (let y = gridStartY; y <= gridEndY; y += gridSize) {
 
-    const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
+    const { x: tx1, y: ty1 } = transformCoord(gridStartX, y);
 
-    const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
+    const { x: tx2, y: ty2 } = transformCoord(gridEndX, y);
 
     gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
 
@@ -574,7 +574,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   let svgContent = path.points.map((point) => {
 
-    const {x: cx, y: cy} = transformCoord(point.x, point.y);
+    const { x: cx, y: cy } = transformCoord(point.x, point.y);
 
     return `<circle cx="${cx}" cy="${cy}" r="${3 * scaleFactor}" fill="#000000"/>`;
 
@@ -584,7 +584,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
     const d = path.points.map(p => {
 
-      const {x, y} = transformCoord(p.x, p.y);
+      const { x, y } = transformCoord(p.x, p.y);
 
       return `${x},${y}`;
 
@@ -602,9 +602,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
     svgContent += offsetSegments.map((segment) => {
 
-      const {x: x1, y: y1} = transformCoord(segment.p1.x, segment.p1.y);
+      const { x: x1, y: y1 } = transformCoord(segment.p1.x, segment.p1.y);
 
-      const {x: x2, y: y2} = transformCoord(segment.p2.x, segment.p2.y);
+      const { x: x2, y: y2 } = transformCoord(segment.p2.x, segment.p2.y);
 
       return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${3 * scaleFactor}" stroke-dasharray="${6 * scaleFactor},${4 * scaleFactor}"/>`;
 
@@ -618,7 +618,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
       const midY = (segment.p1.y + segment.p2.y) / 2;
 
-      const {x: midXView, y: midYView} = transformCoord(midX, midY);
+      const { x: midXView, y: midYView } = transformCoord(midX, midY);
 
       const origP1 = path.points[0];
 
@@ -702,11 +702,11 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
     if (!p1 || !p2 || !segment.labelPosition) return '';
 
-    const {x: posX, y: posY} = transformCoord(segment.labelPosition.x, segment.labelPosition.y);
+    const { x: posX, y: posY } = transformCoord(segment.labelPosition.x, segment.labelPosition.y);
 
-    const {x: p1x, y: p1y} = transformCoord(p1.x, p1.y);
+    const { x: p1x, y: p1y } = transformCoord(p1.x, p1.y);
 
-    const {x: p2x, y: p2y} = transformCoord(p2.x, p2.y);
+    const { x: p2x, y: p2y } = transformCoord(p2.x, p2.y);
 
     const midX = (p1x + p2x) / 2;
 
@@ -986,11 +986,11 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
     }
 
-   return `
+    return `
 
       <g>
 
-        <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
+        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}"
 
               width="${labelWidth}" height="${labelHeight}"
 
@@ -1018,23 +1018,23 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   // Generate angles with labels and tails
 
-svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
+  svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
-        return '';
+      return '';
     }
 
     // Parse angle value and skip rendering for 90° and 270°
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
     if (angleValue === 90 || angleValue === 270) {
-        return ''; // Skip rendering for 90° and 270° angles
+      return ''; // Skip rendering for 90° and 270° angles
     }
-    const {x: posX, y: posY} = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
+    const { x: posX, y: posY } = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
 
     const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].x : angle.labelPosition.x;
 
     const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].y : angle.labelPosition.y;
 
-    const {x: targetX, y: targetY} = transformCoord(vertexX, vertexY);
+    const { x: targetX, y: targetY } = transformCoord(vertexX, vertexY);
 
     // Tail calculation
 
@@ -1136,7 +1136,7 @@ svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
 
   }).join('');
 
-return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
+  return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
 
     <g>${gridLines}</g>
 
@@ -1152,15 +1152,15 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
 
   const margin = 50;
 
- 
+
 
   // Header background
 
   doc.rect(0, 0, pageWidth, 80)
 
-     .fill(COLORS.primary);
+    .fill(COLORS.primary);
 
- 
+
 
   try {
 
@@ -1184,31 +1184,31 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
 
   }
 
- 
+
 
   // Company name
 
   doc.font('Helvetica-Bold')
 
-     .fontSize(20)
+    .fontSize(20)
 
-     .fillColor('#FFFFFF')
+    .fillColor('#FFFFFF')
 
-     .text('Commercial Roofers Pty Ltd', margin, 30);
+    .text('Commercial Roofers Pty Ltd', margin, 30);
 
- 
+
 
   // Contact info
 
   doc.font('Helvetica')
 
-     .fontSize(10)
+    .fontSize(10)
 
-     .fillColor('#FFFFFF')
+    .fillColor('#FFFFFF')
 
-     .text('contact@commercialroofers.net.au | 0421259430', margin, 55);
+    .text('contact@commercialroofers.net.au | 0421259430', margin, 55);
 
- 
+
 
   // Page number if provided
 
@@ -1216,15 +1216,15 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
 
     doc.font('Helvetica')
 
-       .fontSize(10)
+      .fontSize(10)
 
-       .fillColor('#FFFFFF')
+      .fillColor('#FFFFFF')
 
-       .text(`Page ${pageNumber}`, pageWidth - margin, 55, { align: 'right' });
+      .text(`Page ${pageNumber}`, pageWidth - margin, 55, { align: 'right' });
 
   }
 
- 
+
 
   return y + 90;
 
@@ -1236,13 +1236,13 @@ const drawSectionHeader = (doc, text, y) => {
 
   doc.font('Helvetica-Bold')
 
-     .fontSize(16)
+    .fontSize(16)
 
-     .fillColor(COLORS.primary)
+    .fillColor(COLORS.primary)
 
-     .text(text, 50, y);
+    .text(text, 50, y);
 
- 
+
 
   return y + 30;
 
@@ -1256,45 +1256,45 @@ const drawInfoCard = (doc, title, value, x, y, width) => {
 
   doc.roundedRect(x, y, width, 40, 5)
 
-     .fill(COLORS.lightBg);
+    .fill(COLORS.lightBg);
 
- 
+
 
   // Card border
 
   doc.roundedRect(x, y, width, 40, 5)
 
-     .strokeColor(COLORS.border)
+    .strokeColor(COLORS.border)
 
-     .lineWidth(1)
+    .lineWidth(1)
 
-     .stroke();
+    .stroke();
 
- 
+
 
   // Title
 
   doc.font('Helvetica')
 
-     .fontSize(10)
+    .fontSize(10)
 
-     .fillColor(COLORS.darkText)
+    .fillColor(COLORS.darkText)
 
-     .text(title, x + 10, y + 8);
+    .text(title, x + 10, y + 8);
 
- 
+
 
   // Value
 
   doc.font('Helvetica-Bold')
 
-     .fontSize(12)
+    .fontSize(12)
 
-     .fillColor(COLORS.darkText)
+    .fillColor(COLORS.darkText)
 
-     .text(value, x + 10, y + 22);
+    .text(value, x + 10, y + 22);
 
- 
+
 
   return y + 50;
 
@@ -1518,7 +1518,7 @@ export const generatePdf = async (req, res) => {
 
     let cardY = y;
 
-   
+
 
     // First row of cards
 
@@ -1526,7 +1526,7 @@ export const generatePdf = async (req, res) => {
 
     cardY = drawInfoCard(doc, 'PO NUMBER', Number, margin + cardWidth + 30, y, cardWidth);
 
-   
+
 
     // Second row of cards
 
@@ -1534,7 +1534,7 @@ export const generatePdf = async (req, res) => {
 
     cardY = drawInfoCard(doc, 'ORDER DATE', OrderDate, margin + cardWidth + 30, cardY - 50, cardWidth);
 
-   
+
 
     // Third row - delivery or pickup
 
@@ -1542,9 +1542,9 @@ export const generatePdf = async (req, res) => {
 
     cardY = drawInfoCard(doc, DeliveryAddress ? 'DELIVERY ADDRESS' : 'PICKUP NOTES',
 
-                         deliveryText, margin, cardY, pageWidth - 2 * margin);
+      deliveryText, margin, cardY, pageWidth - 2 * margin);
 
-   
+
 
     y = cardY + 20;
 
@@ -1554,23 +1554,23 @@ export const generatePdf = async (req, res) => {
 
       y = drawSectionHeader(doc, 'NOTES', y);
 
-     
+
 
       doc.font('Helvetica')
 
-         .fontSize(11)
+        .fontSize(11)
 
-         .fillColor(COLORS.darkText)
+        .fillColor(COLORS.darkText)
 
-         .text(Notes, margin, y, {
+        .text(Notes, margin, y, {
 
-           width: pageWidth - 2 * margin,
+          width: pageWidth - 2 * margin,
 
-           align: 'left'
+          align: 'left'
 
-         });
+        });
 
-     
+
 
       y += doc.heightOfString(Notes, { width: pageWidth - 2 * margin }) + 30;
 
@@ -1582,23 +1582,23 @@ export const generatePdf = async (req, res) => {
 
       y = drawSectionHeader(doc, 'ADDITIONAL ITEMS', y);
 
-     
+
 
       doc.font('Helvetica')
 
-         .fontSize(11)
+        .fontSize(11)
 
-         .fillColor(COLORS.darkText)
+        .fillColor(COLORS.darkText)
 
-         .text(additionalItemsText, margin, y, {
+        .text(additionalItemsText, margin, y, {
 
-           width: pageWidth - 2 * margin,
+          width: pageWidth - 2 * margin,
 
-           align: 'left'
+          align: 'left'
 
-         });
+        });
 
-     
+
 
       y += doc.heightOfString(additionalItemsText, { width: pageWidth - 2 * margin }) + 30;
 
@@ -1608,7 +1608,7 @@ export const generatePdf = async (req, res) => {
 
     y = drawSectionHeader(doc, 'IMPORTANT NOTES', y);
 
-   
+
 
     const generalNotes = [
 
@@ -1620,31 +1620,31 @@ export const generatePdf = async (req, res) => {
 
     ];
 
-   
+
 
     generalNotes.forEach((note) => {
 
       doc.font('Helvetica')
 
-         .fontSize(11)
+        .fontSize(11)
 
-         .fillColor(COLORS.darkText)
+        .fillColor(COLORS.darkText)
 
-         .text(note, margin, y, {
+        .text(note, margin, y, {
 
-           width: pageWidth - 2 * margin,
+          width: pageWidth - 2 * margin,
 
-           align: 'left'
+          align: 'left'
 
-         });
+        });
 
-     
+
 
       y += 20;
 
     });
 
-   
+
 
     y += 10;
 
@@ -1720,13 +1720,13 @@ export const generatePdf = async (req, res) => {
 
           doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
 
-             .fill('white')
+            .fill('white')
 
-             .stroke(COLORS.border)
+            .stroke(COLORS.border)
 
-             .lineWidth(1)
+            .lineWidth(1)
 
-             .stroke();
+            .stroke();
 
           // Embed image in PDF
 
@@ -1756,13 +1756,13 @@ export const generatePdf = async (req, res) => {
 
           doc.font('Helvetica-Bold')
 
-             .fontSize(12)
+            .fontSize(12)
 
-             .fillColor(COLORS.primary)
+            .fillColor(COLORS.primary)
 
-             .text(`Path ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
+            .text(`Path ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
 
-         
+
 
           // Details in two columns
 
@@ -1776,7 +1776,7 @@ export const generatePdf = async (req, res) => {
 
           ];
 
-         
+
 
           let detailY = infoY + 20;
 
@@ -1784,13 +1784,13 @@ export const generatePdf = async (req, res) => {
 
             doc.font('Helvetica')
 
-               .fontSize(10)
+              .fontSize(10)
 
-               .fillColor(COLORS.darkText)
+              .fillColor(COLORS.darkText)
 
-               .text(left, x, detailY);
+              .text(left, x, detailY);
 
-           
+
 
             if (right) {
 
@@ -1798,7 +1798,7 @@ export const generatePdf = async (req, res) => {
 
             }
 
-           
+
 
             detailY += 15;
 
@@ -1892,13 +1892,13 @@ export const generatePdf = async (req, res) => {
 
             doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
 
-               .fill('white')
+              .fill('white')
 
-               .stroke(COLORS.border)
+              .stroke(COLORS.border)
 
-               .lineWidth(1)
+              .lineWidth(1)
 
-               .stroke();
+              .stroke();
 
             // Embed image in PDF
 
@@ -1928,13 +1928,13 @@ export const generatePdf = async (req, res) => {
 
             doc.font('Helvetica-Bold')
 
-               .fontSize(12)
+              .fontSize(12)
 
-               .fillColor(COLORS.primary)
+              .fillColor(COLORS.primary)
 
-               .text(`Path ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
+              .text(`Path ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
 
-           
+
 
             // Details in two columns
 
@@ -1948,7 +1948,7 @@ export const generatePdf = async (req, res) => {
 
             ];
 
-           
+
 
             let detailY = infoY + 20;
 
@@ -1956,13 +1956,13 @@ export const generatePdf = async (req, res) => {
 
               doc.font('Helvetica')
 
-                 .fontSize(10)
+                .fontSize(10)
 
-                 .fillColor(COLORS.darkText)
+                .fillColor(COLORS.darkText)
 
-                 .text(left, x, detailY);
+                .text(left, x, detailY);
 
-             
+
 
               if (right) {
 
@@ -1970,7 +1970,7 @@ export const generatePdf = async (req, res) => {
 
               }
 
-             
+
 
               detailY += 15;
 
@@ -2006,7 +2006,7 @@ export const generatePdf = async (req, res) => {
 
     }
 
-   
+
 
     y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
 
@@ -2024,9 +2024,9 @@ export const generatePdf = async (req, res) => {
 
     doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
 
-       .fill(COLORS.primary);
+      .fill(COLORS.primary);
 
-   
+
 
     doc.font('Helvetica-Bold').fontSize(12).fillColor('#FFFFFF');
 
@@ -2058,7 +2058,7 @@ export const generatePdf = async (req, res) => {
 
       doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
 
-         .fill(COLORS.lightBg);
+        .fill(COLORS.lightBg);
 
       const row = [
 
@@ -2094,25 +2094,25 @@ export const generatePdf = async (req, res) => {
 
       });
 
-     
+
 
       // Row border
 
       doc.moveTo(margin, y + rowHeight)
 
-         .lineTo(pageWidth - margin, y + rowHeight)
+        .lineTo(pageWidth - margin, y + rowHeight)
 
-         .strokeColor(COLORS.border)
+        .strokeColor(COLORS.border)
 
-         .lineWidth(0.5)
+        .lineWidth(0.5)
 
-         .stroke();
+        .stroke();
 
-     
+
 
       y += rowHeight;
 
-     
+
 
       // Check if we need a new page
 
@@ -2126,7 +2126,7 @@ export const generatePdf = async (req, res) => {
 
         y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', y);
 
-       
+
 
         // Redraw table header
 
@@ -2134,9 +2134,9 @@ export const generatePdf = async (req, res) => {
 
         doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
 
-           .fill(COLORS.primary);
+          .fill(COLORS.primary);
 
-       
+
 
         doc.font('Helvetica-Bold').fontSize(12).fillColor('#FFFFFF');
 
@@ -2351,7 +2351,7 @@ export const generatePdf = async (req, res) => {
         data: selectedProjectData,
 
         Number,
-
+       emailList : emails,
         OrderContact,
 
         OrderDate,
@@ -2411,301 +2411,3 @@ export const generatePdf = async (req, res) => {
   }
 
 }; 
-export const UpdateGerantePdfOrder = async (req, res) => {
-  try {
-    const { userId, orderId } = req.params;
-    if (!userId || !orderId) {
-      return res.status(400).json({ message: "UserId and OrderId are required" });
-    }
-
-    const findUser = await User.findById(userId);
-    if (!findUser) {
-      return res.status(400).json({ message: "User not found" });
-    }
-
-    const { JobReference, Number, OrderContact, OrderDate, DeliveryAddress, data: newData, emails } = req.body;
-
-    const findOrder = await ProjectOrder.findOne({ userId, _id: orderId });
-    if (!findOrder) {
-      return res.status(400).json({ message: "Order not found" });
-    }
-
-    // Merge existing data with new data
-    const mergedData = {
-      ...findOrder.data,
-      paths: [
-        ...(findOrder.data?.paths || []),
-        ...(newData?.paths || [])
-      ],
-      scale: newData?.scale || findOrder.data?.scale || 1,
-      showBorder: newData?.showBorder ?? findOrder.data?.showBorder ?? false,
-      borderOffsetDirection: newData?.borderOffsetDirection || findOrder.data?.borderOffsetDirection || 'inside'
-    };
-
-    // Prepare updated order details, retaining existing values if not provided
-    const updatedOrderDetails = {
-      JobReference: JobReference || findOrder.JobReference,
-      Number: Number || findOrder.Number,
-      OrderContact: OrderContact || findOrder.OrderContact,
-      OrderDate: OrderDate || findOrder.OrderDate,
-      DeliveryAddress: DeliveryAddress || findOrder.DeliveryAddress,
-      data: mergedData
-    };
-
-    // Generate new PDF with merged data
-    const doc = new PDFDocument({ size: 'A3', bufferPages: true });
-    const timestamp = Date.now();
-    const pdfPath = path.join(__dirname, 'Uploads', `project-${timestamp}.pdf`);
-    const writeStream = fs.createWriteStream(pdfPath);
-    doc.pipe(writeStream);
-
-    const pageWidth = 842;
-    const pageHeight = 1191;
-    const margin = 60;
-    const imgSize = 300;
-    const gap = 40;
-    const pathsPerPage = 4;
-    const imagePagesNeeded = Math.ceil(mergedData.paths.length / pathsPerPage);
-
-    // Extract scale from mergedData
-    const scale = mergedData.scale || 1;
-    const showBorder = mergedData.showBorder;
-    const borderOffsetDirection = mergedData.borderOffsetDirection;
-
-    let y = margin;
-
-    // Company Header with Logo on Right
-    try {
-      const logo = doc.openImage(path.join(__dirname, 'assets', 'company.png'));
-      const logoHeight = 50;
-      const logoWidth = (logo.width * logoHeight) / logo.height;
-      doc.image(logo, pageWidth - margin - logoWidth, y, { width: logoWidth, height: logoHeight });
-      doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
-        .text('Commercial Roofers Pty Ltd', margin, y + (logoHeight - 24) / 2);
-    } catch (err) {
-      console.warn('Failed to load logo:', err.message);
-      doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
-        .text('Commercial Roofers Pty Ltd', margin, y);
-    }
-    y += 50;
-    doc.font('Helvetica').fontSize(14)
-      .text('contact@commercialroofers.net.au | 0421259430', margin, y);
-    y += 40;
-
-    // Order Details
-    const orderDetails = [
-      `Job Reference: ${updatedOrderDetails.JobReference}`,
-      `PO Number: ${updatedOrderDetails.Number}`,
-      `Order Contact: ${updatedOrderDetails.OrderContact}`,
-      `Order Date: ${updatedOrderDetails.OrderDate}`,
-      `Delivery Address: ${updatedOrderDetails.DeliveryAddress}`,
-    ];
-
-    doc.font('Helvetica').fontSize(14);
-    orderDetails.forEach((text) => {
-      doc.text(text, margin, y);
-      y += 20;
-    });
-    y += 24;
-
-    // Notes
-    const notes = [
-      '• Arrow points to the (solid) coloured side',
-      '• 90° degrees are not labelled',
-      '• F = Total number of folds, each crush counts as 2 folds',
-    ];
-
-    doc.font('Helvetica-Bold').fontSize(16);
-    notes.forEach((line, index) => {
-      doc.text(line, margin, y + index * 20);
-    });
-    y += notes.length * 20 + 24;
-
-    // Table Header
-    const headers = ['#', 'Name', 'Code', 'Color', 'Quantity', 'Length'];
-    const colWidths = [40, 150, 80, 100, 80, 100];
-    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
-    const rowHeight = 24;
-
-    doc.rect(margin, y, totalWidth, rowHeight).fill('#E6E6E6');
-    let xPos = margin;
-    doc.font('Helvetica-Bold').fontSize(14).fillColor('black');
-    headers.forEach((h, i) => {
-      doc.text(h, xPos + 6, y + 6);
-      xPos += colWidths[i];
-    });
-    y += rowHeight;
-
-    // Table Rows
-    doc.font('Helvetica').fontSize(14);
-    mergedData.paths.forEach((path, index) => {
-      const row = [
-        `${index + 1}`,
-        path.name || 'N/A',
-        path.code || 'N/A',
-        path.color || 'N/A',
-        path.quantity?.toString() || 'N/A',
-        path.totalLength || 'N/A',
-      ];
-
-      xPos = margin;
-      row.forEach((val, i) => {
-        doc.text(val, xPos + 6, y + 6);
-        xPos += colWidths[i];
-      });
-      y += rowHeight;
-    });
-
-    // Image pages
-    for (let pageIndex = 0; pageIndex < imagePagesNeeded; pageIndex++) {
-      doc.addPage();
-      y = margin;
-
-      // Company Header with Logo on Right
-      try {
-        const logo = doc.openImage(path.join(__dirname, 'assets', 'company.png'));
-        const logoHeight = 50;
-        const logoWidth = (logo.width * logoHeight) / logo.height;
-        doc.image(logo, pageWidth - margin - logoWidth, y, { width: logoWidth, height: logoHeight });
-        doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
-          .text('Commercial Roofers Pty Ltd', margin, y + (logoHeight - 24) / 2);
-      } catch (err) {
-        console.warn('Failed to load logo:', err.message);
-        doc.font('Helvetica-Bold').fontSize(24).fillColor('black')
-          .text('Commercial Roofers Pty Ltd', margin, y);
-      }
-      y += 50;
-      doc.font('Helvetica').fontSize(14)
-        .text('contact@commercialroofers.net.au | 0421259430', margin, y);
-      y += 40;
-
-      const startPath = pageIndex * pathsPerPage;
-      const endPath = Math.min(startPath + pathsPerPage, mergedData.paths.length);
-      const startX = margin;
-      const startY = y;
-
-      for (let i = startPath; i < endPath; i++) {
-        const svgIndex = i - startPath;
-        const row = Math.floor(svgIndex / 2);
-        const col = svgIndex % 2;
-        const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 70);
-
-        const pathData = mergedData.paths[i];
-        const bounds = calculateBounds(pathData, scale);
-        const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
-
-        const imageBuffer = await sharp(Buffer.from(svgString))
-          .resize({ width: imgSize * 2, height: imgSize * 2, fit: 'contain', background: { r: 255, g: 255, b: 255 } })
-          .png({ quality: 100, compressionLevel: 0 })
-          .toBuffer();
-
-        const img = doc.openImage(imageBuffer);
-        const imgW = imgSize;
-        const imgH = (img.height * imgW) / img.width;
-
-        doc.rect(x - 8, yPos - 8, imgW + 16, imgH + 16).lineWidth(1.5).strokeColor('black').stroke();
-        doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-
-        const infoY = yPos + imgH + 15;
-        const qxL = ((parseFloat(pathData.quantity) || 0) * (parseFloat(pathData.totalLength) || 0)).toFixed(2);
-        const infoItems = [
-          [pathData.color || 'N/A', 'Colour / Material'],
-          [pathData.code || 'N/A', 'CODE'],
-          [qxL, 'Q x L'],
-        ];
-
-        doc.font('Helvetica-Bold').fontSize(12);
-        infoItems.forEach(([label, value], idx) => {
-          doc.text(label, x, infoY + idx * 15);
-          doc.font('Helvetica').text(value, x + 120, infoY + idx * 15);
-        });
-
-        const lineY = yPos + imgH + 60;
-        const length = parseFloat(pathData.totalLength) || 410;
-
-        doc.lineWidth(1.5).dash(7, { space: 7 })
-          .moveTo(x, lineY).lineTo(x + imgW, lineY).strokeColor('black').stroke();
-        doc.undash();
-
-        doc.font('Helvetica').fontSize(12)
-          .text(`${length.toFixed(0)}`, x + imgW / 2, lineY - 15, { align: 'center' });
-
-        doc.moveTo(x, lineY - 7).lineTo(x, lineY + 7).strokeColor('red').stroke();
-        doc.moveTo(x + imgW, lineY - 7).lineTo(x + imgW, lineY + 7).stroke();
-      }
-    }
-
-    doc.flushPages();
-    doc.end();
-
-    await new Promise((resolve, reject) => {
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
-    });
-
-    const exists = await fsPromises.access(pdfPath).then(() => true).catch(() => false);
-    if (!exists) {
-      return res.status(500).json({ message: 'PDF file not generated' });
-    }
-
-    let uploadResult;
-    uploadResult = await cloudinary.uploader.upload(pdfPath, {
-      folder: 'freelancers',
-      resource_type: 'raw',
-      type: 'upload',
-      access_mode: 'public',
-      public_id: `project-${timestamp}`,
-    });
-
-    // Send email with updated PDF
-    if (emails) {
-      let emailList = typeof emails === 'string' ? emails.split(',').map(e => e.trim()).filter(Boolean) : emails;
-      if (Array.isArray(emailList) && emailList.length > 0) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const invalidEmails = emailList.filter(email => !emailRegex.test(email));
-        if (invalidEmails.length === 0) {
-          await transporter.sendMail({
-            from: `"${findUser.name}" <${findUser.email}>`,
-            to: emailList,
-            subject: 'Updated Flashing Order',
-            html: `
-              <p>Please find the attached updated flashing order PDF.</p>
-              <p>info@commercialroofers.net.au | 0421259430</p>
-              <p>
-                Job Reference: ${updatedOrderDetails.JobReference}<br>
-                Number: ${updatedOrderDetails.Number}<br>
-                Order Contact: ${updatedOrderDetails.OrderContact}<br>
-                Order Date: ${updatedOrderDetails.OrderDate}<br>
-                Delivery Address: ${updatedOrderDetails.DeliveryAddress}
-              </p>
-            `,
-            attachments: [
-              {
-                filename: `${updatedOrderDetails.JobReference || 'FlashingOrder'}.pdf`,
-                path: pdfPath,
-                contentType: 'application/pdf',
-              },
-            ],
-          });
-        }
-      }
-    }
-
-    // Update order in DB with new PDF URL
-    await ProjectOrder.findByIdAndUpdate(orderId, {
-      pdf: uploadResult.secure_url,
-      ...updatedOrderDetails
-    });
-
-    await fsPromises.unlink(pdfPath);
-
-    return res.status(200).json({
-      message: 'PDF updated, email sent, and order updated successfully',
-      cloudinaryUrl: `${uploadResult.secure_url}/fl_attachment`,
-    });
-  } catch (error) {
-    console.log("UpdateGerantePdfOrder error", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
