@@ -112,7 +112,7 @@ export const UploadProjectPdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
-export const UpdateProjectPdf = async (req, res) => {
+export const updateUploadProjectPdf = async (req, res) => {
   try {
     console.log('Request received:', {
       method: req.method,
@@ -122,7 +122,8 @@ export const UpdateProjectPdf = async (req, res) => {
       body: req.body,
     });
 
-    const { userId, projectId } = req.params;
+    const { userId,orderId } = req.params;
+
     const { Name, Code, Color, data } = req.body;
 
     // Parse QuantitiesAndLengths from FormData fields
@@ -142,72 +143,78 @@ export const UpdateProjectPdf = async (req, res) => {
 
     console.log('Parsed QuantitiesAndLengths:', QuantitiesAndLengths);
 
-    // Validate IDs
-    if (!userId || !projectId) {
-      return res.status(400).json({ message: 'userId and projectId are required' });
+    // Validate userId
+    if (!userId) {
+      console.log('Validation failed: userId is required');
+      return res.status(400).json({ message: 'userId is required' });
     }
 
-    // Validate required fields
+    // Validate body fields
     const requiredFields = { Name, Code, Color, QuantitiesAndLengths };
-    const missingField = Object.entries(requiredFields).find(([_, value]) => !value);
+    const missingField = Object.entries(requiredFields).find(([key, value]) => !value);
     if (missingField) {
+      console.log(`Validation failed: ${missingField[0]} is required`);
       return res.status(400).json({ message: `${missingField[0]} is required` });
     }
 
+    // Validate QuantitiesAndLengths array
     if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
+      console.log('Validation failed: QuantitiesAndLengths must be a non-empty array');
       return res.status(400).json({ message: 'QuantitiesAndLengths must be a non-empty array' });
     }
-
+    const findOrder = await ProjectOrder.findById(orderId)
+    if(!findOrder){
+      return res.status(400).json({message:"Order not found"})
+    }
     for (const item of QuantitiesAndLengths) {
       if (!item.quantity || !item.length) {
+        console.log('Validation failed: Each item in QuantitiesAndLengths must have quantity and length');
         return res.status(400).json({
           message: 'Each item in QuantitiesAndLengths must have quantity and length',
         });
       }
     }
 
-    // Parse data
+    // Parse data if it's a string
     let parsedData;
     try {
       parsedData = typeof data === 'string' ? JSON.parse(data) : data;
     } catch (error) {
-      console.log('Invalid data JSON:', error.message);
+      console.log('Validation failed: Invalid data JSON:', error.message);
       return res.status(400).json({ message: 'Invalid data format' });
     }
 
-    // Validate user and project
+    // Check if user exists
     const userExists = await User.exists({ _id: userId });
     if (!userExists) {
+      console.log('Validation failed: User not found for userId:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const existingProject = await ProjectData.findById(projectId);
-    if (!existingProject) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
+    // Save project to DB
+   // Save project to DB
+const savedProject = await ProjectData.create({
+  userId,
+  Name,
+  Code,
+  Color,
+  QuantitiesAndLengths,
+  data: parsedData,
+});
 
-    // Update project
-    const updatedProject = await ProjectData.findByIdAndUpdate(
-      projectId,
-      {
-        userId,
-        Name,
-        Code,
-        Color,
-        QuantitiesAndLengths,
-        data: parsedData,
-      },
-      { new: true } // return updated document
-    );
+// Add project reference to order
+findOrder.ProjectIds.push(savedProject._id);
+await findOrder.save();
 
-    console.log('Project updated:', updatedProject);
+console.log('Project saved and linked to order:', savedProject);
 
-    return res.status(200).json({
-      message: 'Project updated successfully',
-      project: updatedProject,
-    });
+return res.status(201).json({
+  message: 'Project uploaded successfully',
+  project: savedProject,
+});
+
   } catch (error) {
-    console.error('UpdateProjectPdf error:', error);
+    console.error('UploadProjectPdf error:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
