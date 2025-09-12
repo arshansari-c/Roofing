@@ -1,5 +1,5 @@
 import express from 'express'
-import { addTeamMemberEmail, fetchSelectedProjectData, fetchTeamEmails, fetchUploadOrder, fetchUploadProjectData, login,  Profile, register, sendPdfToTeamFromEmail, UpdateJobOrder, UpdateProfile,  UpdateProjectPdf,  UploadProjectPdf } from '../controllers/auth.controller.js'
+import { addTeamMemberEmail, fetchSelectedProjectData, fetchTeamEmails, fetchUploadOrder, fetchUploadProjectData, login,  Profile, register, sendPdfToTeamFromEmail, UpdateJobOrder, UpdateProfile,  updateUploadProjectPdf,  UploadProjectPdf } from '../controllers/auth.controller.js'
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
@@ -39,7 +39,7 @@ AuthRouter.post('/savedEmails/:userId',addTeamMemberEmail)
 AuthRouter.post('/sendpdftoteam/:userId',sendPdfToTeamFromEmail)
 AuthRouter.post('/fetchteamemail/:userId',fetchTeamEmails)
 AuthRouter.post('/uploadprojectpdf/:userId',UploadProjectPdf)
-AuthRouter.put('/updateprojectdata/:userId/:projectId',UpdateProjectPdf)
+AuthRouter.put('/updateprojectdata/:userId/:orderId',updateUploadProjectPdf)
 AuthRouter.get('/fetchprojectdata/:userId',fetchUploadProjectData)
 AuthRouter.get('/fetchselectproject/:userId/:projectId',fetchSelectedProjectData)
 AuthRouter.put('/updatejoborder/:userId/:orderId',UpdateJobOrder)
