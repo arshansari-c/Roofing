@@ -23,7 +23,7 @@ export const ProjectOrderSchema = new Schema(
       type : Schema.Types.Mixed,
       required : true
   },
-   emailList: [String],
+  emailList:[String],
     JobReference: {
       type: String,
       required: true
@@ -44,6 +44,12 @@ export const ProjectOrderSchema = new Schema(
       type: String,
     
     },
+      ProjectIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ProjectData"
+      }
+    ],
     PickupNotes:{
       type : String,
      
