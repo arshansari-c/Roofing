@@ -751,7 +751,7 @@ export const fetchSelectedProjectData = async (req, res) => {
     }
 
     // Find project and ensure it belongs to this user
-    const project = await ProjectOrder.findOne({ _id: projectId, userId:userId });
+    const project = await ProjectOrder.findOne({ _id: projectId, userId:userId }).populate("ProjectIds");
     if (!project) {
       return res.status(404).json({ message: "Project not found for this user" });
     }
