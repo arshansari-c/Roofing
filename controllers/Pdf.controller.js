@@ -1023,11 +1023,13 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       return '';
     }
 
-    // Parse angle value and skip rendering for 90° and 270°
+    // Parse angle value and skip rendering for 90° and 270° (using rounded value to handle floating-point precision issues)
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
-    if (angleValue === 90 || angleValue === 270) {
-      return ''; // Skip rendering for 90° and 270° angles
+    const roundedValue = Math.round(angleValue);
+    if (roundedValue === 90 || roundedValue === 270) {
+      return ''; // Skip rendering for 90° and 270° angles, even with folds
     }
+
     const { x: posX, y: posY } = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
 
     const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].x : angle.labelPosition.x;
@@ -1114,7 +1116,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
     }
 
-    const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
+    const roundedAngle = roundedValue;
 
     return `
 
@@ -2410,7 +2412,7 @@ export const generatePdf = async (req, res) => {
 
   }
 
-}; 
+};
 
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
