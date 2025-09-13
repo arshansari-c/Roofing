@@ -129,6 +129,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
       return;
     }
+    const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
+    if (Math.round(angleValue) === 90 || Math.round(angleValue) === 270) {
+      return;
+    }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
     minX = Math.min(minX, labelX - 35);
@@ -511,9 +515,10 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         return '';
     }
 
-    // Parse angle value and skip rendering for 90° and 270°
+    // Parse angle value and skip rendering for 90° and 270° (using rounded value to handle floating-point precision issues)
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
-    if (angleValue === 90 || angleValue === 270) {
+    const roundedValue = Math.round(angleValue);
+    if (roundedValue === 90 || roundedValue === 270) {
         return ''; // Skip rendering for 90° and 270° angles
     }
 
@@ -560,7 +565,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
       }
     }
-    const roundedAngle = Math.round(parseFloat(angle.angle.replace(/°/g, '')));
+    const roundedAngle = roundedValue;
     return `
       <g>
         <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="0.5"/>
