@@ -41,13 +41,15 @@ const CHEVRON_SIZE = 9;
 const HOOK_RADIUS = 8;
 const ZIGZAG_SIZE = 9;
 
-// Color scheme (black and white only)
+// Color scheme (professional black, white, gray, with red accents)
 const COLORS = {
-  primary: '#000000', // Black for headers
-  lightBg: '#FFFFFF', // White background
-  darkText: '#000000', // Black text
-  border: '#000000', // Black border
-  red: '#FF0000',     // Red for important text
+  primary: '#000000',    // Black for headers and text
+  secondary: '#4D4D4D',  // Dark gray for subtext
+  accent: '#FF0000',     // Red for important highlights
+  background: '#FFFFFF', // White background
+  lightBg: '#F8F8F8',    // Very light gray for alternating rows
+  border: '#D0D0D0',     // Light gray borders
+  headerBg: '#E8E8E8',   // Light gray for headers
 };
 
 // Helper function to validate points
@@ -596,169 +598,231 @@ return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w
   </svg>`;
 };
 
-// Helper function to draw header
+// Helper function to draw header (improved with better alignment and styling)
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
-  const margin = 50;
- 
-  // Header with white background
-  doc.rect(0, 0, pageWidth, 80)
-     .fill('#FFFFFF');
- 
-  // Left side: Business info
+  const margin = 40;  // Reduced for more content space
+  const headerHeight = 70;
+
+  // Header background (subtle gradient simulation with light gray)
+  doc.rect(0, 0, pageWidth, headerHeight)
+     .fill(COLORS.headerBg);
+
+  // Company name
   doc.font('Helvetica-Bold')
-     .fontSize(16)
+     .fontSize(18)
      .fillColor(COLORS.primary)
-     .text('Commercial Roofers Pty Ltd', margin, 20);
- 
+     .text('Commercial Roofers Pty Ltd', margin, 15);
+
+  // Contact info
   doc.font('Helvetica')
      .fontSize(10)
-     .fillColor(COLORS.darkText)
-     .text('info@commercialroofers.net.au | 0421259430', margin, 40);
- 
+     .fillColor(COLORS.secondary)
+     .text('info@commercialroofers.net.au | 0421 259 430', margin, 35);
+
+  // Logo
   try {
     const logo = doc.openImage(logoPath);
     const logoHeight = 40;
     const logoWidth = (logo.width * logoHeight) / logo.height;
-    doc.image(logo, pageWidth - margin - logoWidth, 20, {
+    doc.image(logo, pageWidth - margin - logoWidth, 15, {
       width: logoWidth,
       height: logoHeight
     });
   } catch (err) {
     console.warn('Failed to load logo:', err.message);
   }
- 
+
   // Divider line
-  doc.moveTo(margin, 70)
-     .lineTo(pageWidth - margin, 70)
+  doc.moveTo(margin, headerHeight - 10)
+     .lineTo(pageWidth - margin, headerHeight - 10)
      .strokeColor(COLORS.border)
      .lineWidth(1)
      .stroke();
- 
-  return y + 80;
+
+  // Page number if provided
+  if (pageNumber) {
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(COLORS.secondary)
+       .text(`Page ${pageNumber}`, pageWidth - margin - 50, headerHeight - 25, { align: 'right' });
+  }
+
+  return headerHeight + 20;
 };
 
-// Helper function to draw section header
+// Helper function to draw section header (improved with underline)
 const drawSectionHeader = (doc, text, y) => {
+  const margin = 40;
   doc.font('Helvetica-Bold')
      .fontSize(14)
      .fillColor(COLORS.primary)
-     .text(text, 50, y);
- 
-  return y + 25;
+     .text(text, margin, y);
+
+  // Underline
+  const textWidth = doc.widthOfString(text);
+  doc.moveTo(margin, y + 20)
+     .lineTo(margin + textWidth, y + 20)
+     .strokeColor(COLORS.primary)
+     .lineWidth(2)
+     .stroke();
+
+  return y + 30;
 };
 
-// Helper function to draw order details table
-const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, y) => {
-  const margin = 50;
+// Helper function to draw order details table (improved with full borders and better spacing)
+const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, y) => {
+  const margin = 40;
   const pageWidth = doc.page.width;
   const tableWidth = pageWidth - 2 * margin;
   const rowHeight = 25;
-  const colWidth = tableWidth / 2;
-  
+  const colWidths = [tableWidth * 0.3, tableWidth * 0.7];  // Asymmetric for labels vs values
+
+  // Outer border
+  const startY = y;
+  const rows = [
+    ['Job Reference', JobReference],
+    ['PO Number', Number],
+    ['Order Contact', OrderContact],
+    ['Order Date', OrderDate],
+    ['Delivery Address', DeliveryAddress || PickupNotes || 'PICKUP']
+  ];
+  const tableHeight = rowHeight * (rows.length + 1);
+
+  doc.rect(margin, y, tableWidth, tableHeight)
+     .lineWidth(1)
+     .strokeColor(COLORS.border)
+     .stroke();
+
   // Table header
   doc.rect(margin, y, tableWidth, rowHeight)
-     .fill('#f0f0f0');
-  
+     .fill(COLORS.headerBg);
   doc.font('Helvetica-Bold')
      .fontSize(12)
      .fillColor(COLORS.primary)
-     .text('ORDER DETAILS', margin + 10, y + 7);
-  
+     .text('Order Details', margin + (tableWidth / 2), y + 6, { align: 'center' });
+
   y += rowHeight;
-  
-  // Table rows
-  const rows = [
-    ['JOB REFERENCE', JobReference],
-    ['PO NUMBER', Number],
-    ['ORDER CONTACT', OrderContact],
-    ['ORDER DATE', OrderDate],
-    ['DELIVERY ADDRESS', DeliveryAddress || 'PICKUP']
-  ];
-  
-  rows.forEach(([label, value], i) => {
-    // Alternate row background
-    if (i % 2 === 0) {
+
+  // Draw rows
+  rows.forEach(([label, value], index) => {
+    // Alternating background
+    if (index % 2 === 0) {
       doc.rect(margin, y, tableWidth, rowHeight)
-         .fill('#f9f9f9');
+         .fill(COLORS.lightBg);
     }
-    
+
     // Label
     doc.font('Helvetica-Bold')
        .fontSize(10)
-       .fillColor(COLORS.darkText)
-       .text(label, margin + 10, y + 7);
-    
+       .fillColor(COLORS.primary)
+       .text(label, margin + 10, y + 7, { width: colWidths[0] - 20 });
+
     // Value
     doc.font('Helvetica')
        .fontSize(10)
-       .fillColor(COLORS.darkText)
-       .text(value, margin + colWidth, y + 7);
-    
-    // Row border
+       .fillColor(COLORS.secondary)
+       .text(value, margin + colWidths[0] + 10, y + 7, { width: colWidths[1] - 20 });
+
+    // Horizontal line
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
-       .strokeColor('#cccccc')
+       .strokeColor(COLORS.border)
        .lineWidth(0.5)
        .stroke();
-    
+
+    // Vertical line
+    doc.moveTo(margin + colWidths[0], y)
+       .lineTo(margin + colWidths[0], y + rowHeight)
+       .stroke();
+
     y += rowHeight;
   });
-  
-  return y + 20;
+
+  return startY + tableHeight + 20;
 };
 
-// Helper function to draw instructions
+// Helper function to draw instructions (improved with bullet points and box)
 const drawInstructions = (doc, y) => {
-  const margin = 50;
+  const margin = 40;
   const pageWidth = doc.page.width;
-  
-  y = drawSectionHeader(doc, 'IMPORTANT NOTES', y);
-  
+  const boxPadding = 10;
   const instructions = [
-    '• Arrow points to the (solid) coloured side',
-    '• 90° degrees are not labelled',
-    '• F = Total number of folds, each crush counts as 2 folds'
+    'Arrow points to the (solid) coloured side',
+    '90° degrees are not labelled',
+    'F = Total number of folds, each crush counts as 2 folds'
   ];
-  
-  instructions.forEach(instruction => {
+
+  y = drawSectionHeader(doc, 'Important Notes', y);
+
+  // Box around instructions
+  const textHeight = instructions.length * 18 + 40;  // Approximate
+  doc.rect(margin, y, pageWidth - 2 * margin, textHeight)
+     .lineWidth(1)
+     .strokeColor(COLORS.border)
+     .stroke();
+
+  y += boxPadding;
+
+  instructions.forEach((instruction, index) => {
     doc.font('Helvetica')
        .fontSize(10)
-       .fillColor(COLORS.darkText)
-       .text(instruction, margin, y, {
-         width: pageWidth - 2 * margin,
-         align: 'left'
+       .fillColor(COLORS.secondary)
+       .text(`• ${instruction}`, margin + boxPadding, y, {
+         width: pageWidth - 2 * margin - 2 * boxPadding
        });
-    
-    y += 15;
+    y += 18;
   });
-  
-  // Red warning text
+
+  // Red warning
   doc.font('Helvetica-Bold')
      .fontSize(11)
-     .fillColor(COLORS.red)
+     .fillColor(COLORS.accent)
      .text('*** PLEASE WRITE ALL CODES ON FLASHINGS ***', margin, y + 10, {
        width: pageWidth - 2 * margin,
        align: 'center'
      });
-  
-  return y + 30;
+
+  return y + textHeight + 20;
 };
 
-// Helper function to draw footer
-const drawFooter = (doc, pageWidth, pageHeight) => {
-  doc.font('Helvetica-Oblique')
+// Helper function to draw additional items or notes (new)
+const drawAdditionalSection = (doc, title, content, y) => {
+  if (!content) return y;
+
+  const margin = 40;
+  const pageWidth = doc.page.width;
+
+  y = drawSectionHeader(doc, title, y);
+
+  doc.font('Helvetica')
      .fontSize(10)
-     .fillColor(COLORS.darkText)
-     .text('This order made possible thanks to the Flash.it Roofing App', 
-           pageWidth / 2, pageHeight - 30, 
-           { align: 'center' });
+     .fillColor(COLORS.secondary)
+     .text(content, margin, y, {
+       width: pageWidth - 2 * margin,
+       align: 'left'
+     });
+
+  return y + doc.heightOfString(content, { width: pageWidth - 2 * margin }) + 20;
 };
 
-// New helper: Draw bordered property table below each diagram
+// Helper function to draw footer (improved with date and page info)
+const drawFooter = (doc, pageWidth, pageHeight, currentPage, totalPages) => {
+  const margin = 40;
+  doc.font('Helvetica-Oblique')
+     .fontSize(9)
+     .fillColor(COLORS.secondary)
+     .text(`Generated on ${new Date().toLocaleDateString()} | Page ${currentPage} of ${totalPages}`, 
+           margin, pageHeight - 30, 
+           { width: pageWidth - 2 * margin, align: 'center' });
+
+  doc.text('Powered by Flash.it Roofing App', pageWidth / 2, pageHeight - 30, { align: 'center' });
+};
+
+// Helper function to draw diagram property table (improved with full grid and styling)
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
-  const tableWidth = 220; // Slightly wider for professionalism
-  const rowHeight = 20;
-  const colWidths = [110, 110];
+  const tableWidth = 220;
+  const rowHeight = 22;
+  const colWidths = [100, 120];
   const rows = [
     ['Name', pathData.name || 'Unnamed'],
     ['Colour', pathData.color || 'N/A'],
@@ -769,55 +833,155 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
     ['Total (T)', totalFolds.toString()]
   ];
 
-  // Outer table border
+  // Outer border
   doc.rect(x, y, tableWidth, rowHeight * (rows.length + 1))
-     .lineWidth(1.5)
+     .lineWidth(1)
      .strokeColor(COLORS.border)
      .stroke();
 
-  // Header row
+  // Header
   doc.rect(x, y, tableWidth, rowHeight)
-     .fill('#e0e0e0'); // Light gray for header
+     .fill(COLORS.headerBg);
   doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
-  doc.text('Property', x + 5, y + 5, { width: colWidths[0] - 10, align: 'center' });
-  doc.text('Value', x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'center' });
+  doc.text('Property', x + 10, y + 6, { width: colWidths[0] - 20, align: 'left' });
+  doc.text('Value', x + colWidths[0] + 10, y + 6, { width: colWidths[1] - 20, align: 'left' });
 
   y += rowHeight;
 
-  // Data rows
+  // Rows
   rows.forEach((row, index) => {
     if (index % 2 === 0) {
       doc.rect(x, y, tableWidth, rowHeight)
-         .fill('#f9f9f9'); // Alternating light background
+         .fill(COLORS.lightBg);
     }
 
-    doc.font('Helvetica').fontSize(9).fillColor(COLORS.darkText);
-    doc.text(row[0], x + 5, y + 5, { width: colWidths[0] - 10, align: 'left' });
+    doc.font('Helvetica').fontSize(9).fillColor(COLORS.secondary);
+    doc.text(row[0], x + 10, y + 6, { width: colWidths[0] - 20 });
 
     if (row[0] === 'Code') {
-      doc.fillColor(COLORS.red);
+      doc.fillColor(COLORS.accent);
     }
-    doc.text(row[1], x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'center' });
-    doc.fillColor(COLORS.darkText); // Reset color
+    doc.text(row[1], x + colWidths[0] + 10, y + 6, { width: colWidths[1] - 20 });
+    doc.fillColor(COLORS.secondary); // Reset
 
-    // Horizontal grid line
+    // Horizontal grid
     doc.moveTo(x, y + rowHeight)
        .lineTo(x + tableWidth, y + rowHeight)
        .lineWidth(0.5)
-       .strokeColor('#dddddd')
+       .strokeColor(COLORS.border)
        .stroke();
 
     y += rowHeight;
   });
 
-  // Vertical grid line
+  // Vertical grid
   doc.moveTo(x + colWidths[0], y - rowHeight * rows.length - rowHeight)
      .lineTo(x + colWidths[0], y)
      .lineWidth(0.5)
-     .strokeColor('#dddddd')
+     .strokeColor(COLORS.border)
      .stroke();
 
   return y;
+};
+
+// Helper to draw summary table (improved with totals and full grid)
+const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
+  const margin = 40;
+  const pageWidth = doc.page.width;
+  const tableWidth = pageWidth - 2 * margin;
+  const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'Girth', 'Q x L', 'T'];
+  const colWidths = [30, 80, 80, 60, 40, 60, 120, 40];
+  const rowHeight = 22;
+
+  y = drawSectionHeader(doc, 'Order Summary', y);
+
+  // Outer border
+  const startY = y;
+  const tableHeight = rowHeight * (validPaths.length + 2);  // + header + total
+  doc.rect(margin, y, tableWidth, tableHeight)
+     .lineWidth(1)
+     .strokeColor(COLORS.border)
+     .stroke();
+
+  // Header
+  let xPos = margin;
+  doc.rect(margin, y, tableWidth, rowHeight)
+     .fill(COLORS.headerBg);
+  doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
+  headers.forEach((h, i) => {
+    doc.text(h, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
+    xPos += colWidths[i];
+  });
+
+  // Vertical lines for all columns
+  xPos = margin;
+  headers.forEach((_, i) => {
+    doc.moveTo(xPos, y)
+       .lineTo(xPos, y + tableHeight)
+       .stroke();
+    xPos += colWidths[i];
+  });
+
+  y += rowHeight;
+
+  // Rows
+  let totalF = 0;
+  let totalT = 0;
+  validPaths.forEach((path, index) => {
+    const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
+    const qxL = formatQxL(pathQuantitiesAndLengths);
+    const folds = calculateTotalFolds(path);
+    const girth = calculateGirth(path);
+    totalF += folds;
+    totalT += folds;  // Assuming T = F for now
+
+    if (index % 2 === 0) {
+      doc.rect(margin, y, tableWidth, rowHeight)
+         .fill(COLORS.lightBg);
+    }
+
+    const row = [
+      `${index + 1}`,
+      path.name || 'Unnamed',
+      path.color || 'N/A',
+      path.code || 'N/A',
+      folds.toString(),
+      `${girth}mm`,
+      qxL || 'N/A',
+      folds.toString()
+    ];
+
+    xPos = margin;
+    doc.font('Helvetica').fontSize(9).fillColor(COLORS.secondary);
+    row.forEach((val, i) => {
+      if (i === 3) {  // Code
+        doc.fillColor(COLORS.accent);
+      }
+      doc.text(val, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
+      doc.fillColor(COLORS.secondary);
+      xPos += colWidths[i];
+    });
+
+    // Horizontal line
+    doc.moveTo(margin, y + rowHeight)
+       .lineTo(pageWidth - margin, y + rowHeight)
+       .stroke();
+
+    y += rowHeight;
+  });
+
+  // Total row
+  doc.rect(margin, y, tableWidth, rowHeight)
+     .fill(COLORS.headerBg);
+  doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
+  xPos = margin;
+  doc.text('Total', xPos + 5, y + 6, { width: colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] - 40, align: 'right' });
+  xPos += colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3];
+  doc.text(totalF.toString(), xPos + 5, y + 6, { width: colWidths[4] - 10, align: 'center' });
+  xPos += colWidths[4] + colWidths[5];
+  doc.text(totalT.toString(), xPos + 5, y + 6, { width: colWidths[6] + colWidths[7] - 10, align: 'center' });
+
+  return startY + tableHeight + 20;
 };
 
 export const generatePdfDownload = async (req, res) => {
@@ -852,9 +1016,6 @@ export const generatePdfDownload = async (req, res) => {
       }
     }
     
-    // Validate AdditionalItems
-    const additionalItemsText = AdditionalItems || '';
-    
     // Find user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -875,7 +1036,7 @@ export const generatePdfDownload = async (req, res) => {
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
     
-    // Initialize groupedQuantitiesAndLengths early
+    // Initialize groupedQuantitiesAndLengths
     const validPaths = projectData.paths.filter(path => validatePoints(path.points));
     if (validPaths.length === 0) {
       console.warn('No valid paths found in projectData');
@@ -894,6 +1055,7 @@ export const generatePdfDownload = async (req, res) => {
     const doc = new PDFDocument({
       size: 'A4',
       bufferPages: true,
+      margin: 40,
       info: {
         Title: `Flashing Order - ${JobReference}`,
         Author: 'Commercial Roofers Pty Ltd',
@@ -912,9 +1074,9 @@ export const generatePdfDownload = async (req, res) => {
     
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    const margin = 50;
-    const imgSize = 200;
-    const gap = 30;
+    const margin = 40;
+    const imgSize = 220;  // Slightly larger for better visibility
+    const gap = 20;       // Reduced gap for better layout
     
     // Track page numbers
     let pageNumber = 1;
@@ -924,22 +1086,28 @@ export const generatePdfDownload = async (req, res) => {
     
     // Order Details Table
     y = drawOrderDetailsTable(doc, JobReference, Number, OrderContact, OrderDate, 
-                             DeliveryAddress || PickupNotes, y);
+                             DeliveryAddress, PickupNotes, y);
     
     // Instructions Section
     y = drawInstructions(doc, y);
+
+    // Additional Items
+    y = drawAdditionalSection(doc, 'Additional Items', AdditionalItems, y);
+
+    // Notes
+    y = drawAdditionalSection(doc, 'Notes', Notes, y);
     
     // Image handling
     const pathsPerRow = 2;
-    const firstPageMaxPaths = 2;
+    const firstPageMaxPaths = Math.floor((pageHeight - y - 100) / (imgSize + gap + 150));  // Dynamic based on remaining space
     const remainingPathsPerPage = 4;
     
-    // First part: Up to 2 images on the current page
+    // First part: Images on the first page
     const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
     const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
     
     if (firstPagePaths > 0) {
-      y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
+      y = drawSectionHeader(doc, `Flashing Details - Part 1 of ${totalImagePages}`, y);
       
       const startX = margin;
       const startY = y;
@@ -948,7 +1116,7 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 180); // Increased for table
+        const yPos = startY + row * (imgSize + gap + 150);  // Adjusted for table
         
         try {
           const pathData = validPaths[i];
@@ -981,13 +1149,13 @@ export const generatePdfDownload = async (req, res) => {
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
           
           // Property table below image
-          const infoY = yPos + imgH + 15;
+          const infoY = yPos + imgH + 10;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
           const girth = calculateGirth(pathData);
           
-          drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
+          drawDiagramPropertyTable(doc, x, infoY, pathData, qxL, totalFolds, girth);
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
@@ -995,7 +1163,7 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
       
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 180);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 150);
     }
     
     // Remaining images: 4 per page on new pages
@@ -1008,7 +1176,7 @@ export const generatePdfDownload = async (req, res) => {
         pageNumber++;
         
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
+        y = drawSectionHeader(doc, `Flashing Details - Part ${pageIndex + 2} of ${totalImagePages}`, y);
         
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
         const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
@@ -1020,7 +1188,7 @@ export const generatePdfDownload = async (req, res) => {
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 180); // Increased for table
+          const yPos = startY + row * (imgSize + gap + 150);  // Adjusted for table
           
           try {
             const pathData = validPaths[i];
@@ -1053,13 +1221,13 @@ export const generatePdfDownload = async (req, res) => {
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
             
             // Property table below image
-            const infoY = yPos + imgH + 15;
+            const infoY = yPos + imgH + 10;
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
             const girth = calculateGirth(pathData);
             
-            drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
+            drawDiagramPropertyTable(doc, x, infoY, pathData, qxL, totalFolds, girth);
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
@@ -1067,115 +1235,24 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
         
-        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 180);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 150);
       }
     }
     
-    // Table Section (after images)
-    if (y > pageHeight - 150) {
+    // Summary Table
+    if (y > pageHeight - 200) {
       doc.addPage();
       pageNumber++;
       y = drawHeader(doc, pageWidth, 0, pageNumber);
     }
     
-    y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
-    
-    // Table Header
-    const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L', 'T'];
-    const colWidths = [30, 70, 70, 60, 40, 60, 100, 40];
-    const rowHeight = 20;
-    
-    // Draw table header with background
-    let xPos = margin;
-    doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-       .fill('#f0f0f0');
-    
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
-    headers.forEach((h, i) => {
-      doc.text(h, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
-      xPos += colWidths[i];
-    });
-    
-    y += rowHeight;
-    
-    // Table Rows
-    doc.font('Helvetica').fontSize(9);
-    validPaths.forEach((path, index) => {
-      const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
-      const qxL = formatQxL(pathQuantitiesAndLengths);
-      const totalFolds = calculateTotalFolds(path);
-      const girth = calculateGirth(path);
-      
-      // Alternate row background
-      if (index % 2 === 0) {
-        doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill('#f9f9f9');
-      }
-      
-      const row = [
-        `${index + 1}`,
-        path.name || 'Unnamed',
-        path.color || 'N/A',
-        path.code || 'N/A',
-        totalFolds.toString(),
-        `${girth}mm`,
-        qxL || 'N/A',
-        totalFolds.toString()
-      ];
-      
-      xPos = margin;
-      row.forEach((val, i) => {
-        // Make code values red
-        if (i === 3) {
-          doc.fillColor(COLORS.red).text(val, xPos + 5, y + 6, {
-            width: colWidths[i] - 10,
-            align: 'center'
-          });
-        } else {
-          doc.fillColor(COLORS.darkText).text(val, xPos + 5, y + 6, {
-            width: colWidths[i] - 10,
-            align: 'center'
-          });
-        }
-        xPos += colWidths[i];
-      });
-      
-      // Row border
-      doc.moveTo(margin, y + rowHeight)
-         .lineTo(pageWidth - margin, y + rowHeight)
-         .strokeColor('#cccccc')
-         .lineWidth(0.5)
-         .stroke();
-      
-      y += rowHeight;
-      
-      // Check if we need a new page
-      if (y > pageHeight - 50) {
-        doc.addPage();
-        pageNumber++;
-        y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', y);
-        
-        // Redraw table header
-        xPos = margin;
-        doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill('#f0f0f0');
-        
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
-        headers.forEach((h, i) => {
-          doc.text(h, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
-          xPos += colWidths[i];
-        });
-        
-        y += rowHeight;
-      }
-    });
+    y = drawSummaryTable(doc, validPaths, groupedQuantitiesAndLengths, y);
     
     // Draw footer on all pages
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-      drawFooter(doc, pageWidth, pageHeight);
+      drawFooter(doc, pageWidth, pageHeight, i + 1, pages.count);
     }
     
     // Finalize the PDF
