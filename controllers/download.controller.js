@@ -638,7 +638,7 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
 };
 
 // Helper function to draw section header
-const drawSectionHeader = (doc, text, y) {
+const drawSectionHeader = (doc, text, y) => {
   doc.font('Helvetica-Bold')
      .fontSize(14)
      .fillColor(COLORS.primary)
@@ -847,8 +847,8 @@ export const generatePdfDownload = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
-    const imgSize = 180; // Reduced size to fit more images
-    const gap = 20; // Reduced gap
+    const imgSize = 200;
+    const gap = 30;
     
     // Track page numbers
     let pageNumber = 1;
@@ -863,26 +863,24 @@ export const generatePdfDownload = async (req, res) => {
     // Instructions Section
     y = drawInstructions(doc, y);
     
-    // Image handling - first page shows 2 diagrams, subsequent pages show 4
-    const firstPagePaths = Math.min(2, validPaths.length);
-    const subsequentPagesPerPage = 4;
+    // Image handling
+    const pathsPerRow = 2;
+    const firstPageMaxPaths = 2;
+    const remainingPathsPerPage = 4;
     
-    let totalImagePages = 1;
-    if (validPaths.length > firstPagePaths) {
-      totalImagePages += Math.ceil((validPaths.length - firstPagePaths) / subsequentPagesPerPage);
-    }
+    // First part: Up to 2 images on the current page
+    const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
+    const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
     
-    // First part: 2 images on the first page
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
       
       const startX = margin;
       const startY = y;
-      const imagesPerRow = 2;
       
       for (let i = 0; i < firstPagePaths; i++) {
-        const row = Math.floor(i / imagesPerRow);
-        const col = i % imagesPerRow;
+        const row = Math.floor(i / pathsPerRow);
+        const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
         const yPos = startY + row * (imgSize + gap + 80);
         
@@ -966,13 +964,13 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
       
-      y = startY + Math.ceil(firstPagePaths / imagesPerRow) * (imgSize + gap + 80);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 80);
     }
     
     // Remaining images: 4 per page on new pages
     const remainingPathsCount = validPaths.length - firstPagePaths;
     if (remainingPathsCount > 0) {
-      const remainingPagesNeeded = Math.ceil(remainingPathsCount / subsequentPagesPerPage);
+      const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
       
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
@@ -981,16 +979,15 @@ export const generatePdfDownload = async (req, res) => {
         y = drawHeader(doc, pageWidth, 0, pageNumber);
         y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
         
-        const startPath = firstPagePaths + pageIndex * subsequentPagesPerPage;
-        const endPath = Math.min(startPath + subsequentPagesPerPage, validPaths.length);
+        const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
+        const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
         const startX = margin;
         const startY = y;
-        const imagesPerRow = 2;
         
         for (let j = 0; j < (endPath - startPath); j++) {
           const i = startPath + j;
-          const row = Math.floor(j / imagesPerRow);
-          const col = j % imagesPerRow;
+          const row = Math.floor(j / pathsPerRow);
+          const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
           const yPos = startY + row * (imgSize + gap + 80);
           
@@ -1074,7 +1071,7 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
         
-        y = startY + Math.ceil((endPath - startPath) / imagesPerRow) * (imgSize + gap + 80);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 80);
       }
     }
     
