@@ -864,11 +864,14 @@ export const generatePdfDownload = async (req, res) => {
     y = drawInstructions(doc, y);
     
     // Image handling
-    const pathsPerPage = 2;
-    let totalImagePages = Math.ceil(validPaths.length / pathsPerPage);
+    const pathsPerRow = 2;
+    const firstPageMaxPaths = 2;
+    const remainingPathsPerPage = 4;
     
     // First part: Up to 2 images on the current page
-    let firstPagePaths = Math.min(pathsPerPage, validPaths.length);
+    const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
+    const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
+    
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
       
@@ -876,8 +879,8 @@ export const generatePdfDownload = async (req, res) => {
       const startY = y;
       
       for (let i = 0; i < firstPagePaths; i++) {
-        const row = Math.floor(i / 1);
-        const col = i % 1;
+        const row = Math.floor(i / pathsPerRow);
+        const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
         const yPos = startY + row * (imgSize + gap + 80);
         
@@ -961,13 +964,13 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
       
-      y = startY + Math.ceil(firstPagePaths / 1) * (imgSize + gap + 80);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 80);
     }
     
-    // Remaining images: 2 per page on new pages
+    // Remaining images: 4 per page on new pages
     const remainingPathsCount = validPaths.length - firstPagePaths;
     if (remainingPathsCount > 0) {
-      const remainingPagesNeeded = Math.ceil(remainingPathsCount / pathsPerPage);
+      const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
       
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
@@ -976,15 +979,15 @@ export const generatePdfDownload = async (req, res) => {
         y = drawHeader(doc, pageWidth, 0, pageNumber);
         y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
         
-        const startPath = firstPagePaths + pageIndex * pathsPerPage;
-        const endPath = Math.min(startPath + pathsPerPage, validPaths.length);
+        const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
+        const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
         const startX = margin;
         const startY = y;
         
         for (let j = 0; j < (endPath - startPath); j++) {
           const i = startPath + j;
-          const row = Math.floor(j / 1);
-          const col = j % 1;
+          const row = Math.floor(j / pathsPerRow);
+          const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
           const yPos = startY + row * (imgSize + gap + 80);
           
@@ -1068,7 +1071,7 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
         
-        y = startY + Math.ceil((endPath - startPath) / 1) * (imgSize + gap + 80);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 80);
       }
     }
     
@@ -1250,3 +1253,4 @@ export const generatePdfDownload = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+    
