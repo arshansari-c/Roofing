@@ -48,9 +48,6 @@ const COLORS = {
   darkText: '#000000', // Black text
   border: '#000000', // Black border
   red: '#FF0000',     // Red for important text
-  tableHeaderBg: '#f0f0f0',
-  tableAltRowBg: '#f9f9f9',
-  tableBorder: '#cccccc',
 };
 
 // Helper function to validate points
@@ -599,7 +596,7 @@ return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w
   </svg>`;
 };
 
-// Helper function to draw header with page number
+// Helper function to draw header
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
  
@@ -628,14 +625,6 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
     });
   } catch (err) {
     console.warn('Failed to load logo:', err.message);
-  }
-
-  // Page number on the right
-  if (pageNumber !== null) {
-    doc.font('Helvetica')
-       .fontSize(10)
-       .fillColor(COLORS.darkText)
-       .text(`Page ${pageNumber}`, pageWidth - margin - 50, 50, { align: 'right' });
   }
  
   // Divider line
@@ -668,7 +657,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
   
   // Table header
   doc.rect(margin, y, tableWidth, rowHeight)
-     .fill(COLORS.tableHeaderBg);
+     .fill('#f0f0f0');
   
   doc.font('Helvetica-Bold')
      .fontSize(12)
@@ -690,7 +679,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
     // Alternate row background
     if (i % 2 === 0) {
       doc.rect(margin, y, tableWidth, rowHeight)
-         .fill(COLORS.tableAltRowBg);
+         .fill('#f9f9f9');
     }
     
     // Label
@@ -708,7 +697,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
     // Row border
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
-       .strokeColor(COLORS.tableBorder)
+       .strokeColor('#cccccc')
        .lineWidth(0.5)
        .stroke();
     
@@ -765,56 +754,70 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
            { align: 'center' });
 };
 
-// Helper function to draw a bordered detail table below the diagram
-const drawDetailTable = (doc, x, y, details, tableWidth) => {
-  const rowHeight = 15;
-  const colWidths = [tableWidth / 2, tableWidth / 2];
-  const fontSize = 9;
-  const padding = 5;
+// New helper: Draw bordered property table below each diagram
+const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
+  const tableWidth = 220; // Slightly wider for professionalism
+  const rowHeight = 20;
+  const colWidths = [110, 110];
+  const rows = [
+    ['Name', pathData.name || 'Unnamed'],
+    ['Colour', pathData.color || 'N/A'],
+    ['Code', pathData.code || 'N/A'],
+    ['Q x L', qxL || 'N/A'],
+    ['Folds (F)', totalFolds.toString()],
+    ['Girth', `${girth}mm`],
+    ['Total (T)', totalFolds.toString()]
+  ];
 
-  let currentY = y;
-
-  // Draw table header row (optional, but for professionalism)
-  doc.rect(x, currentY, tableWidth, rowHeight).fill(COLORS.tableHeaderBg);
-  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(COLORS.primary);
-  doc.text('Property', x + padding, currentY + 3, { width: colWidths[0] - 2 * padding });
-  doc.text('Value', x + colWidths[0] + padding, currentY + 3, { width: colWidths[1] - 2 * padding });
-  doc.rect(x, currentY, tableWidth, rowHeight).strokeColor(COLORS.tableBorder).lineWidth(0.5).stroke();
-
-  currentY += rowHeight;
-
-  details.forEach(([left, right], rowIndex) => {
-    // Alternate row background
-    if (rowIndex % 2 === 0) {
-      doc.rect(x, currentY, tableWidth, rowHeight).fill(COLORS.tableAltRowBg);
-    }
-
-    // Left cell
-    doc.font('Helvetica').fontSize(fontSize).fillColor(COLORS.darkText);
-    doc.text(left, x + padding, currentY + 3, { width: colWidths[0] - 2 * padding });
-
-    // Right cell (with special handling for CODE)
-    if (right.startsWith('CODE:')) {
-      doc.font('Helvetica-Bold').fillColor(COLORS.red);
-    } else {
-      doc.font('Helvetica').fillColor(COLORS.darkText);
-    }
-    doc.text(right, x + colWidths[0] + padding, currentY + 3, { width: colWidths[1] - 2 * padding });
-
-    // Draw row borders
-    doc.rect(x, currentY, tableWidth, rowHeight).strokeColor(COLORS.tableBorder).lineWidth(0.5).stroke();
-
-    currentY += rowHeight;
-  });
-
-  // Vertical lines for columns
-  doc.moveTo(x + colWidths[0], y)
-     .lineTo(x + colWidths[0], currentY)
-     .strokeColor(COLORS.tableBorder)
-     .lineWidth(0.5)
+  // Outer table border
+  doc.rect(x, y, tableWidth, rowHeight * (rows.length + 1))
+     .lineWidth(1.5)
+     .strokeColor(COLORS.border)
      .stroke();
 
-  return currentY;
+  // Header row
+  doc.rect(x, y, tableWidth, rowHeight)
+     .fill('#e0e0e0'); // Light gray for header
+  doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
+  doc.text('Property', x + 5, y + 5, { width: colWidths[0] - 10, align: 'center' });
+  doc.text('Value', x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'center' });
+
+  y += rowHeight;
+
+  // Data rows
+  rows.forEach((row, index) => {
+    if (index % 2 === 0) {
+      doc.rect(x, y, tableWidth, rowHeight)
+         .fill('#f9f9f9'); // Alternating light background
+    }
+
+    doc.font('Helvetica').fontSize(9).fillColor(COLORS.darkText);
+    doc.text(row[0], x + 5, y + 5, { width: colWidths[0] - 10, align: 'left' });
+
+    if (row[0] === 'Code') {
+      doc.fillColor(COLORS.red);
+    }
+    doc.text(row[1], x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'center' });
+    doc.fillColor(COLORS.darkText); // Reset color
+
+    // Horizontal grid line
+    doc.moveTo(x, y + rowHeight)
+       .lineTo(x + tableWidth, y + rowHeight)
+       .lineWidth(0.5)
+       .strokeColor('#dddddd')
+       .stroke();
+
+    y += rowHeight;
+  });
+
+  // Vertical grid line
+  doc.moveTo(x + colWidths[0], y - rowHeight * rows.length - rowHeight)
+     .lineTo(x + colWidths[0], y)
+     .lineWidth(0.5)
+     .strokeColor('#dddddd')
+     .stroke();
+
+  return y;
 };
 
 export const generatePdfDownload = async (req, res) => {
@@ -945,7 +948,7 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 120); // Increased height for table
+        const yPos = startY + row * (imgSize + gap + 180); // Increased for table
         
         try {
           const pathData = validPaths[i];
@@ -963,12 +966,10 @@ export const generatePdfDownload = async (req, res) => {
             .png({ quality: 100, compressionLevel: 0 })
             .toBuffer();
           
-          // Card background for entire diagram + table (professional square border instead of rounded)
-          const cardHeight = imgSize + 100; // Image + title + table
-          doc.rect(x - 10, yPos - 10, imgSize + 20, cardHeight)
-             .fill('white')
-             .stroke(COLORS.border)
+          // Border around diagram
+          doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
              .lineWidth(1)
+             .strokeColor(COLORS.border)
              .stroke();
           
           // Embed image in PDF
@@ -976,34 +977,17 @@ export const generatePdfDownload = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
           
-          // Image with its own border
-          doc.rect(x, yPos, imgW, imgH).stroke(COLORS.border).lineWidth(0.5).stroke();
+          // Image
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
           
-          // Title below image
-          const infoY = yPos + imgH + 10;
-          doc.font('Helvetica-Bold')
-             .fontSize(10)
-             .fillColor(COLORS.primary)
-             .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY, { width: imgSize, align: 'center' });
-          
-          // Properties table below title
-          const tableY = infoY + 20;
+          // Property table below image
+          const infoY = yPos + imgH + 15;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
           const girth = calculateGirth(pathData);
           
-          const details = [
-            [`Colour`, `${pathData.color || 'N/A'}`],
-            [`CODE`, `${pathData.code || 'N/A'}`],
-            [`Q x L`, `${qxL || 'N/A'}`],
-            [`F`, `${totalFolds}`],
-            [`GIRTH`, `${girth}mm`],
-            [`T`, `${totalFolds}`] // Assuming T is total folds; adjust if different
-          ];
-          
-          drawDetailTable(doc, x, tableY, details, imgSize);
+          drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
@@ -1011,7 +995,7 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
       
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 120);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 180);
     }
     
     // Remaining images: 4 per page on new pages
@@ -1036,7 +1020,7 @@ export const generatePdfDownload = async (req, res) => {
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 120); // Increased height for table
+          const yPos = startY + row * (imgSize + gap + 180); // Increased for table
           
           try {
             const pathData = validPaths[i];
@@ -1054,12 +1038,10 @@ export const generatePdfDownload = async (req, res) => {
               .png({ quality: 100, compressionLevel: 0 })
               .toBuffer();
             
-            // Card background for entire diagram + table (professional square border)
-            const cardHeight = imgSize + 100; // Image + title + table
-            doc.rect(x - 10, yPos - 10, imgSize + 20, cardHeight)
-               .fill('white')
-               .stroke(COLORS.border)
+            // Border around diagram
+            doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
                .lineWidth(1)
+               .strokeColor(COLORS.border)
                .stroke();
             
             // Embed image in PDF
@@ -1067,34 +1049,17 @@ export const generatePdfDownload = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
             
-            // Image with its own border
-            doc.rect(x, yPos, imgW, imgH).stroke(COLORS.border).lineWidth(0.5).stroke();
+            // Image
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
             
-            // Title below image
-            const infoY = yPos + imgH + 10;
-            doc.font('Helvetica-Bold')
-               .fontSize(10)
-               .fillColor(COLORS.primary)
-               .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY, { width: imgSize, align: 'center' });
-            
-            // Properties table below title
-            const tableY = infoY + 20;
+            // Property table below image
+            const infoY = yPos + imgH + 15;
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
             const girth = calculateGirth(pathData);
             
-            const details = [
-              [`Colour`, `${pathData.color || 'N/A'}`],
-              [`CODE`, `${pathData.code || 'N/A'}`],
-              [`Q x L`, `${qxL || 'N/A'}`],
-              [`F`, `${totalFolds}`],
-              [`GIRTH`, `${girth}mm`],
-              [`T`, `${totalFolds}`] // Assuming T is total folds; adjust if different
-            ];
-            
-            drawDetailTable(doc, x, tableY, details, imgSize);
+            drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
@@ -1102,7 +1067,7 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
         
-        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 120);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 180);
       }
     }
     
@@ -1116,14 +1081,14 @@ export const generatePdfDownload = async (req, res) => {
     y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
     
     // Table Header
-    const headers = ['#', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L', 'T'];
-    const colWidths = [30, 80, 60, 40, 60, 80, 40];
+    const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L', 'T'];
+    const colWidths = [30, 70, 70, 60, 40, 60, 100, 40];
     const rowHeight = 20;
     
     // Draw table header with background
     let xPos = margin;
     doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-       .fill(COLORS.tableHeaderBg);
+       .fill('#f0f0f0');
     
     doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
     headers.forEach((h, i) => {
@@ -1144,11 +1109,12 @@ export const generatePdfDownload = async (req, res) => {
       // Alternate row background
       if (index % 2 === 0) {
         doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill(COLORS.tableAltRowBg);
+           .fill('#f9f9f9');
       }
       
       const row = [
         `${index + 1}`,
+        path.name || 'Unnamed',
         path.color || 'N/A',
         path.code || 'N/A',
         totalFolds.toString(),
@@ -1160,7 +1126,7 @@ export const generatePdfDownload = async (req, res) => {
       xPos = margin;
       row.forEach((val, i) => {
         // Make code values red
-        if (i === 2) {
+        if (i === 3) {
           doc.fillColor(COLORS.red).text(val, xPos + 5, y + 6, {
             width: colWidths[i] - 10,
             align: 'center'
@@ -1177,7 +1143,7 @@ export const generatePdfDownload = async (req, res) => {
       // Row border
       doc.moveTo(margin, y + rowHeight)
          .lineTo(pageWidth - margin, y + rowHeight)
-         .strokeColor(COLORS.tableBorder)
+         .strokeColor('#cccccc')
          .lineWidth(0.5)
          .stroke();
       
@@ -1193,7 +1159,7 @@ export const generatePdfDownload = async (req, res) => {
         // Redraw table header
         xPos = margin;
         doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill(COLORS.tableHeaderBg);
+           .fill('#f0f0f0');
         
         doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
         headers.forEach((h, i) => {
