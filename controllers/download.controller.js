@@ -497,7 +497,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         const foldArrowPath = `
           M${foldArrowX - foldArrowUnitX * ARROW_SIZE * scaleFactor},${foldArrowY - foldArrowUnitY * ARROW_SIZE * scaleFactor}
           L${foldArrowX},${foldArrowY}
-          L${foldArrowX - foldArrowUnitX * ARROW_SIZE * scaleFactor + foldArrowUnitY * ARROW_SIZE * scaleFactor * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE * scaleFactor - foldArrowUnitX * ARROW_SIZE * scaleFactor * 0.5}
+          L${foldArrowX - foldArrowUnitX * ARROW_SIZE * scaleFactor + foldArrowUnitY * ARROW_SIZE * scaleFactor * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE * scaleFactor - foldArrowUnitX * ARROWSize * scaleFactor * 0.5}
           Z
         `;
         foldElement += `
@@ -754,6 +754,107 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
            { align: 'center' });
 };
 
+// Helper function to draw a diagram card with double border and properties
+const drawDiagramCard = async (doc, x, y, pathData, index, pathQuantitiesAndLengths, imgSize = 180) => {
+  try {
+    const scale = parseFloat(pathData.scale) || 1;
+    const showBorder = pathData.showBorder || false;
+    const borderOffsetDirection = pathData.borderOffsetDirection || 'inside';
+    
+    const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
+    const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
+    
+    // Convert SVG to PNG with higher resolution
+    const imageBuffer = await sharp(Buffer.from(svgString))
+      .resize({
+        width: imgSize * 4,
+        height: imgSize * 4,
+        fit: 'contain',
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      })
+      .png({ quality: 100, compressionLevel: 0 })
+      .toBuffer();
+    
+    // Double border for the card
+    const cardWidth = imgSize + 40;
+    const cardHeight = imgSize + 100;
+    
+    // Outer border
+    doc.roundedRect(x - 15, y - 15, cardWidth, cardHeight, 5)
+       .fill('white')
+       .stroke(COLORS.border)
+       .lineWidth(1.5)
+       .stroke();
+    
+    // Inner border
+    doc.roundedRect(x - 10, y - 10, cardWidth - 10, cardHeight - 10, 3)
+       .stroke(COLORS.border)
+       .lineWidth(0.5)
+       .stroke();
+    
+    // Embed image in PDF
+    const img = doc.openImage(imageBuffer);
+    const imgW = imgSize;
+    const imgH = (img.height * imgW) / img.width;
+    
+    // Image
+    doc.image(imageBuffer, x, y, { width: imgW, height: imgH });
+    
+    // Info below image
+    const infoY = y + imgH + 10;
+    const qxL = formatQxL(pathQuantitiesAndLengths);
+    const totalFolds = calculateTotalFolds(pathData);
+    const girth = calculateGirth(pathData);
+    
+    // Path details in a clean table-like format
+    doc.font('Helvetica-Bold')
+       .fontSize(10)
+       .fillColor(COLORS.primary)
+       .text(`Flash ${index + 1}: ${pathData.name || 'Unnamed'}`, x, infoY, {
+         width: imgW,
+         align: 'center'
+       });
+    
+    // Details in two columns
+    const details = [
+      { left: `Colour: ${pathData.color || 'N/A'}`, right: `CODE: ${pathData.code || 'N/A'}` },
+      { left: `Q x L: ${qxL || 'N/A'}`, right: `F: ${totalFolds}` },
+      { left: `GIRTH: ${girth}mm`, right: `T: ${totalFolds}` }
+    ];
+    
+    let detailY = infoY + 15;
+    details.forEach(({ left, right }) => {
+      doc.font('Helvetica')
+         .fontSize(9)
+         .fillColor(COLORS.darkText)
+         .text(left, x, detailY);
+      
+      if (right) {
+        // Make CODE values red
+        if (right.startsWith('CODE:')) {
+          doc.font('Helvetica-Bold')
+             .fillColor(COLORS.red)
+             .text(right, x + imgW/2, detailY, { width: imgW/2, align: 'right' });
+        } else {
+          doc.font('Helvetica')
+             .fillColor(COLORS.darkText)
+             .text(right, x + imgW/2, detailY, { width: imgW/2, align: 'right' });
+        }
+      }
+      
+      detailY += 12;
+    });
+    
+    return { height: cardHeight };
+  } catch (err) {
+    console.warn(`Diagram card error (path ${index}):`, err.message);
+    doc.font('Helvetica').fontSize(14)
+      .text(`Image unavailable`, x, y);
+    
+    return { height: 200 };
+  }
+};
+
 export const generatePdfDownload = async (req, res) => {
   try {
     const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, Notes, AdditionalItems } = req.body;
@@ -805,17 +906,13 @@ export const generatePdfDownload = async (req, res) => {
       return res.status(400).json({ message: 'Invalid project data' });
     }
     
-    const scale = parseFloat(projectData.scale) || 1;
-    const showBorder = projectData.showBorder || false;
-    const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
-    
-    // Initialize groupedQuantitiesAndLengths early
     const validPaths = projectData.paths.filter(path => validatePoints(path.points));
     if (validPaths.length === 0) {
       console.warn('No valid paths found in projectData');
       return res.status(400).json({ message: 'No valid paths found in project data' });
     }
     
+    // Group quantities and lengths by path
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
     const groupedQuantitiesAndLengths = [];
     for (let i = 0; i < validPaths.length; i++) {
@@ -847,7 +944,7 @@ export const generatePdfDownload = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
-    const imgSize = 200;
+    const imgSize = 180;
     const gap = 30;
     
     // Track page numbers
@@ -863,215 +960,73 @@ export const generatePdfDownload = async (req, res) => {
     // Instructions Section
     y = drawInstructions(doc, y);
     
-    // Image handling
-    const pathsPerRow = 2;
-    const firstPageMaxPaths = 2;
-    const remainingPathsPerPage = 4;
+    // First page: Show 2 diagrams
+    y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${Math.ceil(validPaths.length / 4)}`, y);
     
-    // First part: Up to 2 images on the current page
-    const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
-    const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
+    const firstPagePaths = Math.min(2, validPaths.length);
+    const cardsPerRow = 2;
+    const cardWidth = imgSize + 40;
+    const horizontalGap = (pageWidth - 2 * margin - cardsPerRow * cardWidth) / (cardsPerRow - 1);
     
-    if (firstPagePaths > 0) {
-      y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
+    for (let i = 0; i < firstPagePaths; i++) {
+      const row = Math.floor(i / cardsPerRow);
+      const col = i % cardsPerRow;
+      const x = margin + col * (cardWidth + horizontalGap);
+      const yPos = y + row * (imgSize + 140);
       
-      const startX = margin;
-      const startY = y;
+      const { height: cardHeight } = await drawDiagramCard(
+        doc, x, yPos, validPaths[i], i, groupedQuantitiesAndLengths[i] || [], imgSize
+      );
       
-      for (let i = 0; i < firstPagePaths; i++) {
-        const row = Math.floor(i / pathsPerRow);
-        const col = i % pathsPerRow;
-        const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 80);
-        
-        try {
-          const pathData = validPaths[i];
-          const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
-          const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
-          
-          // Convert SVG to PNG with higher resolution
-          const imageBuffer = await sharp(Buffer.from(svgString))
-            .resize({
-              width: imgSize * 4,
-              height: imgSize * 4,
-              fit: 'contain',
-              background: { r: 255, g: 255, b: 255, alpha: 1 },
-            })
-            .png({ quality: 100, compressionLevel: 0 })
-            .toBuffer();
-          
-          // Card background for image
-          doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 70, 5)
-             .fill('white')
-             .stroke(COLORS.border)
-             .lineWidth(1)
-             .stroke();
-          
-          // Embed image in PDF
-          const img = doc.openImage(imageBuffer);
-          const imgW = imgSize;
-          const imgH = (img.height * imgW) / img.width;
-          
-          // Image
-          doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-          
-          // Info below image
-          const infoY = yPos + imgH + 15;
-          const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
-          const qxL = formatQxL(pathQuantitiesAndLengths);
-          const totalFolds = calculateTotalFolds(pathData);
-          const girth = calculateGirth(pathData);
-          
-          // Path details
-          doc.font('Helvetica-Bold')
-             .fontSize(10)
-             .fillColor(COLORS.primary)
-             .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
-          
-          // Details in two columns
-          const detailsLeft = [
-            [`Colour: ${pathData.color || 'N/A'}`, `CODE: ${pathData.code || 'N/A'}`],
-            [`Q x L: ${qxL || 'N/A'}`, `F: ${totalFolds}`],
-            [`GIRTH: ${girth}mm`, `T: ${totalFolds}`]
-          ];
-          
-          let detailY = infoY + 15;
-          detailsLeft.forEach(([left, right]) => {
-            doc.font('Helvetica')
-               .fontSize(9)
-               .fillColor(COLORS.darkText)
-               .text(left, x, detailY);
-            
-            if (right) {
-              // Make CODE values red
-              if (right.startsWith('CODE:')) {
-                doc.font('Helvetica-Bold')
-                   .fillColor(COLORS.red)
-                   .text(right, x + 100, detailY);
-              } else {
-                doc.font('Helvetica')
-                   .fillColor(COLORS.darkText)
-                   .text(right, x + 100, detailY);
-              }
-            }
-            
-            detailY += 12;
-          });
-        } catch (err) {
-          console.warn(`Image error (path ${i}):`, err.message);
-          doc.font('Helvetica').fontSize(14)
-            .text(`Image unavailable`, x, yPos);
-        }
+      // Update y position for next row
+      if (col === cardsPerRow - 1) {
+        y = yPos + cardHeight + 20;
       }
-      
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 80);
     }
     
-    // Remaining images: 4 per page on new pages
-    const remainingPathsCount = validPaths.length - firstPagePaths;
-    if (remainingPathsCount > 0) {
-      const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
+    // If we didn't complete a full row, update y position
+    if (firstPagePaths % cardsPerRow !== 0) {
+      y += imgSize + 140 + 20;
+    }
+    
+    // Subsequent pages: Show 4 diagrams per page (2x2 grid)
+    const subsequentPagesPaths = validPaths.length - firstPagePaths;
+    if (subsequentPagesPaths > 0) {
+      const cardsPerPage = 4;
+      const cardsPerRow = 2;
+      const totalPages = Math.ceil(subsequentPagesPaths / cardsPerPage);
       
-      for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
+      for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
         doc.addPage();
         pageNumber++;
         
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
+        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${Math.ceil(validPaths.length / 4)}`, y);
         
-        const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
-        const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
-        const startX = margin;
-        const startY = y;
+        const startPath = firstPagePaths + pageIndex * cardsPerPage;
+        const endPath = Math.min(startPath + cardsPerPage, validPaths.length);
         
-        for (let j = 0; j < (endPath - startPath); j++) {
-          const i = startPath + j;
-          const row = Math.floor(j / pathsPerRow);
-          const col = j % pathsPerRow;
-          const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 80);
+        for (let i = startPath; i < endPath; i++) {
+          const indexInPage = i - startPath;
+          const row = Math.floor(indexInPage / cardsPerRow);
+          const col = indexInPage % cardsPerRow;
+          const x = margin + col * (cardWidth + horizontalGap);
+          const yPos = y + row * (imgSize + 140);
           
-          try {
-            const pathData = validPaths[i];
-            const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
-            const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
-            
-            // Convert SVG to PNG with higher resolution
-            const imageBuffer = await sharp(Buffer.from(svgString))
-              .resize({
-                width: imgSize * 4,
-                height: imgSize * 4,
-                fit: 'contain',
-                background: { r: 255, g: 255, b: 255, alpha: 1 },
-              })
-              .png({ quality: 100, compressionLevel: 0 })
-              .toBuffer();
-            
-            // Card background for image
-            doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 70, 5)
-               .fill('white')
-               .stroke(COLORS.border)
-               .lineWidth(1)
-               .stroke();
-            
-            // Embed image in PDF
-            const img = doc.openImage(imageBuffer);
-            const imgW = imgSize;
-            const imgH = (img.height * imgW) / img.width;
-            
-            // Image
-            doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-            
-            // Info below image
-            const infoY = yPos + imgH + 15;
-            const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
-            const qxL = formatQxL(pathQuantitiesAndLengths);
-            const totalFolds = calculateTotalFolds(pathData);
-            const girth = calculateGirth(pathData);
-            
-            // Path details
-            doc.font('Helvetica-Bold')
-               .fontSize(10)
-               .fillColor(COLORS.primary)
-               .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
-            
-            // Details in two columns
-            const detailsLeft = [
-              [`Colour: ${pathData.color || 'N/A'}`, `CODE: ${pathData.code || 'N/A'}`],
-              [`Q x L: ${qxL || 'N/A'}`, `F: ${totalFolds}`],
-              [`GIRTH: ${girth}mm`, `T: ${totalFolds}`]
-            ];
-            
-            let detailY = infoY + 15;
-            detailsLeft.forEach(([left, right]) => {
-              doc.font('Helvetica')
-                 .fontSize(9)
-                 .fillColor(COLORS.darkText)
-                 .text(left, x, detailY);
-              
-              if (right) {
-                // Make CODE values red
-                if (right.startsWith('CODE:')) {
-                  doc.font('Helvetica-Bold')
-                     .fillColor(COLORS.red)
-                     .text(right, x + 100, detailY);
-                } else {
-                  doc.font('Helvetica')
-                     .fillColor(COLORS.darkText)
-                     .text(right, x + 100, detailY);
-                }
-              }
-              
-              detailY += 12;
-            });
-          } catch (err) {
-            console.warn(`Image error (path ${i}):`, err.message);
-            doc.font('Helvetica').fontSize(14)
-              .text(`Image unavailable`, x, yPos);
+          await drawDiagramCard(
+            doc, x, yPos, validPaths[i], i, groupedQuantitiesAndLengths[i] || [], imgSize
+          );
+          
+          // Update y position for next row
+          if (col === cardsPerRow - 1) {
+            y = yPos + imgSize + 140 + 20;
           }
         }
         
-        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 80);
+        // If we didn't complete a full row, update y position
+        if ((endPath - startPath) % cardsPerRow !== 0) {
+          y += imgSize + 140 + 20;
+        }
       }
     }
     
@@ -1253,4 +1208,3 @@ export const generatePdfDownload = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-    
