@@ -48,6 +48,9 @@ const COLORS = {
   darkText: '#000000', // Black text
   border: '#000000', // Black border
   red: '#FF0000',     // Red for important text
+  tableHeaderBg: '#f0f0f0',
+  tableAltRowBg: '#f9f9f9',
+  tableBorder: '#cccccc',
 };
 
 // Helper function to validate points
@@ -596,7 +599,7 @@ return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w
   </svg>`;
 };
 
-// Helper function to draw header
+// Helper function to draw header with page number
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
  
@@ -625,6 +628,14 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
     });
   } catch (err) {
     console.warn('Failed to load logo:', err.message);
+  }
+
+  // Page number on the right
+  if (pageNumber !== null) {
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(COLORS.darkText)
+       .text(`Page ${pageNumber}`, pageWidth - margin - 50, 50, { align: 'right' });
   }
  
   // Divider line
@@ -657,7 +668,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
   
   // Table header
   doc.rect(margin, y, tableWidth, rowHeight)
-     .fill('#f0f0f0');
+     .fill(COLORS.tableHeaderBg);
   
   doc.font('Helvetica-Bold')
      .fontSize(12)
@@ -679,7 +690,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
     // Alternate row background
     if (i % 2 === 0) {
       doc.rect(margin, y, tableWidth, rowHeight)
-         .fill('#f9f9f9');
+         .fill(COLORS.tableAltRowBg);
     }
     
     // Label
@@ -697,7 +708,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
     // Row border
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
-       .strokeColor('#cccccc')
+       .strokeColor(COLORS.tableBorder)
        .lineWidth(0.5)
        .stroke();
     
@@ -752,6 +763,58 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .text('This order made possible thanks to the Flash.it Roofing App', 
            pageWidth / 2, pageHeight - 30, 
            { align: 'center' });
+};
+
+// Helper function to draw a bordered detail table below the diagram
+const drawDetailTable = (doc, x, y, details, tableWidth) => {
+  const rowHeight = 15;
+  const colWidths = [tableWidth / 2, tableWidth / 2];
+  const fontSize = 9;
+  const padding = 5;
+
+  let currentY = y;
+
+  // Draw table header row (optional, but for professionalism)
+  doc.rect(x, currentY, tableWidth, rowHeight).fill(COLORS.tableHeaderBg);
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(COLORS.primary);
+  doc.text('Property', x + padding, currentY + 3, { width: colWidths[0] - 2 * padding });
+  doc.text('Value', x + colWidths[0] + padding, currentY + 3, { width: colWidths[1] - 2 * padding });
+  doc.rect(x, currentY, tableWidth, rowHeight).strokeColor(COLORS.tableBorder).lineWidth(0.5).stroke();
+
+  currentY += rowHeight;
+
+  details.forEach(([left, right], rowIndex) => {
+    // Alternate row background
+    if (rowIndex % 2 === 0) {
+      doc.rect(x, currentY, tableWidth, rowHeight).fill(COLORS.tableAltRowBg);
+    }
+
+    // Left cell
+    doc.font('Helvetica').fontSize(fontSize).fillColor(COLORS.darkText);
+    doc.text(left, x + padding, currentY + 3, { width: colWidths[0] - 2 * padding });
+
+    // Right cell (with special handling for CODE)
+    if (right.startsWith('CODE:')) {
+      doc.font('Helvetica-Bold').fillColor(COLORS.red);
+    } else {
+      doc.font('Helvetica').fillColor(COLORS.darkText);
+    }
+    doc.text(right, x + colWidths[0] + padding, currentY + 3, { width: colWidths[1] - 2 * padding });
+
+    // Draw row borders
+    doc.rect(x, currentY, tableWidth, rowHeight).strokeColor(COLORS.tableBorder).lineWidth(0.5).stroke();
+
+    currentY += rowHeight;
+  });
+
+  // Vertical lines for columns
+  doc.moveTo(x + colWidths[0], y)
+     .lineTo(x + colWidths[0], currentY)
+     .strokeColor(COLORS.tableBorder)
+     .lineWidth(0.5)
+     .stroke();
+
+  return currentY;
 };
 
 export const generatePdfDownload = async (req, res) => {
@@ -882,7 +945,7 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 80);
+        const yPos = startY + row * (imgSize + gap + 120); // Increased height for table
         
         try {
           const pathData = validPaths[i];
@@ -900,8 +963,9 @@ export const generatePdfDownload = async (req, res) => {
             .png({ quality: 100, compressionLevel: 0 })
             .toBuffer();
           
-          // Card background for image
-          doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 70, 5)
+          // Card background for entire diagram + table (professional square border instead of rounded)
+          const cardHeight = imgSize + 100; // Image + title + table
+          doc.rect(x - 10, yPos - 10, imgSize + 20, cardHeight)
              .fill('white')
              .stroke(COLORS.border)
              .lineWidth(1)
@@ -912,51 +976,34 @@ export const generatePdfDownload = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
           
-          // Image
+          // Image with its own border
+          doc.rect(x, yPos, imgW, imgH).stroke(COLORS.border).lineWidth(0.5).stroke();
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
           
-          // Info below image
-          const infoY = yPos + imgH + 15;
+          // Title below image
+          const infoY = yPos + imgH + 10;
+          doc.font('Helvetica-Bold')
+             .fontSize(10)
+             .fillColor(COLORS.primary)
+             .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY, { width: imgSize, align: 'center' });
+          
+          // Properties table below title
+          const tableY = infoY + 20;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
           const girth = calculateGirth(pathData);
           
-          // Path details
-          doc.font('Helvetica-Bold')
-             .fontSize(10)
-             .fillColor(COLORS.primary)
-             .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
-          
-          // Details in two columns
-          const detailsLeft = [
-            [`Colour: ${pathData.color || 'N/A'}`, `CODE: ${pathData.code || 'N/A'}`],
-            [`Q x L: ${qxL || 'N/A'}`, `F: ${totalFolds}`],
-            [`GIRTH: ${girth}mm`, `T: ${totalFolds}`]
+          const details = [
+            [`Colour`, `${pathData.color || 'N/A'}`],
+            [`CODE`, `${pathData.code || 'N/A'}`],
+            [`Q x L`, `${qxL || 'N/A'}`],
+            [`F`, `${totalFolds}`],
+            [`GIRTH`, `${girth}mm`],
+            [`T`, `${totalFolds}`] // Assuming T is total folds; adjust if different
           ];
           
-          let detailY = infoY + 15;
-          detailsLeft.forEach(([left, right]) => {
-            doc.font('Helvetica')
-               .fontSize(9)
-               .fillColor(COLORS.darkText)
-               .text(left, x, detailY);
-            
-            if (right) {
-              // Make CODE values red
-              if (right.startsWith('CODE:')) {
-                doc.font('Helvetica-Bold')
-                   .fillColor(COLORS.red)
-                   .text(right, x + 100, detailY);
-              } else {
-                doc.font('Helvetica')
-                   .fillColor(COLORS.darkText)
-                   .text(right, x + 100, detailY);
-              }
-            }
-            
-            detailY += 12;
-          });
+          drawDetailTable(doc, x, tableY, details, imgSize);
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
@@ -964,7 +1011,7 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
       
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 80);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 120);
     }
     
     // Remaining images: 4 per page on new pages
@@ -989,7 +1036,7 @@ export const generatePdfDownload = async (req, res) => {
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 80);
+          const yPos = startY + row * (imgSize + gap + 120); // Increased height for table
           
           try {
             const pathData = validPaths[i];
@@ -1007,8 +1054,9 @@ export const generatePdfDownload = async (req, res) => {
               .png({ quality: 100, compressionLevel: 0 })
               .toBuffer();
             
-            // Card background for image
-            doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 70, 5)
+            // Card background for entire diagram + table (professional square border)
+            const cardHeight = imgSize + 100; // Image + title + table
+            doc.rect(x - 10, yPos - 10, imgSize + 20, cardHeight)
                .fill('white')
                .stroke(COLORS.border)
                .lineWidth(1)
@@ -1019,51 +1067,34 @@ export const generatePdfDownload = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
             
-            // Image
+            // Image with its own border
+            doc.rect(x, yPos, imgW, imgH).stroke(COLORS.border).lineWidth(0.5).stroke();
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
             
-            // Info below image
-            const infoY = yPos + imgH + 15;
+            // Title below image
+            const infoY = yPos + imgH + 10;
+            doc.font('Helvetica-Bold')
+               .fontSize(10)
+               .fillColor(COLORS.primary)
+               .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY, { width: imgSize, align: 'center' });
+            
+            // Properties table below title
+            const tableY = infoY + 20;
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
             const girth = calculateGirth(pathData);
             
-            // Path details
-            doc.font('Helvetica-Bold')
-               .fontSize(10)
-               .fillColor(COLORS.primary)
-               .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
-            
-            // Details in two columns
-            const detailsLeft = [
-              [`Colour: ${pathData.color || 'N/A'}`, `CODE: ${pathData.code || 'N/A'}`],
-              [`Q x L: ${qxL || 'N/A'}`, `F: ${totalFolds}`],
-              [`GIRTH: ${girth}mm`, `T: ${totalFolds}`]
+            const details = [
+              [`Colour`, `${pathData.color || 'N/A'}`],
+              [`CODE`, `${pathData.code || 'N/A'}`],
+              [`Q x L`, `${qxL || 'N/A'}`],
+              [`F`, `${totalFolds}`],
+              [`GIRTH`, `${girth}mm`],
+              [`T`, `${totalFolds}`] // Assuming T is total folds; adjust if different
             ];
             
-            let detailY = infoY + 15;
-            detailsLeft.forEach(([left, right]) => {
-              doc.font('Helvetica')
-                 .fontSize(9)
-                 .fillColor(COLORS.darkText)
-                 .text(left, x, detailY);
-              
-              if (right) {
-                // Make CODE values red
-                if (right.startsWith('CODE:')) {
-                  doc.font('Helvetica-Bold')
-                     .fillColor(COLORS.red)
-                     .text(right, x + 100, detailY);
-                } else {
-                  doc.font('Helvetica')
-                     .fillColor(COLORS.darkText)
-                     .text(right, x + 100, detailY);
-                }
-              }
-              
-              detailY += 12;
-            });
+            drawDetailTable(doc, x, tableY, details, imgSize);
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
@@ -1071,7 +1102,7 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
         
-        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 80);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 120);
       }
     }
     
@@ -1092,7 +1123,7 @@ export const generatePdfDownload = async (req, res) => {
     // Draw table header with background
     let xPos = margin;
     doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-       .fill('#f0f0f0');
+       .fill(COLORS.tableHeaderBg);
     
     doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
     headers.forEach((h, i) => {
@@ -1113,7 +1144,7 @@ export const generatePdfDownload = async (req, res) => {
       // Alternate row background
       if (index % 2 === 0) {
         doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill('#f9f9f9');
+           .fill(COLORS.tableAltRowBg);
       }
       
       const row = [
@@ -1146,7 +1177,7 @@ export const generatePdfDownload = async (req, res) => {
       // Row border
       doc.moveTo(margin, y + rowHeight)
          .lineTo(pageWidth - margin, y + rowHeight)
-         .strokeColor('#cccccc')
+         .strokeColor(COLORS.tableBorder)
          .lineWidth(0.5)
          .stroke();
       
@@ -1162,7 +1193,7 @@ export const generatePdfDownload = async (req, res) => {
         // Redraw table header
         xPos = margin;
         doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill('#f0f0f0');
+           .fill(COLORS.tableHeaderBg);
         
         doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
         headers.forEach((h, i) => {
