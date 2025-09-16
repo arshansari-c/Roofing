@@ -9,14 +9,17 @@ import { fileURLToPath } from 'url';
 import { User } from '../models/auth.model.js';
 import { UserPdf } from '../models/userpdf.model.js';
 dotenv.config();
+
 // Cloudinary config
 cloudinary.config({
   cloud_name: process.env.CLOUDNARY_NAME,
   api_key: process.env.CLOUDNARY_API,
   api_secret: process.env.CLOUDNARY_SECRET,
 });
+
 // Derive __dirname for ES modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // Create uploads directory
 const uploadsDir = path.join(__dirname, 'Uploads');
 try {
@@ -26,8 +29,10 @@ try {
   console.error('Failed to create uploads directory:', err.message);
   throw new Error(`Failed to create uploads directory: ${err.message}`);
 }
+
 // Path to company logo
 const logoPath = path.join(__dirname, 'assets', 'company.png');
+
 // Configuration constants
 const GRID_SIZE = 20;
 const FOLD_LENGTH = 14;
@@ -35,13 +40,16 @@ const ARROW_SIZE = 10;
 const CHEVRON_SIZE = 9;
 const HOOK_RADIUS = 8;
 const ZIGZAG_SIZE = 9;
+
 // Color scheme (black and white only)
 const COLORS = {
   primary: '#000000', // Black for headers
   lightBg: '#FFFFFF', // White background
   darkText: '#000000', // Black text
   border: '#000000', // Black border
+  red: '#FF0000',     // Red for important text
 };
+
 // Helper function to validate points
 const validatePoints = (points) => {
   if (!Array.isArray(points) || points.length === 0) {
@@ -55,6 +63,7 @@ const validatePoints = (points) => {
     !isNaN(parseFloat(point.y))
   );
 };
+
 // Helper function to calculate bounds for a path with better precision handling
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
@@ -184,6 +193,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxY: maxY + padding,
   };
 };
+
 // Helper function to calculate offset segments for border
 const calculateOffsetSegments = (path, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
@@ -209,6 +219,7 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
   }
   return offsetSegments;
 };
+
 // Helper function to calculate total folds
 const calculateTotalFolds = (path) => {
   let totalFolds = (path.angles || []).length;
@@ -227,6 +238,7 @@ const calculateTotalFolds = (path) => {
   }
   return totalFolds;
 };
+
 // Helper function to calculate girth
 const calculateGirth = (path) => {
   let totalLength = 0;
@@ -240,11 +252,13 @@ const calculateGirth = (path) => {
   }
   return totalLength.toFixed(2);
 };
+
 // Helper function to format Q x L
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
+
 // Helper function to generate SVG string with better handling for large diagrams
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
@@ -581,13 +595,25 @@ return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w
     <g>${svgContent}</g>
   </svg>`;
 };
+
 // Helper function to draw header
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
  
-  // Header background
+  // Header with white background
   doc.rect(0, 0, pageWidth, 80)
-     .fill(COLORS.primary);
+     .fill('#FFFFFF');
+ 
+  // Left side: Business info
+  doc.font('Helvetica-Bold')
+     .fontSize(16)
+     .fillColor(COLORS.primary)
+     .text('Commercial Roofers Pty Ltd', margin, 20);
+ 
+  doc.font('Helvetica')
+     .fontSize(10)
+     .fillColor(COLORS.darkText)
+     .text('info@commercialroofers.net.au | 0421259430', margin, 40);
  
   try {
     const logo = doc.openImage(logoPath);
@@ -601,100 +627,172 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
     console.warn('Failed to load logo:', err.message);
   }
  
-  // Company name
-  doc.font('Helvetica-Bold')
-     .fontSize(20)
-     .fillColor('#FFFFFF')
-     .text('Commercial Roofers Pty Ltd', margin, 30);
- 
-  // Contact info
-  doc.font('Helvetica')
-     .fontSize(10)
-     .fillColor('#FFFFFF')
-     .text('contact@commercialroofers.net.au | 0421259430', margin, 55);
- 
-  // Page number if provided
-  if (pageNumber !== null) {
-    doc.font('Helvetica')
-       .fontSize(10)
-       .fillColor('#FFFFFF')
-       .text(`Page ${pageNumber}`, pageWidth - margin, 55, { align: 'right' });
-  }
- 
-  return y + 90;
-};
-// Helper function to draw section header
-const drawSectionHeader = (doc, text, y) => {
-  doc.font('Helvetica-Bold')
-     .fontSize(16)
-     .fillColor(COLORS.primary)
-     .text(text, 50, y);
- 
-  return y + 30;
-};
-// Helper function to draw info card
-const drawInfoCard = (doc, title, value, x, y, width) => {
-  // Card background
-  doc.roundedRect(x, y, width, 40, 5)
-     .fill(COLORS.lightBg);
- 
-  // Card border
-  doc.roundedRect(x, y, width, 40, 5)
+  // Divider line
+  doc.moveTo(margin, 70)
+     .lineTo(pageWidth - margin, 70)
      .strokeColor(COLORS.border)
      .lineWidth(1)
      .stroke();
  
-  // Title
-  doc.font('Helvetica')
-     .fontSize(10)
-     .fillColor(COLORS.darkText)
-     .text(title, x + 10, y + 8);
+  return y + 80;
+};
+
+// Helper function to draw section header
+const drawSectionHeader = (doc, text, y) => {
+  doc.font('Helvetica-Bold')
+     .fontSize(14)
+     .fillColor(COLORS.primary)
+     .text(text, 50, y);
  
-  // Value
+  return y + 25;
+};
+
+// Helper function to draw order details table
+const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, y) => {
+  const margin = 50;
+  const pageWidth = doc.page.width;
+  const tableWidth = pageWidth - 2 * margin;
+  const rowHeight = 25;
+  const colWidth = tableWidth / 2;
+  
+  // Table header
+  doc.rect(margin, y, tableWidth, rowHeight)
+     .fill('#f0f0f0');
+  
   doc.font('Helvetica-Bold')
      .fontSize(12)
-     .fillColor(COLORS.darkText)
-     .text(value, x + 10, y + 22);
- 
-  return y + 50;
+     .fillColor(COLORS.primary)
+     .text('ORDER DETAILS', margin + 10, y + 7);
+  
+  y += rowHeight;
+  
+  // Table rows
+  const rows = [
+    ['JOB REFERENCE', JobReference],
+    ['PO NUMBER', Number],
+    ['ORDER CONTACT', OrderContact],
+    ['ORDER DATE', OrderDate],
+    ['DELIVERY ADDRESS', DeliveryAddress || 'PICKUP']
+  ];
+  
+  rows.forEach(([label, value], i) => {
+    // Alternate row background
+    if (i % 2 === 0) {
+      doc.rect(margin, y, tableWidth, rowHeight)
+         .fill('#f9f9f9');
+    }
+    
+    // Label
+    doc.font('Helvetica-Bold')
+       .fontSize(10)
+       .fillColor(COLORS.darkText)
+       .text(label, margin + 10, y + 7);
+    
+    // Value
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(COLORS.darkText)
+       .text(value, margin + colWidth, y + 7);
+    
+    // Row border
+    doc.moveTo(margin, y + rowHeight)
+       .lineTo(pageWidth - margin, y + rowHeight)
+       .strokeColor('#cccccc')
+       .lineWidth(0.5)
+       .stroke();
+    
+    y += rowHeight;
+  });
+  
+  return y + 20;
 };
+
+// Helper function to draw instructions
+const drawInstructions = (doc, y) => {
+  const margin = 50;
+  const pageWidth = doc.page.width;
+  
+  y = drawSectionHeader(doc, 'IMPORTANT NOTES', y);
+  
+  const instructions = [
+    '• Arrow points to the (solid) coloured side',
+    '• 90° degrees are not labelled',
+    '• F = Total number of folds, each crush counts as 2 folds'
+  ];
+  
+  instructions.forEach(instruction => {
+    doc.font('Helvetica')
+       .fontSize(10)
+       .fillColor(COLORS.darkText)
+       .text(instruction, margin, y, {
+         width: pageWidth - 2 * margin,
+         align: 'left'
+       });
+    
+    y += 15;
+  });
+  
+  // Red warning text
+  doc.font('Helvetica-Bold')
+     .fontSize(11)
+     .fillColor(COLORS.red)
+     .text('*** PLEASE WRITE ALL CODES ON FLASHINGS ***', margin, y + 10, {
+       width: pageWidth - 2 * margin,
+       align: 'center'
+     });
+  
+  return y + 30;
+};
+
+// Helper function to draw footer
+const drawFooter = (doc, pageWidth, pageHeight) => {
+  doc.font('Helvetica-Oblique')
+     .fontSize(10)
+     .fillColor(COLORS.darkText)
+     .text('This order made possible thanks to the Flash.it Roofing App', 
+           pageWidth / 2, pageHeight - 30, 
+           { align: 'center' });
+};
+
 export const generatePdfDownload = async (req, res) => {
   try {
     const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, Notes, AdditionalItems } = req.body;
     const { userId } = req.params;
+    
     // Validate inputs
     if (!JobReference || !Number || !OrderContact || !OrderDate) {
       return res.status(400).json({ message: 'JobReference, Number, OrderContact, and OrderDate are required' });
     }
-    if (!DeliveryAddress && !PickupNotes) {
-      return res.status(400).json({ message: 'Either DeliveryAddress or PickupNotes is required' });
-    }
-    if (DeliveryAddress && PickupNotes) {
-      return res.status(400).json({ message: 'Provide either DeliveryAddress or PickupNotes, not both' });
-    }
+    
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'Valid userId is required' });
     }
+    
     // Validate uploadsDir
     if (!uploadsDir) {
       console.error('Uploads directory is not defined');
       return res.status(500).json({ message: 'Uploads directory is not defined' });
     }
+    
     // Validate QuantitiesAndLengths
     const QuantitiesAndLengths = selectedProjectData?.QuantitiesAndLengths || [];
     if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
       return res.status(400).json({ message: 'QuantitiesAndLengths must be a non-empty array' });
     }
+    
     for (const item of QuantitiesAndLengths) {
       if (!item.quantity || !item.length) {
         return res.status(400).json({ message: 'Each QuantitiesAndLengths item must have quantity and length' });
       }
     }
+    
     // Validate AdditionalItems
     const additionalItemsText = AdditionalItems || '';
+    
     // Find user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
+    
     // Validate project data
     let projectData;
     try {
@@ -706,15 +804,18 @@ export const generatePdfDownload = async (req, res) => {
       console.error('Error parsing projectData:', error.message);
       return res.status(400).json({ message: 'Invalid project data' });
     }
+    
     const scale = parseFloat(projectData.scale) || 1;
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
+    
     // Initialize groupedQuantitiesAndLengths early
     const validPaths = projectData.paths.filter(path => validatePoints(path.points));
     if (validPaths.length === 0) {
       console.warn('No valid paths found in projectData');
       return res.status(400).json({ message: 'No valid paths found in project data' });
     }
+    
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
     const groupedQuantitiesAndLengths = [];
     for (let i = 0; i < validPaths.length; i++) {
@@ -722,126 +823,69 @@ export const generatePdfDownload = async (req, res) => {
       const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
     }
-    // Initialize PDF document with A3 size
+    
+    // Initialize PDF document with A4 size
     const doc = new PDFDocument({
-      size: 'A3',
+      size: 'A4',
       bufferPages: true,
       info: {
         Title: `Flashing Order - ${JobReference}`,
         Author: 'Commercial Roofers Pty Ltd',
-        Creator: 'Commercial Roofers Order System',
+        Creator: 'Flash.it Roofing App',
         CreationDate: new Date(),
       }
     });
+    
     const timestamp = Date.now();
     const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
+    
     // Create a write stream and pipe the document to it
     const writeStream = fs.createWriteStream(pdfPath);
     doc.pipe(writeStream);
+    
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
-    const imgSize = 300;
-    const gap = 40;
+    const imgSize = 200;
+    const gap = 30;
+    
     // Track page numbers
     let pageNumber = 1;
+    
     // Page 1: Header and Order Details
     let y = drawHeader(doc, pageWidth, 0, pageNumber);
-    // Order Details Section
-    y = drawSectionHeader(doc, 'ORDER DETAILS', y);
-    // Order details in cards
-    const cardWidth = (pageWidth - 2 * margin - 30) / 2;
-    let cardY = y;
-   
-    // First row of cards
-    cardY = drawInfoCard(doc, 'JOB REFERENCE', JobReference, margin, cardY, cardWidth);
-    cardY = drawInfoCard(doc, 'PO NUMBER', Number, margin + cardWidth + 30, y, cardWidth);
-   
-    // Second row of cards
-    cardY = drawInfoCard(doc, 'ORDER CONTACT', OrderContact, margin, cardY, cardWidth);
-    cardY = drawInfoCard(doc, 'ORDER DATE', OrderDate, margin + cardWidth + 30, cardY - 50, cardWidth);
-   
-    // Third row - delivery or pickup
-    const deliveryText = DeliveryAddress ? DeliveryAddress : (PickupNotes || 'N/A');
-    cardY = drawInfoCard(doc, DeliveryAddress ? 'DELIVERY ADDRESS' : 'PICKUP NOTES',
-                         deliveryText, margin, cardY, pageWidth - 2 * margin);
-   
-    y = cardY + 20;
-    // Notes Section
-    if (Notes) {
-      y = drawSectionHeader(doc, 'NOTES', y);
-     
-      doc.font('Helvetica')
-         .fontSize(11)
-         .fillColor(COLORS.darkText)
-         .text(Notes, margin, y, {
-           width: pageWidth - 2 * margin,
-           align: 'left'
-         });
-     
-      y += doc.heightOfString(Notes, { width: pageWidth - 2 * margin }) + 30;
-    }
-    // Additional Items Section
-    if (additionalItemsText) {
-      y = drawSectionHeader(doc, 'ADDITIONAL ITEMS', y);
-     
-      doc.font('Helvetica')
-         .fontSize(11)
-         .fillColor(COLORS.darkText)
-         .text(additionalItemsText, margin, y, {
-           width: pageWidth - 2 * margin,
-           align: 'left'
-         });
-     
-      y += doc.heightOfString(additionalItemsText, { width: pageWidth - 2 * margin }) + 30;
-    }
-    // General Notes
-    y = drawSectionHeader(doc, 'IMPORTANT NOTES', y);
-   
-    const generalNotes = [
-      '• Arrow points to the (solid) coloured side',
-      '• 90° degrees are not labelled',
-      '• F = Total number of folds, each crush counts as 2 folds',
-    ];
-   
-    generalNotes.forEach((note) => {
-      doc.font('Helvetica')
-         .fontSize(11)
-         .fillColor(COLORS.darkText)
-         .text(note, margin, y, {
-           width: pageWidth - 2 * margin,
-           align: 'left'
-         });
-     
-      y += 20;
-    });
-   
-    y += 10;
+    
+    // Order Details Table
+    y = drawOrderDetailsTable(doc, JobReference, Number, OrderContact, OrderDate, 
+                             DeliveryAddress || PickupNotes, y);
+    
+    // Instructions Section
+    y = drawInstructions(doc, y);
+    
     // Image handling
-    const pathsPerFirstPage = 2;
-    const pathsPerSubsequentPage = 4;
-    let totalImagePages = 0;
-    if (validPaths.length > 0) {
-      totalImagePages = 1 + Math.ceil(Math.max(0, validPaths.length - pathsPerFirstPage) / pathsPerSubsequentPage);
-    }
+    const pathsPerPage = 2;
+    let totalImagePages = Math.ceil(validPaths.length / pathsPerPage);
+    
     // First part: Up to 2 images on the current page
-    let firstPagePaths = 0;
-    if (validPaths.length > 0) {
-      firstPagePaths = Math.min(pathsPerFirstPage, validPaths.length);
-      y = drawSectionHeader(doc, `DETAILED VIEWS - PART 1 OF ${totalImagePages}`, y);
+    let firstPagePaths = Math.min(pathsPerPage, validPaths.length);
+    if (firstPagePaths > 0) {
+      y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
+      
       const startX = margin;
       const startY = y;
+      
       for (let i = 0; i < firstPagePaths; i++) {
-        const svgIndex = i;
-        const row = Math.floor(svgIndex / 2);
-        const col = svgIndex % 2;
+        const row = Math.floor(i / 1);
+        const col = i % 1;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 100);
+        const yPos = startY + row * (imgSize + gap + 80);
+        
         try {
           const pathData = validPaths[i];
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
+          
           // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
@@ -852,49 +896,63 @@ export const generatePdfDownload = async (req, res) => {
             })
             .png({ quality: 100, compressionLevel: 0 })
             .toBuffer();
+          
           // Card background for image
-          doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
+          doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 70, 5)
              .fill('white')
              .stroke(COLORS.border)
              .lineWidth(1)
              .stroke();
+          
           // Embed image in PDF
           const img = doc.openImage(imageBuffer);
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
+          
           // Image
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+          
           // Info below image
           const infoY = yPos + imgH + 15;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
           const girth = calculateGirth(pathData);
-          // Path name/number
+          
+          // Path details
           doc.font('Helvetica-Bold')
-             .fontSize(12)
+             .fontSize(10)
              .fillColor(COLORS.primary)
-             .text(`Path ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
-         
+             .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
+          
           // Details in two columns
           const detailsLeft = [
-            [`Color: ${pathData.color || 'N/A'}`, `Code: ${pathData.code || 'N/A'}`],
-            [`Q x L: ${qxL || 'N/A'}`, `Folds: ${totalFolds}`],
-            [`Girth: ${girth}`, '']
+            [`Colour: ${pathData.color || 'N/A'}`, `CODE: ${pathData.code || 'N/A'}`],
+            [`Q x L: ${qxL || 'N/A'}`, `F: ${totalFolds}`],
+            [`GIRTH: ${girth}mm`, `T: ${totalFolds}`]
           ];
-         
-          let detailY = infoY + 20;
+          
+          let detailY = infoY + 15;
           detailsLeft.forEach(([left, right]) => {
             doc.font('Helvetica')
-               .fontSize(10)
+               .fontSize(9)
                .fillColor(COLORS.darkText)
                .text(left, x, detailY);
-           
+            
             if (right) {
-              doc.text(right, x + 120, detailY);
+              // Make CODE values red
+              if (right.startsWith('CODE:')) {
+                doc.font('Helvetica-Bold')
+                   .fillColor(COLORS.red)
+                   .text(right, x + 100, detailY);
+              } else {
+                doc.font('Helvetica')
+                   .fillColor(COLORS.darkText)
+                   .text(right, x + 100, detailY);
+              }
             }
-           
-            detailY += 15;
+            
+            detailY += 12;
           });
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
@@ -902,32 +960,39 @@ export const generatePdfDownload = async (req, res) => {
             .text(`Image unavailable`, x, yPos);
         }
       }
-      y = startY + Math.ceil(firstPagePaths / 2) * (imgSize + gap + 100);
+      
+      y = startY + Math.ceil(firstPagePaths / 1) * (imgSize + gap + 80);
     }
-    // Remaining images: 4 per page on new pages
+    
+    // Remaining images: 2 per page on new pages
     const remainingPathsCount = validPaths.length - firstPagePaths;
     if (remainingPathsCount > 0) {
-      const remainingPagesNeeded = Math.ceil(remainingPathsCount / pathsPerSubsequentPage);
+      const remainingPagesNeeded = Math.ceil(remainingPathsCount / pathsPerPage);
+      
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
         pageNumber++;
+        
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, `DETAILED VIEWS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
-        const startPath = firstPagePaths + pageIndex * pathsPerSubsequentPage;
-        const endPath = Math.min(startPath + pathsPerSubsequentPage, validPaths.length);
+        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
+        
+        const startPath = firstPagePaths + pageIndex * pathsPerPage;
+        const endPath = Math.min(startPath + pathsPerPage, validPaths.length);
         const startX = margin;
         const startY = y;
+        
         for (let j = 0; j < (endPath - startPath); j++) {
           const i = startPath + j;
-          const svgIndex = j;
-          const row = Math.floor(svgIndex / 2);
-          const col = svgIndex % 2;
+          const row = Math.floor(j / 1);
+          const col = j % 1;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 100);
+          const yPos = startY + row * (imgSize + gap + 80);
+          
           try {
             const pathData = validPaths[i];
             const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
             const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
+            
             // Convert SVG to PNG with higher resolution
             const imageBuffer = await sharp(Buffer.from(svgString))
               .resize({
@@ -938,49 +1003,63 @@ export const generatePdfDownload = async (req, res) => {
               })
               .png({ quality: 100, compressionLevel: 0 })
               .toBuffer();
+            
             // Card background for image
-            doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 80, 5)
+            doc.roundedRect(x - 10, yPos - 10, imgSize + 20, imgSize + 70, 5)
                .fill('white')
                .stroke(COLORS.border)
                .lineWidth(1)
                .stroke();
+            
             // Embed image in PDF
             const img = doc.openImage(imageBuffer);
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
+            
             // Image
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+            
             // Info below image
             const infoY = yPos + imgH + 15;
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
             const girth = calculateGirth(pathData);
-            // Path name/number
+            
+            // Path details
             doc.font('Helvetica-Bold')
-               .fontSize(12)
+               .fontSize(10)
                .fillColor(COLORS.primary)
-               .text(`Path ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
-           
+               .text(`Flash ${i + 1}: ${pathData.name || 'Unnamed'}`, x, infoY);
+            
             // Details in two columns
             const detailsLeft = [
-              [`Color: ${pathData.color || 'N/A'}`, `Code: ${pathData.code || 'N/A'}`],
-              [`Q x L: ${qxL || 'N/A'}`, `Folds: ${totalFolds}`],
-              [`Girth: ${girth}`, '']
+              [`Colour: ${pathData.color || 'N/A'}`, `CODE: ${pathData.code || 'N/A'}`],
+              [`Q x L: ${qxL || 'N/A'}`, `F: ${totalFolds}`],
+              [`GIRTH: ${girth}mm`, `T: ${totalFolds}`]
             ];
-           
-            let detailY = infoY + 20;
+            
+            let detailY = infoY + 15;
             detailsLeft.forEach(([left, right]) => {
               doc.font('Helvetica')
-                 .fontSize(10)
+                 .fontSize(9)
                  .fillColor(COLORS.darkText)
                  .text(left, x, detailY);
-             
+              
               if (right) {
-                doc.text(right, x + 120, detailY);
+                // Make CODE values red
+                if (right.startsWith('CODE:')) {
+                  doc.font('Helvetica-Bold')
+                     .fillColor(COLORS.red)
+                     .text(right, x + 100, detailY);
+                } else {
+                  doc.font('Helvetica')
+                     .fillColor(COLORS.darkText)
+                     .text(right, x + 100, detailY);
+                }
               }
-             
-              detailY += 15;
+              
+              detailY += 12;
             });
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
@@ -988,92 +1067,121 @@ export const generatePdfDownload = async (req, res) => {
               .text(`Image unavailable`, x, yPos);
           }
         }
-        y = startY + Math.ceil((endPath - startPath) / 2) * (imgSize + gap + 100);
+        
+        y = startY + Math.ceil((endPath - startPath) / 1) * (imgSize + gap + 80);
       }
     }
+    
     // Table Section (after images)
-    if (y > pageHeight - 100) {
+    if (y > pageHeight - 150) {
       doc.addPage();
       pageNumber++;
       y = drawHeader(doc, pageWidth, 0, pageNumber);
     }
-   
+    
     y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
+    
     // Table Header
-    const headers = ['#', 'Name', 'Code', 'Color', 'Q x L', 'Folds', 'Girth'];
-    const colWidths = [40, 150, 100, 100, 120, 80, 80];
-    const rowHeight = 30;
+    const headers = ['#', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L', 'T'];
+    const colWidths = [30, 80, 60, 40, 60, 80, 40];
+    const rowHeight = 20;
+    
     // Draw table header with background
     let xPos = margin;
     doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-       .fill(COLORS.primary);
-   
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('#FFFFFF');
+       .fill('#f0f0f0');
+    
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
     headers.forEach((h, i) => {
-      doc.text(h, xPos + 10, y + 9, { width: colWidths[i] - 20, align: i > 0 ? 'left' : 'center' });
+      doc.text(h, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
       xPos += colWidths[i];
     });
+    
     y += rowHeight;
+    
     // Table Rows
-    doc.font('Helvetica').fontSize(11);
+    doc.font('Helvetica').fontSize(9);
     validPaths.forEach((path, index) => {
       const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
       const qxL = formatQxL(pathQuantitiesAndLengths);
       const totalFolds = calculateTotalFolds(path);
       const girth = calculateGirth(path);
-      // Row background
-      doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-         .fill(COLORS.lightBg);
+      
+      // Alternate row background
+      if (index % 2 === 0) {
+        doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
+           .fill('#f9f9f9');
+      }
+      
       const row = [
         `${index + 1}`,
-        path.name || 'N/A',
-        path.code || 'N/A',
         path.color || 'N/A',
-        qxL || 'N/A',
+        path.code || 'N/A',
         totalFolds.toString(),
-        girth
+        `${girth}mm`,
+        qxL || 'N/A',
+        totalFolds.toString()
       ];
+      
       xPos = margin;
       row.forEach((val, i) => {
-        doc.fillColor(COLORS.darkText).text(val, xPos + 10, y + 9, {
-          width: colWidths[i] - 20,
-          align: i > 0 ? 'left' : 'center'
-        });
+        // Make code values red
+        if (i === 2) {
+          doc.fillColor(COLORS.red).text(val, xPos + 5, y + 6, {
+            width: colWidths[i] - 10,
+            align: 'center'
+          });
+        } else {
+          doc.fillColor(COLORS.darkText).text(val, xPos + 5, y + 6, {
+            width: colWidths[i] - 10,
+            align: 'center'
+          });
+        }
         xPos += colWidths[i];
       });
-     
+      
       // Row border
       doc.moveTo(margin, y + rowHeight)
          .lineTo(pageWidth - margin, y + rowHeight)
-         .strokeColor(COLORS.border)
+         .strokeColor('#cccccc')
          .lineWidth(0.5)
          .stroke();
-     
+      
       y += rowHeight;
-     
+      
       // Check if we need a new page
-      if (y > pageHeight - 100) {
+      if (y > pageHeight - 50) {
         doc.addPage();
         pageNumber++;
         y = drawHeader(doc, pageWidth, 0, pageNumber);
         y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', y);
-       
+        
         // Redraw table header
         xPos = margin;
         doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-           .fill(COLORS.primary);
-       
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#FFFFFF');
+           .fill('#f0f0f0');
+        
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
         headers.forEach((h, i) => {
-          doc.text(h, xPos + 10, y + 9, { width: colWidths[i] - 20, align: i > 0 ? 'left' : 'center' });
+          doc.text(h, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
           xPos += colWidths[i];
         });
+        
         y += rowHeight;
       }
     });
+    
+    // Draw footer on all pages
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      drawFooter(doc, pageWidth, pageHeight);
+    }
+    
     // Finalize the PDF
     doc.flushPages();
     doc.end();
+    
     // Wait for the PDF to be written
     await new Promise((resolve, reject) => {
       writeStream.on('finish', () => {
@@ -1085,12 +1193,14 @@ export const generatePdfDownload = async (req, res) => {
         reject(error);
       });
     });
+    
     // Verify file exists
     const exists = await fsPromises.access(pdfPath).then(() => true).catch(() => false);
     if (!exists) {
       console.error('PDF file not found at:', pdfPath);
       return res.status(500).json({ message: 'PDF file not generated' });
     }
+    
     // Upload to Cloudinary
     let uploadResult;
     try {
@@ -1104,21 +1214,24 @@ export const generatePdfDownload = async (req, res) => {
       console.error('Cloudinary upload error:', uploadError.message);
       return res.status(500).json({ message: 'Failed to upload PDF to Cloudinary', error: uploadError.message });
     }
+    
     if (!uploadResult || !uploadResult.public_id || !uploadResult.secure_url) {
       console.error('Cloudinary upload result is invalid:', uploadResult);
       return res.status(500).json({ message: 'Invalid Cloudinary upload result' });
     }
+    
     // Save order in DB
     try {
       await new UserPdf({
         userId: userId,
-        pdfUrl : uploadResult.secure_url,
+        pdfUrl: uploadResult.secure_url,
       }).save();
       console.log('Project order saved successfully');
     } catch (dbError) {
       console.error('Database save error:', dbError.message);
       return res.status(500).json({ message: 'Failed to save order in database', error: dbError.message });
     }
+    
     // Delete local PDF file
     try {
       await fsPromises.unlink(pdfPath);
@@ -1126,6 +1239,7 @@ export const generatePdfDownload = async (req, res) => {
     } catch (deleteError) {
       console.warn('Failed to delete local PDF:', deleteError.message);
     }
+    
     return res.status(200).json({
       message: 'PDF generated successfully',
       localPath: pdfPath,
