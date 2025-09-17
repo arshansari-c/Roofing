@@ -883,21 +883,18 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .stroke();
 };
 
-// Draw bordered property table below each diagram (increased spacing)
+// Draw bordered property table below each diagram (increased spacing, removed Name, Total(T), Scale)
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
   const tableWidth = 230;
   const rowHeight = 22;
   const colWidths = [100, 130];
 
   const rows = [
-    ['Name', pathData.name || 'Unnamed'],
     ['Colour', pathData.color || 'N/A'],
     ['Code', pathData.code || 'N/A'],
     ['Q x L', qxL || 'N/A'],
     ['Folds (F)', totalFolds.toString()],
-    ['Girth', `${girth}mm`],
-    ['Total (T)', totalFolds.toString()],
-    ['Scale', pathData.scale || '1:1']
+    ['Girth', `${girth}mm`]
   ];
 
   // Table header
@@ -1172,20 +1169,24 @@ export const generatePdfDownload = async (req, res) => {
     // Instructions Section
     y = drawInstructions(doc, y);
 
-    // Image handling - 0 diagrams on first page to avoid overflow
-    const firstPageMaxPaths = 0;
-    const remainingPathsPerPage = 2;
+    // Image handling - 2 diagrams on first page
+    const firstPageMaxPaths = 2;
+    const remainingPathsPerPage = 4;
 
-    // First part: 0 images on the first page
+    // Calculate total image pages
     const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
-    const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
+    const remainingPathsCount = validPaths.length - firstPagePaths;
+    const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
+    const imagePageCount = (firstPagePaths > 0 ? 1 : 0) + remainingPagesNeeded;
+
+    let imagePart = 1;
 
     if (firstPagePaths > 0) {
-      y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
+      y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
 
       const startX = margin;
       const startY = y;
-      const pathsPerRow = 2; // 2 diagrams per row on first page
+      const pathsPerRow = 2;
 
       for (let i = 0; i < firstPagePaths; i++) {
         const row = Math.floor(i / pathsPerRow);
@@ -1241,30 +1242,27 @@ export const generatePdfDownload = async (req, res) => {
       y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 220);
     }
 
-    // Remaining images: 2 per page on new pages
-    const remainingPathsCount = validPaths.length - firstPagePaths;
+    // Remaining images: 4 per page on new pages
     if (remainingPathsCount > 0) {
-      const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
-
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
         const pageNumber = doc.bufferedPageRange().count;
 
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 1} OF ${remainingPagesNeeded}`, y);
+        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
 
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
         const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
         const startX = margin;
         const startY = y;
-        const pathsPerRow = 2; // 2 diagrams per row (2 per page max)
+        const pathsPerRow = 2; // 2 columns, up to 4 per page (2 rows)
 
         for (let j = 0; j < (endPath - startPath); j++) {
           const i = startPath + j;
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 220); // Increased spacing
+          const yPos = startY + row * (imgSize + gap + 220); // Increased spacing to prevent collapse
 
           try {
             const pathData = validPaths[i];
