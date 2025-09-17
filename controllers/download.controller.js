@@ -88,7 +88,7 @@ const validatePoints = (points) => {
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Invalid points array in path:', path);
-    return { minX: 0, minY: 0, maxX: 100, maxY: 100 }; // Fallback bounds
+    return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
   }
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
@@ -276,7 +276,7 @@ const formatQxL = (quantitiesAndLengths) => {
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
 
-// Generate SVG string without arrows at the end of lines
+// Generate SVG string without arrows at line ends
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Skipping SVG generation for path due to invalid points:', path);
@@ -316,7 +316,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     </defs>
   `;
 
-  // Grid lines
+  // Generate grid lines
   let gridLines = '';
   const minorGridSize = GRID_SIZE / 2;
   const gridStartX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
@@ -348,7 +348,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
   }
 
-  // Generate path points and lines (without arrows)
+  // Generate path points and lines (removed arrow marker)
   let svgContent = path.points.map((point) => {
     const {x: cx, y: cy} = transformCoord(point.x, point.y);
     return `<circle cx="${cx}" cy="${cy}" r="${3 * scaleFactor}" fill="#000000" filter="url(#dropShadow)"/>`;
@@ -359,7 +359,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       const {x, y} = transformCoord(p.x, p.y);
       return `${x},${y}`;
     }).join(' L');
-    // Removed marker-end attribute to eliminate arrows
+    // Removed marker-end attribute to eliminate arrows at line ends
     svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" fill="none"/>`;
   }
 
@@ -671,7 +671,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   </svg>`;
 };
 
-// Helper function to draw header with improved design
+// Helper function to draw header
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
 
@@ -737,6 +737,7 @@ const drawSectionHeader = (doc, text, y) => {
   doc.rect(margin, y, doc.page.width - 2 * margin, 25)
      .fill(COLORS.lightBg);
 
+  // Small accent rect
   doc.rect(margin, y, 5, 25)
      .fill(COLORS.secondary);
 
@@ -777,24 +778,29 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
   ];
 
   rows.forEach(([label, value], i) => {
+    // Alternate row background
     if (i % 2 === 0) {
       doc.rect(margin, y, tableWidth, rowHeight)
          .fill(COLORS.tableRow);
     }
 
+    // Bullet for label
     doc.circle(margin + 15, y + 14, 2)
        .fill(COLORS.secondary);
 
+    // Label
     doc.font(FONTS.tableHeader)
        .fontSize(11)
        .fillColor(COLORS.darkText)
      .text(label, margin + 25, y + 8);
 
+    // Value
     doc.font(FONTS.tableBody)
        .fontSize(11)
        .fillColor(COLORS.darkText)
        .text(value, margin + colWidth, y + 8);
 
+    // Row border
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
        .strokeColor(COLORS.border)
@@ -821,6 +827,7 @@ const drawInstructions = (doc, y) => {
   ];
 
   instructions.forEach((instruction, index) => {
+    // Numbering
     doc.font(FONTS.body)
        .fontSize(11)
        .fillColor(COLORS.secondary)
@@ -837,6 +844,7 @@ const drawInstructions = (doc, y) => {
     y += 18;
   });
 
+  // Warning text
   doc.rect(margin, y + 10, pageWidth - 2 * margin, 30)
      .fill('#fee2e2');
 
@@ -855,6 +863,7 @@ const drawInstructions = (doc, y) => {
 const drawFooter = (doc, pageWidth, pageHeight) => {
   const margin = 50;
 
+  // Footer divider
   doc.moveTo(margin, pageHeight - 50)
      .lineTo(pageWidth - margin, pageHeight - 50)
      .strokeColor(COLORS.border)
@@ -951,7 +960,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   const colWidths = [25, 80, 80, 60, 30, 60, 110, 30];
   const rowHeight = 22;
 
-  // Draw table header
+  // Draw table header with background
   let xPos = margin;
   doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
      .fill(COLORS.tableHeader);
@@ -978,6 +987,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     totalG += girth;
     totalT += totalFolds;
 
+    // Alternate row background
     if (index % 2 === 0) {
       doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
          .fill(COLORS.tableRow);
@@ -996,6 +1006,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
 
     xPos = margin;
     row.forEach((val, i) => {
+      // Make code values red
       if (i === 3) {
         doc.fillColor(COLORS.accent).text(val, xPos + 5, y + 6, {
           width: colWidths[i] - 10,
@@ -1010,6 +1021,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       xPos += colWidths[i];
     });
 
+    // Row border
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
        .strokeColor(COLORS.border)
@@ -1018,11 +1030,13 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
 
     y += rowHeight;
 
+    // Check if we need a new page
     if (y > pageHeight - 60) {
       doc.addPage();
       const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
       y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY) + rowHeight;
 
+      // Redraw table header
       xPos = margin;
       doc.rect(margin, y - rowHeight, pageWidth - 2 * margin, rowHeight)
          .fill(COLORS.tableHeader);
@@ -1063,11 +1077,13 @@ export const generatePdfDownload = async (req, res) => {
       return res.status(400).json({ message: 'Valid userId is required' });
     }
 
+    // Validate uploadsDir
     if (!uploadsDir) {
       console.error('Uploads directory is not defined');
       return res.status(500).json({ message: 'Uploads directory is not defined' });
     }
 
+    // Validate QuantitiesAndLengths
     const QuantitiesAndLengths = selectedProjectData?.QuantitiesAndLengths || [];
     if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
       return res.status(400).json({ message: 'QuantitiesAndLengths must be a non-empty array' });
@@ -1079,6 +1095,7 @@ export const generatePdfDownload = async (req, res) => {
       }
     }
 
+    // Validate AdditionalItems
     const additionalItemsText = AdditionalItems || '';
 
     // Find user
@@ -1101,6 +1118,7 @@ export const generatePdfDownload = async (req, res) => {
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
 
+    // Initialize groupedQuantitiesAndLengths early
     const validPaths = projectData.paths.filter(path => validatePoints(path.points));
     if (validPaths.length === 0) {
       console.warn('No valid paths found in projectData');
@@ -1156,20 +1174,24 @@ export const generatePdfDownload = async (req, res) => {
     // Instructions Section
     y = drawInstructions(doc, y);
 
-    // First page: 2 diagrams
-    const firstPagePaths = Math.min(2, validPaths.length);
+    // Image handling - 2 diagrams on first page
+    const firstPageMaxPaths = 2;
     const remainingPathsPerPage = 4;
 
+    // First part: 2 images on the first page
+    const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
+    const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
+
     if (firstPagePaths > 0) {
-      const totalImagePages = 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage);
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
 
       const startX = margin;
       const startY = y;
+      const pathsPerRow = 2; // 2 diagrams per row on first page
 
       for (let i = 0; i < firstPagePaths; i++) {
-        const row = Math.floor(i / 2);
-        const col = i % 2;
+        const row = Math.floor(i / pathsPerRow);
+        const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
         const yPos = startY + row * (imgSize + gap + 200);
 
@@ -1178,7 +1200,7 @@ export const generatePdfDownload = async (req, res) => {
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
-          // Convert SVG to PNG
+          // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
               width: imgSize * 5,
@@ -1189,7 +1211,7 @@ export const generatePdfDownload = async (req, res) => {
             .png({ quality: 100, compressionLevel: 0, density: 300 })
             .toBuffer();
 
-          // Border around diagram
+          // Border around diagram with shadow simulation
           doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
              .lineWidth(1)
              .strokeColor(COLORS.border)
@@ -1200,6 +1222,7 @@ export const generatePdfDownload = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
+          // Image
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
           // Property table below image
@@ -1217,7 +1240,7 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
 
-      y = startY + Math.ceil(firstPagePaths / 2) * (imgSize + gap + 200);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 200);
     }
 
     // Remaining images: 4 per page on new pages
@@ -1230,18 +1253,18 @@ export const generatePdfDownload = async (req, res) => {
         const pageNumber = doc.bufferedPageRange().count;
 
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        const partNumber = pageIndex + 2;
-        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${partNumber} OF ${remainingPagesNeeded + 1}`, y);
+        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
 
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
         const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
         const startX = margin;
         const startY = y;
+        const pathsPerRow = 2; // 2 diagrams per row (4 per page)
 
         for (let j = 0; j < (endPath - startPath); j++) {
           const i = startPath + j;
-          const row = Math.floor(j / 2);
-          const col = j % 2;
+          const row = Math.floor(j / pathsPerRow);
+          const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
           const yPos = startY + row * (imgSize + gap + 200);
 
@@ -1250,7 +1273,7 @@ export const generatePdfDownload = async (req, res) => {
             const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
             const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
-            // Convert SVG to PNG
+            // Convert SVG to PNG with higher resolution
             const imageBuffer = await sharp(Buffer.from(svgString))
               .resize({
                 width: imgSize * 5,
@@ -1272,6 +1295,7 @@ export const generatePdfDownload = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
 
+            // Image
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
             // Property table below image
@@ -1289,7 +1313,7 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
 
-        y = startY + Math.ceil((endPath - startPath) / 2) * (imgSize + gap + 200);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 200);
       }
     }
 
