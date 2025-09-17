@@ -66,17 +66,9 @@ const ARROW_SIZE = 12;
 const CHEVRON_SIZE = 10;
 const HOOK_RADIUS = 8;
 const ZIGZAG_SIZE = 9;
-const LABEL_PADDING = 8;
+const LABEL_PADDING = 12; // Increased for better spacing
 const SHADOW_OFFSET = 2;
 const SCALE_BAR_LENGTH = 100;
-
-// Base sizes for labels (will be scaled)
-const BASE_LABEL_WIDTH = 70;
-const BASE_LABEL_HEIGHT = 32;
-const BASE_LABEL_RADIUS = 12;
-const BASE_FONT_SIZE = 16;
-const BASE_TAIL_SIZE = 8;
-const BASE_ATTACH_SIZE = 8;
 
 // Helper function to validate points
 const validatePoints = (points) => {
@@ -92,7 +84,7 @@ const validatePoints = (points) => {
   );
 };
 
-// Helper function to calculate bounds for a path
+// Helper function to calculate bounds for a path (improved padding and removed inconsistent /scale)
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Invalid points array in path:', path);
@@ -116,10 +108,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(segment.labelPosition.x);
     const labelY = parseFloat(segment.labelPosition.y);
-    minX = Math.min(minX, labelX - 35 / scale);
-    maxX = Math.max(maxX, labelX + 35 / scale);
-    minY = Math.min(minY, labelY - 20 / scale);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 20 / scale);
+    minX = Math.min(minX, labelX - 50); // Increased fixed padding, removed /scale
+    maxX = Math.max(maxX, labelX + 50);
+    minY = Math.min(minY, labelY - 30);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
     let foldType = 'None';
     let foldLength = FOLD_LENGTH;
     let foldAngle = 0;
@@ -154,10 +146,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const foldEndY = foldBaseY + rotNormalY * foldLength;
         const foldLabelX = foldEndX + rotNormalX * 25;
         const foldLabelY = foldEndY + rotNormalY * 25;
-        minX = Math.min(minX, foldLabelX - 35, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 35, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 20, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 20, foldEndY, foldBaseY);
+        minX = Math.min(minX, foldLabelX - 50, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 50, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 30, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 30, foldEndY, foldBaseY);
       }
     }
   });
@@ -171,10 +163,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
-    minX = Math.min(minX, labelX - 35);
-    maxX = Math.max(maxX, labelX + 35);
-    minY = Math.min(minY, labelY - 20);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 20);
+    minX = Math.min(minX, labelX - 50); // Consistent increased padding
+    maxX = Math.max(maxX, labelX + 50);
+    minY = Math.min(minY, labelY - 30);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
   });
   if (showBorder && path.points.length > 1) {
     const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
@@ -211,7 +203,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       }
     }
   }
-  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 50;
+  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 60; // Increased base padding
   return {
     minX: minX - padding,
     minY: minY - padding,
@@ -284,7 +276,7 @@ const formatQxL = (quantitiesAndLengths) => {
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
 
-// Generate SVG string without arrows at line ends
+// Generate SVG string without arrows at line ends (improved text design: bold font, better padding, dynamic label width)
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Skipping SVG generation for path due to invalid points:', path);
@@ -411,13 +403,13 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     }
   }
 
-  // Scaled label design parameters
-  const labelWidth = BASE_LABEL_WIDTH * scaleFactor;
-  const labelHeight = BASE_LABEL_HEIGHT * scaleFactor;
-  const labelRadius = BASE_LABEL_RADIUS * scaleFactor;
-  const fontSize = BASE_FONT_SIZE * scaleFactor;
-  const tailSize = BASE_TAIL_SIZE * scaleFactor;
-  const attachSize = BASE_ATTACH_SIZE * scaleFactor;
+  // Label design parameters (improved: dynamic width, larger height, bold text)
+  let labelWidth = 90; // Base width, will adjust dynamically
+  const labelHeight = 36; // Slightly increased
+  const labelRadius = 12;
+  const fontSize = 18; // Increased for professionalism
+  const tailSize = 10; // Increased
+  const attachSize = 10;
   const labelBg = '#FFFFFF';
   const labelText = '#000000';
   const tailFill = '#000000';
@@ -436,6 +428,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const labelDy = midY - posY;
     const absLabelDx = Math.abs(labelDx);
     const absLabelDy = Math.abs(labelDy);
+
+    // Dynamic label width based on text length
+    const textContent = segment.length || '';
+    const approxTextWidth = textContent.length * (fontSize * 0.6); // Approximate char width
+    labelWidth = Math.max(90, approxTextWidth + 20); // Min 90, plus padding
+
     let tailPath = '';
     if (absLabelDx > absLabelDy) {
       if (labelDx < 0) {
@@ -560,18 +558,18 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
               width="${labelWidth}" height="${labelHeight}"
               fill="${labelBg}" rx="${labelRadius}"
-              stroke="#000000" stroke-width="${0.5 * scaleFactor}"/>
+              stroke="#000000" stroke-width="0.5"/>
         <path d="${tailPath}" fill="${tailFill}"/>
         <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica-Bold, sans-serif" font-weight="bold"
               fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
-        ${foldElement}
       </g>
+      ${foldElement}
     `;
   }).join('');
 
-  // Generate angles with labels and tails
+  // Generate angles with labels and tails (improved text: bold, dynamic width)
   svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
       return '';
@@ -591,6 +589,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const labelDy = targetY - posY;
     const absLabelDx = Math.abs(labelDx);
     const absLabelDy = Math.abs(labelDy);
+
+    // Dynamic label width for angles
+    const textContent = `${roundedValue}°`;
+    const approxTextWidth = textContent.length * (fontSize * 0.6);
+    labelWidth = Math.max(90, approxTextWidth + 20);
+
     let tailPath = '';
     if (absLabelDx > absLabelDy) {
       if (labelDx < 0) {
@@ -628,7 +632,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const roundedAngle = roundedValue;
     return `
       <g filter="url(#dropShadow)">
-        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="${0.5 * scaleFactor}"/>
+        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="0.5"/>
         <path d="${tailPath}" fill="${tailFill}"/>
         <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica-Bold, sans-serif" font-weight="bold" fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${roundedAngle}°
@@ -879,7 +883,7 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .stroke();
 };
 
-// Draw bordered property table below each diagram
+// Draw bordered property table below each diagram (increased spacing)
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
   const tableWidth = 230;
   const rowHeight = 22;
@@ -938,7 +942,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
      .strokeColor(COLORS.border)
      .stroke();
 
-  return y;
+  return y + 20; // Added extra spacing to prevent collapse
 };
 
 // Helper function to draw summary table
@@ -1024,8 +1028,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
 
     y += rowHeight;
 
-    // Check if we need a new page
-    if (y > pageHeight - 60) {
+    // Check if we need a new page (increased threshold to prevent collapse)
+    if (y > pageHeight - 80) {
       doc.addPage();
       const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
       y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY) + rowHeight;
@@ -1151,7 +1155,7 @@ export const generatePdfDownload = async (req, res) => {
 
     const margin = 50;
     const imgSize = 220;
-    const gap = 35;
+    const gap = 40; // Increased gap to prevent layout collapse
 
     // Add first page
     doc.addPage();
@@ -1187,7 +1191,7 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 200);
+        const yPos = startY + row * (imgSize + gap + 220); // Increased spacing
 
         try {
           const pathData = validPaths[i];
@@ -1220,7 +1224,7 @@ export const generatePdfDownload = async (req, res) => {
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
           // Property table below image
-          const infoY = yPos + imgH + 20;
+          const infoY = yPos + imgH + 30; // Increased spacing
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
@@ -1234,7 +1238,7 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
 
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 200);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 220);
     }
 
     // Remaining images: 2 per page on new pages
@@ -1260,7 +1264,7 @@ export const generatePdfDownload = async (req, res) => {
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 200);
+          const yPos = startY + row * (imgSize + gap + 220); // Increased spacing
 
           try {
             const pathData = validPaths[i];
@@ -1293,7 +1297,7 @@ export const generatePdfDownload = async (req, res) => {
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
             // Property table below image
-            const infoY = yPos + imgH + 20;
+            const infoY = yPos + imgH + 30; // Increased spacing
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
@@ -1307,7 +1311,7 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
 
-        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 200);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 220);
       }
     }
 
