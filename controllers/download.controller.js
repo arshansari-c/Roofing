@@ -185,7 +185,6 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
           const unitY = dy / length;
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-          const chevronSize = 8;
           const chevronBaseDistance = 10;
           const chevronX = midX + normalX * chevronBaseDistance;
           const chevronY = midY + normalY * chevronBaseDistance;
@@ -350,8 +349,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const chevronBaseDistance = 10;
-          const chevronXView = midXView - normalX * chevronBaseDistance * scaleFactor;
-          const chevronYView = midYView - normalY * chevronBaseDistance * scaleFactor;
+          const chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor;
+          const chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor;
           const chevronSize = 8 * scaleFactor;
           const direction = 1;
           const chevronPath = `
