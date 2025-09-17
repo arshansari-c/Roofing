@@ -812,12 +812,14 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
            { align: 'center' });
 };
 
-// Improved helper: Draw bordered property table below each diagram
-const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
+// Improved helper: Draw bordered property table above each diagram
+const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth, pathQuantitiesAndLengths, number) => {
   const tableWidth = 220;
-  const rowHeight = 20;
-  const colWidths = [90, 130]; // Adjusted for better spacing
-  
+  const rowHeight = 18;
+  const colWidths = [100, 120]; // Adjusted for better spacing
+  const numPieces = pathQuantitiesAndLengths.reduce((sum, item) => sum + item.quantity, 0);
+  const totalT = numPieces * totalFolds;
+
   const rows = [
     ['Name', pathData.name || 'Unnamed'],
     ['Colour', pathData.color || 'N/A'],
@@ -825,16 +827,15 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
     ['Q x L', qxL || 'N/A'],
     ['Folds (F)', totalFolds.toString()],
     ['Girth', `${girth}mm`],
-    ['Total (T)', totalFolds.toString()]
+    ['Total (T)', totalT.toString()]
   ];
 
-  // Table header
+  // Table header (spanning full width)
   doc.rect(x, y, tableWidth, rowHeight)
      .fill(COLORS.tableHeader);
   
-  doc.font(FONTS.tableHeader).fontSize(10).fillColor(COLORS.primary);
-  doc.text('PROPERTY', x + 5, y + 5, { width: colWidths[0] - 10, align: 'left' });
-  doc.text('VALUE', x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'left' });
+  doc.font(FONTS.tableHeader).fontSize(9).fillColor(COLORS.primary);
+  doc.text(`Flashing #${number} Properties`, x + 10, y + 4, { width: tableWidth - 20, align: 'left' });
 
   y += rowHeight;
 
@@ -845,13 +846,13 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
          .fill(COLORS.tableRow);
     }
 
-    doc.font(FONTS.tableBody).fontSize(9).fillColor(COLORS.darkText);
-    doc.text(row[0], x + 5, y + 5, { width: colWidths[0] - 10, align: 'left' });
+    doc.font(FONTS.tableBody).fontSize(8).fillColor(COLORS.darkText);
+    doc.text(row[0], x + 10, y + 5, { width: colWidths[0] - 10, align: 'left' });
 
     if (row[0] === 'Code') {
       doc.fillColor(COLORS.accent);
     }
-    doc.text(row[1], x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'left' });
+    doc.text(row[1], x + colWidths[0] + 10, y + 5, { width: colWidths[1] - 10, align: 'left' });
     doc.fillColor(COLORS.darkText); // Reset color
 
     y += rowHeight;
@@ -883,29 +884,31 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   
   // Table Header
   const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L', 'T'];
-  const colWidths = [25, 70, 70, 60, 30, 60, 100, 30];
-  const rowHeight = 20;
+  const colWidths = [25, 80, 80, 50, 30, 50, 150, 30];
+  const rowHeight = 18;
   
   // Draw table header with background
   let xPos = margin;
   doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
      .fill(COLORS.tableHeader);
   
-  doc.font(FONTS.tableHeader).fontSize(10).fillColor(COLORS.primary);
+  doc.font(FONTS.tableHeader).fontSize(9).fillColor(COLORS.primary);
   headers.forEach((h, i) => {
-    doc.text(h, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
+    doc.text(h, xPos + 5, y + 4, { width: colWidths[i] - 10, align: 'center' });
     xPos += colWidths[i];
   });
   
   y += rowHeight;
   
   // Table Rows
-  doc.font(FONTS.tableBody).fontSize(9);
+  doc.font(FONTS.tableBody).fontSize(8);
   validPaths.forEach((path, index) => {
     const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
     const qxL = formatQxL(pathQuantitiesAndLengths);
     const totalFolds = calculateTotalFolds(path);
     const girth = calculateGirth(path);
+    const numPieces = pathQuantitiesAndLengths.reduce((sum, item) => sum + item.quantity, 0);
+    const totalT = numPieces * totalFolds;
     
     // Alternate row background
     if (index % 2 === 0) {
@@ -921,19 +924,19 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       totalFolds.toString(),
       `${girth}mm`,
       qxL || 'N/A',
-      totalFolds.toString()
+      totalT.toString()
     ];
     
     xPos = margin;
     row.forEach((val, i) => {
       // Make code values red
       if (i === 3) {
-        doc.fillColor(COLORS.accent).text(val, xPos + 5, y + 6, {
+        doc.fillColor(COLORS.accent).text(val, xPos + 5, y + 5, {
           width: colWidths[i] - 10,
           align: 'center'
         });
       } else {
-        doc.fillColor(COLORS.darkText).text(val, xPos + 5, y + 6, {
+        doc.fillColor(COLORS.darkText).text(val, xPos + 5, y + 5, {
           width: colWidths[i] - 10,
           align: 'center'
         });
@@ -961,9 +964,9 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       doc.rect(margin, y - rowHeight, pageWidth - 2 * margin, rowHeight)
          .fill(COLORS.tableHeader);
       
-      doc.font(FONTS.tableHeader).fontSize(10).fillColor(COLORS.primary);
+      doc.font(FONTS.tableHeader).fontSize(9).fillColor(COLORS.primary);
       headers.forEach((h, i) => {
-        doc.text(h, xPos + 5, y - rowHeight + 6, { width: colWidths[i] - 10, align: 'center' });
+        doc.text(h, xPos + 5, y - rowHeight + 4, { width: colWidths[i] - 10, align: 'center' });
         xPos += colWidths[i];
       });
     }
@@ -1066,8 +1069,11 @@ export const generatePdfDownload = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
-    const imgSize = 200;
+    const imgSize = 190;
     const gap = 30;
+    const tableHeight = 144; // 8 rows * 18
+    const space = 20;
+    const blockHeight = tableHeight + space + imgSize;
     
     // Page 1: Header and Order Details
     let y = drawHeader(doc, pageWidth, 0, 1);
@@ -1098,7 +1104,7 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 180); // Increased for table
+        const yPos = startY + row * blockHeight;
         
         try {
           const pathData = validPaths[i];
@@ -1116,8 +1122,20 @@ export const generatePdfDownload = async (req, res) => {
             .png({ quality: 100, compressionLevel: 0 })
             .toBuffer();
           
+          // Property table above image
+          const tableY = yPos;
+          const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
+          const qxL = formatQxL(pathQuantitiesAndLengths);
+          const totalFolds = calculateTotalFolds(pathData);
+          const girth = calculateGirth(pathData);
+          
+          drawDiagramPropertyTable(doc, x - 10, tableY, pathData, qxL, totalFolds, girth, pathQuantitiesAndLengths, i + 1);
+          
+          // Image below table
+          const imageY = tableY + tableHeight + space;
+          
           // Border around diagram
-          doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
+          doc.rect(x - 5, imageY - 5, imgSize + 10, imgSize + 10)
              .lineWidth(1)
              .strokeColor(COLORS.border)
              .stroke();
@@ -1128,24 +1146,15 @@ export const generatePdfDownload = async (req, res) => {
           const imgH = (img.height * imgW) / img.width;
           
           // Image
-          doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-          
-          // Property table below image
-          const infoY = yPos + imgH + 15;
-          const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
-          const qxL = formatQxL(pathQuantitiesAndLengths);
-          const totalFolds = calculateTotalFolds(pathData);
-          const girth = calculateGirth(pathData);
-          
-          drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
+          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
-            .text(`Image unavailable`, x, yPos);
+            .text(`Image unavailable`, x, yPos + tableHeight + space);
         }
       }
       
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 180);
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * blockHeight;
     }
     
     // Remaining images: 4 per page on new pages
@@ -1170,7 +1179,7 @@ export const generatePdfDownload = async (req, res) => {
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 180); // Increased for table
+          const yPos = startY + row * blockHeight;
           
           try {
             const pathData = validPaths[i];
@@ -1188,8 +1197,20 @@ export const generatePdfDownload = async (req, res) => {
               .png({ quality: 100, compressionLevel: 0 })
               .toBuffer();
             
+            // Property table above image
+            const tableY = yPos;
+            const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
+            const qxL = formatQxL(pathQuantitiesAndLengths);
+            const totalFolds = calculateTotalFolds(pathData);
+            const girth = calculateGirth(pathData);
+            
+            drawDiagramPropertyTable(doc, x - 10, tableY, pathData, qxL, totalFolds, girth, pathQuantitiesAndLengths, i + 1);
+            
+            // Image below table
+            const imageY = tableY + tableHeight + space;
+            
             // Border around diagram
-            doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
+            doc.rect(x - 5, imageY - 5, imgSize + 10, imgSize + 10)
                .lineWidth(1)
                .strokeColor(COLORS.border)
                .stroke();
@@ -1200,24 +1221,15 @@ export const generatePdfDownload = async (req, res) => {
             const imgH = (img.height * imgW) / img.width;
             
             // Image
-            doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-            
-            // Property table below image
-            const infoY = yPos + imgH + 15;
-            const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
-            const qxL = formatQxL(pathQuantitiesAndLengths);
-            const totalFolds = calculateTotalFolds(pathData);
-            const girth = calculateGirth(pathData);
-            
-            drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
+            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
-              .text(`Image unavailable`, x, yPos);
+              .text(`Image unavailable`, x, yPos + tableHeight + space);
           }
         }
         
-        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 180);
+        y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * blockHeight;
       }
     }
     
