@@ -370,7 +370,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
   }
 
-  // Generate path points and lines (with arrow markers if needed)
+  // Generate path points and lines (without arrow at end)
   let svgContent = path.points.map((point) => {
     const {x: cx, y: cy} = transformCoord(point.x, point.y);
     return `<circle cx="${cx}" cy="${cy}" r="${3 * scaleFactor}" fill="#000000" filter="url(#dropShadow)"/>`;
@@ -380,7 +380,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       const {x, y} = transformCoord(p.x, p.y);
       return `${x},${y}`;
     }).join(' L');
-    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" fill="none" marker-end="url(#arrowHead)"/>`;
+    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" fill="none"/>`;
   }
 
   // Generate offset segments for border
