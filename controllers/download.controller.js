@@ -869,20 +869,6 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .strokeColor(COLORS.border)
      .lineWidth(0.5)
      .stroke();
-
-  doc.font(FONTS.italic)
-     .fontSize(10)
-     .fillColor(COLORS.darkText)
-     .text('This order made possible thanks to the Flash.it Roofing App', 
-           pageWidth / 2, pageHeight - 40, 
-           { align: 'center' });
-
-  doc.font(FONTS.body)
-     .fontSize(9)
-     .fillColor(COLORS.darkText)
-     .text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} | © Commercial Roofers Pty Ltd`, 
-           pageWidth / 2, pageHeight - 25, 
-           { align: 'center' });
 };
 
 // Draw bordered property table below each diagram
@@ -1174,11 +1160,11 @@ export const generatePdfDownload = async (req, res) => {
     // Instructions Section
     y = drawInstructions(doc, y);
 
-    // Image handling - 2 diagrams on first page
-    const firstPageMaxPaths = 2;
-    const remainingPathsPerPage = 4;
+    // Image handling - 0 diagrams on first page to avoid overflow
+    const firstPageMaxPaths = 0;
+    const remainingPathsPerPage = 2;
 
-    // First part: 2 images on the first page
+    // First part: 0 images on the first page
     const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
     const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
 
@@ -1243,7 +1229,7 @@ export const generatePdfDownload = async (req, res) => {
       y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 200);
     }
 
-    // Remaining images: 4 per page on new pages
+    // Remaining images: 2 per page on new pages
     const remainingPathsCount = validPaths.length - firstPagePaths;
     if (remainingPathsCount > 0) {
       const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
@@ -1253,13 +1239,13 @@ export const generatePdfDownload = async (req, res) => {
         const pageNumber = doc.bufferedPageRange().count;
 
         y = drawHeader(doc, pageWidth, 0, pageNumber);
-        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
+        y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 1} OF ${remainingPagesNeeded}`, y);
 
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
         const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
         const startX = margin;
         const startY = y;
-        const pathsPerRow = 2; // 2 diagrams per row (4 per page)
+        const pathsPerRow = 2; // 2 diagrams per row (2 per page max)
 
         for (let j = 0; j < (endPath - startPath); j++) {
           const i = startPath + j;
