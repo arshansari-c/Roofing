@@ -121,8 +121,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       if (length) {
         const unitX = dx / length;
         const unitY = dy / length;
-        let normalX = unitY;
-        let normalY = -unitX;
+        const normalX = unitY;
+        const normalY = -unitX;
         const angleRad = foldAngle * Math.PI / 180;
         const cosA = Math.cos(angleRad);
         const sinA = Math.sin(angleRad);
@@ -915,75 +915,154 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   let totalF = 0;
   let totalG = 0;
   let totalT = 0;
-  validPaths.forEach((path, index) => {
-    const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
-    const qxL = formatQxL(pathQuantitiesAndLengths);
+  let rowIndex = 0;
+  validPaths.forEach((path, pathIndex) => {
+    const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[pathIndex] || [];
     const totalFolds = calculateTotalFolds(path);
     const girth = parseFloat(calculateGirth(path));
-    totalF += totalFolds;
-    totalG += girth;
-    totalT += totalFolds;
-    const row = [
-      `${index + 1}`,
-      path.name || 'Unnamed',
-      path.color || 'N/A',
-      path.code || 'N/A',
-      totalFolds.toString(),
-      `${girth}mm`,
-      qxL || 'N/A',
-      totalFolds.toString()
-    ];
-    // Calculate row height
-    let maxHeight = 0;
-    row.forEach((val, i) => {
-      const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
-      if (h > maxHeight) maxHeight = h;
-    });
-    const rowHeight = Math.max(minRowHeight, maxHeight + padding);
-    // Alternate row background
-    if (index % 2 === 0) {
-      doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
-         .fill(COLORS.tableRow);
-    }
-    // Draw texts
-    xPos = margin;
-    row.forEach((val, i) => {
-      const cellWidth = colWidths[i] - 10;
-      const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
-      const textY = y + (rowHeight - textHeight) / 2;
-      if (i === 3) {
-        doc.fillColor(COLORS.accent);
-      } else {
-        doc.fillColor(COLORS.darkText);
+    if (pathQuantitiesAndLengths.length === 0) {
+      // Add a row with N/A if no QL
+      rowIndex++;
+      const row = [
+        rowIndex.toString(),
+        path.name || 'Unnamed',
+        path.color || 'N/A',
+        path.code || 'N/A',
+        totalFolds.toString(),
+        `${girth}mm`,
+        'N/A',
+        totalFolds.toString() // Assume Q=1 for T
+      ];
+      // Calculate row height
+      let maxHeight = 0;
+      row.forEach((val, i) => {
+        const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
+        if (h > maxHeight) maxHeight = h;
+      });
+      const rowHeight = Math.max(minRowHeight, maxHeight + padding);
+      // Alternate row background
+      if (rowIndex % 2 === 0) {
+        doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
+           .fill(COLORS.tableRow);
       }
-      doc.text(val, xPos + 5, textY, { width: cellWidth, align: 'center' });
-      xPos += colWidths[i];
-    });
-    // Row border
-    doc.moveTo(margin, y + rowHeight)
-       .lineTo(pageWidth - margin, y + rowHeight)
-       .strokeColor(COLORS.border)
-       .lineWidth(0.5)
-       .stroke();
-    y += rowHeight;
-    // Check if we need a new page
-    if (y + minRowHeight > pageHeight - 80) {
-      doc.addPage();
-      const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
-      y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY);
-      // Redraw table header
-      doc.rect(margin, y, pageWidth - 2 * margin, headerHeight)
-         .fill(COLORS.tableHeader);
-      doc.font(FONTS.tableHeader).fontSize(11).fillColor(COLORS.primary);
+      // Draw texts
       xPos = margin;
-      headers.forEach((h, i) => {
+      row.forEach((val, i) => {
         const cellWidth = colWidths[i] - 10;
-        const textHeight = doc.heightOfString(h, { width: cellWidth, align: 'center' });
-        const textY = y + (headerHeight - textHeight) / 2;
-        doc.text(h, xPos + 5, textY, { width: cellWidth, align: 'center' });
+        const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
+        const textY = y + (rowHeight - textHeight) / 2;
+        if (i === 3) {
+          doc.fillColor(COLORS.accent);
+        } else {
+          doc.fillColor(COLORS.darkText);
+        }
+        doc.text(val, xPos + 5, textY, { width: cellWidth, align: 'center' });
         xPos += colWidths[i];
       });
-      y += headerHeight;
+      // Row border
+      doc.moveTo(margin, y + rowHeight)
+         .lineTo(pageWidth - margin, y + rowHeight)
+         .strokeColor(COLORS.border)
+         .lineWidth(0.5)
+         .stroke();
+      y += rowHeight;
+      // Update totals (assume Q=1)
+      totalF += totalFolds;
+      totalG += girth;
+      totalT += totalFolds;
+      // Check page
+      if (y + minRowHeight > pageHeight - 80) {
+        doc.addPage();
+        const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
+        y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY);
+        // Redraw header
+        doc.rect(margin, y, pageWidth - 2 * margin, headerHeight)
+           .fill(COLORS.tableHeader);
+        doc.font(FONTS.tableHeader).fontSize(11).fillColor(COLORS.primary);
+        xPos = margin;
+        headers.forEach((h, i) => {
+          const cellWidth = colWidths[i] - 10;
+          const textHeight = doc.heightOfString(h, { width: cellWidth, align: 'center' });
+          const textY = y + (headerHeight - textHeight) / 2;
+          doc.text(h, xPos + 5, textY, { width: cellWidth, align: 'center' });
+          xPos += colWidths[i];
+        });
+        y += headerHeight;
+      }
+    } else {
+      pathQuantitiesAndLengths.forEach((item) => {
+        rowIndex++;
+        const quantity = parseFloat(item.quantity);
+        const length = parseFloat(item.length);
+        const qxL = `${Math.round(quantity)}x${Math.round(length)}`;
+        const lineTotalFolds = totalFolds * quantity;
+        const row = [
+          rowIndex.toString(),
+          path.name || 'Unnamed',
+          path.color || 'N/A',
+          path.code || 'N/A',
+          totalFolds.toString(),
+          `${girth}mm`,
+          qxL,
+          Math.round(lineTotalFolds).toString()
+        ];
+        // Calculate row height
+        let maxHeight = 0;
+        row.forEach((val, i) => {
+          const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
+          if (h > maxHeight) maxHeight = h;
+        });
+        const rowHeight = Math.max(minRowHeight, maxHeight + padding);
+        // Alternate row background
+        if (rowIndex % 2 === 0) {
+          doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
+             .fill(COLORS.tableRow);
+        }
+        // Draw texts
+        xPos = margin;
+        row.forEach((val, i) => {
+          const cellWidth = colWidths[i] - 10;
+          const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
+          const textY = y + (rowHeight - textHeight) / 2;
+          if (i === 3) {
+            doc.fillColor(COLORS.accent);
+          } else {
+            doc.fillColor(COLORS.darkText);
+          }
+          doc.text(val, xPos + 5, textY, { width: cellWidth, align: 'center' });
+          xPos += colWidths[i];
+        });
+        // Row border
+        doc.moveTo(margin, y + rowHeight)
+           .lineTo(pageWidth - margin, y + rowHeight)
+           .strokeColor(COLORS.border)
+           .lineWidth(0.5)
+           .stroke();
+        y += rowHeight;
+        // Update totals
+        totalF += totalFolds * quantity;
+        totalG += girth * quantity;
+        totalT += lineTotalFolds;
+        // Check if we need a new page
+        if (y + minRowHeight > pageHeight - 80) {
+          doc.addPage();
+          const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
+          y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY);
+          // Redraw table header
+          doc.rect(margin, y, pageWidth - 2 * margin, headerHeight)
+             .fill(COLORS.tableHeader);
+          doc.font(FONTS.tableHeader).fontSize(11).fillColor(COLORS.primary);
+          xPos = margin;
+          headers.forEach((h, i) => {
+            const cellWidth = colWidths[i] - 10;
+            const textHeight = doc.heightOfString(h, { width: cellWidth, align: 'center' });
+            const textY = y + (headerHeight - textHeight) / 2;
+            doc.text(h, xPos + 5, textY, { width: cellWidth, align: 'center' });
+            xPos += colWidths[i];
+          });
+          y += headerHeight;
+        }
+      });
     }
   });
   // Check for new page before totals
@@ -1007,7 +1086,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   }
   // Totals row (place 'Totals' in the 'Name' column for better fit)
   doc.font(FONTS.tableHeader).fontSize(11);
-  const totalsRow = ['', 'Totals', '', '', totalF.toString(), `${totalG.toFixed(2)}mm`, '', totalT.toString()];
+  const totalsRow = ['', 'Totals', '', '', totalF.toFixed(0), `${totalG.toFixed(2)}mm`, '', totalT.toFixed(0)];
   let totalsMaxHeight = 0;
   totalsRow.forEach((val, i) => {
     const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
