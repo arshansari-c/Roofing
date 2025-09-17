@@ -70,6 +70,14 @@ const LABEL_PADDING = 8;
 const SHADOW_OFFSET = 2;
 const SCALE_BAR_LENGTH = 100;
 
+// Base sizes for labels (will be scaled)
+const BASE_LABEL_WIDTH = 70;
+const BASE_LABEL_HEIGHT = 32;
+const BASE_LABEL_RADIUS = 12;
+const BASE_FONT_SIZE = 16;
+const BASE_TAIL_SIZE = 8;
+const BASE_ATTACH_SIZE = 8;
+
 // Helper function to validate points
 const validatePoints = (points) => {
   if (!Array.isArray(points) || points.length === 0) {
@@ -403,13 +411,13 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     }
   }
 
-  // Label design parameters
-  const labelWidth = 70;
-  const labelHeight = 32;
-  const labelRadius = 12;
-  const fontSize = 16;
-  const tailSize = 8;
-  const attachSize = 8;
+  // Scaled label design parameters
+  const labelWidth = BASE_LABEL_WIDTH * scaleFactor;
+  const labelHeight = BASE_LABEL_HEIGHT * scaleFactor;
+  const labelRadius = BASE_LABEL_RADIUS * scaleFactor;
+  const fontSize = BASE_FONT_SIZE * scaleFactor;
+  const tailSize = BASE_TAIL_SIZE * scaleFactor;
+  const attachSize = BASE_ATTACH_SIZE * scaleFactor;
   const labelBg = '#FFFFFF';
   const labelText = '#000000';
   const tailFill = '#000000';
@@ -541,7 +549,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           foldElement = `<line x1="${foldBase.x}" y1="${foldBase.y}" x2="${foldEnd.x}" y2="${foldEnd.y}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" filter="url(#dropShadow)"/>`;
         }
         foldElement += `
-          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 * scaleFactor}" font-family="Helvetica, sans-serif" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle" filter="url(#dropShadow)">
+          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 * scaleFactor}" font-family="Helvetica-Bold, sans-serif" font-weight="bold" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle" filter="url(#dropShadow)">
             ${foldType}
           </text>
         `;
@@ -552,9 +560,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
               width="${labelWidth}" height="${labelHeight}"
               fill="${labelBg}" rx="${labelRadius}"
-              stroke="#000000" stroke-width="0.5"/>
+              stroke="#000000" stroke-width="${0.5 * scaleFactor}"/>
         <path d="${tailPath}" fill="${tailFill}"/>
-        <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica, sans-serif"
+        <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica-Bold, sans-serif" font-weight="bold"
               fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
@@ -620,9 +628,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const roundedAngle = roundedValue;
     return `
       <g filter="url(#dropShadow)">
-        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="0.5"/>
+        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="${0.5 * scaleFactor}"/>
         <path d="${tailPath}" fill="${tailFill}"/>
-        <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica, sans-serif" fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
+        <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica-Bold, sans-serif" font-weight="bold" fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${roundedAngle}°
         </text>
       </g>
