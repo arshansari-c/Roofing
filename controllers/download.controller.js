@@ -1,4 +1,3 @@
-
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv';
 import fs, { promises as fsPromises } from 'fs';
@@ -60,7 +59,7 @@ const GRID_SIZE = 20;
 const FOLD_LENGTH = 14;
 const ARROW_SIZE = 10;
 const CHEVRON_SIZE = 9;
-const HOOK_RADIUS = 8;
+const HOOK_RADIUS = 8泳
 const ZIGZAG_SIZE = 9;
 
 // Helper function to validate points
@@ -84,7 +83,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     return { minX: 0, minY: 0, maxX: 100, maxY: 100 }; // Fallback bounds
   }
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
- 
+
   // Process points with better precision handling
   path.points.forEach((point) => {
     const x = parseFloat(point.x);
@@ -94,7 +93,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxX = Math.max(maxX, x);
     maxY = Math.max(maxY, y);
   });
-  
+
   // For very large diagrams, adjust calculations to prevent overflow
   const isLargeDiagram = (maxX - minX > 10000 || maxY - minY > 10000);
   path.segments.forEach((segment, i) => {
@@ -127,8 +126,12 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       if (length) {
         const unitX = dx / length;
         const unitY = dy / length;
-        let normalX = unitY;
-        let normalY = -unitX;
+        let normalX = -unitY; // Default to outside
+        let normalY = unitX;
+        if (borderOffsetDirection === 'inside') {
+          normalX = unitY; // Corrected for inside
+          normalY = -unitX;
+        }
         const angleRad = foldAngle * Math.PI / 180;
         const cosA = Math.cos(angleRad);
         const sinA = Math.sin(angleRad);
@@ -184,11 +187,12 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         if (length !== 0) {
           const unitX = dx / length;
           const unitY = dy / length;
-          
-          // FIXED: Corrected the normal vector calculation for arrow direction
-          const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
-          const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
-          
+          let normalX = -unitY; // Default to outside
+          let normalY = unitX;
+          if (borderOffsetDirection === 'inside') {
+            normalX = unitY; // Corrected for inside
+            normalY = -unitX;
+          }
           const chevronSize = 8;
           const chevronBaseDistance = 10;
           const chevronX = midX + normalX * chevronBaseDistance;
@@ -227,11 +231,12 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
     if (length === 0) continue;
     const unitX = dx / length;
     const unitY = dy / length;
-    
-    // FIXED: Corrected the normal vector calculation for offset direction
-    const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
-    const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
-    
+    let normalX = -unitY; // Default to outside
+    let normalY = unitX;
+    if (borderOffsetDirection === 'inside') {
+      normalX = unitY; // Corrected for inside
+      normalY = -unitX;
+    }
     offsetSegments.push({
       p1: { x: parseFloat(p1.x) + normalX * offsetDistance, y: parseFloat(p1.y) + normalY * offsetDistance },
       p2: { x: parseFloat(p2.x) + normalX * offsetDistance, y: parseFloat(p2.y) + normalY * offsetDistance },
@@ -288,12 +293,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   // Check if this is a large diagram
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
- 
+
   const targetViewBoxSize = 1000;
   const scaleFactor = targetViewBoxSize * 0.8 / Math.max(width, height, 1);
   const offsetX = (targetViewBoxSize - width * scaleFactor) / 2;
   const offsetY = (targetViewBoxSize - height * scaleFactor) / 2;
- 
+
   const viewBox = `0 0 ${targetViewBoxSize} ${targetViewBoxSize}`;
   const transformCoord = (x, y) => {
     return {
@@ -304,7 +309,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   // Adjusted sizes (since we normalized, adjust sizes accordingly)
   const adjScale = scale;
   // Generate grid - skip for very large diagrams to improve performance
-   let gridLines = '';
+  let gridLines = '';
   const gridSize = GRID_SIZE;
   const gridStartX = Math.floor(bounds.minX / gridSize) * gridSize;
   const gridStartY = Math.floor(bounds.minY / gridSize) * gridSize;
@@ -354,11 +359,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         if (length !== 0) {
           const unitX = dx / length;
           const unitY = dy / length;
-          
-          // FIXED: Corrected the normal vector calculation for arrow direction
-          const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
-          const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
-          
+          let normalX = -unitY; // Default to outside
+          let normalY = unitX;
+          if (borderOffsetDirection === 'inside') {
+            normalX = unitY; // Corrected for inside
+            normalY = -unitX;
+          }
           const chevronBaseDistance = 10;
           const chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor;
           const chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor;
@@ -531,7 +537,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         `;
       }
     }
-   return `
+    return `
       <g>
         <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
               width="${labelWidth}" height="${labelHeight}"
@@ -547,23 +553,19 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     `;
   }).join('');
   // Generate angles with labels and tails
- svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
+  svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
-        return '';
+      return '';
     }
-
-    // Parse angle value and skip rendering for 90° and 270° (using rounded value to handle floating-point precision issues)
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
     const roundedValue = Math.round(angleValue);
     if (roundedValue === 90 || roundedValue === 270) {
-        return ''; // Skip rendering for 90° and 270° angles
+      return '';
     }
-
     const {x: posX, y: posY} = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
     const vertexX = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].x : angle.labelPosition.x;
     const vertexY = angle.vertexIndex && path.points[angle.vertexIndex] ? path.points[angle.vertexIndex].y : angle.labelPosition.y;
     const {x: targetX, y: targetY} = transformCoord(vertexX, vertexY);
-    // Tail calculation
     const labelDx = targetX - posX;
     const labelDy = targetY - posY;
     const absLabelDx = Math.abs(labelDx);
@@ -571,14 +573,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     let tailPath = '';
     if (absLabelDx > absLabelDy) {
       if (labelDx < 0) {
-        // Tail left
         const baseX = posX - labelWidth / 2;
         const tipX = baseX - tailSize;
         const topBaseY = posY - attachSize / 2;
         const bottomBaseY = posY + attachSize / 2;
         tailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${posY} Z`;
       } else {
-        // Tail right
         const baseX = posX + labelWidth / 2;
         const tipX = baseX + tailSize;
         const topBaseY = posY - attachSize / 2;
@@ -587,14 +587,12 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       }
     } else {
       if (labelDy < 0) {
-        // Tail up
         const baseY = posY - labelHeight / 2;
         const tipY = baseY - tailSize;
         const leftBaseX = posX - attachSize / 2;
         const rightBaseX = posX + attachSize / 2;
         tailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${posX} ${tipY} Z`;
       } else {
-        // Tail down
         const baseY = posY + labelHeight / 2;
         const tipY = baseY + tailSize;
         const leftBaseX = posX - attachSize / 2;
@@ -613,7 +611,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       </g>
     `;
   }).join('');
-return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
+  return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
     <g>${gridLines}</g>
     <g>${svgContent}</g>
   </svg>`;
@@ -622,26 +620,24 @@ return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w
 // Helper function to draw header with improved design
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
- 
-  // Header with gradient background
+
   const gradient = doc.linearGradient(0, 0, pageWidth, 80)
     .stop(0, COLORS.primary)
     .stop(1, '#2d5a8c');
-  
+
   doc.rect(0, 0, pageWidth, 80)
      .fill(gradient);
- 
-  // Left side: Business info
+
   doc.font(FONTS.title)
      .fontSize(16)
      .fillColor('#FFFFFF')
      .text('COMMERCIAL ROOFERS PTY LTD', margin, 20);
- 
+
   doc.font(FONTS.body)
      .fontSize(10)
      .fillColor('#FFFFFF')
      .text('info@commercialroofers.net.au | 0421259430', margin, 40);
- 
+
   try {
     const logo = doc.openImage(logoPath);
     const logoHeight = 40;
@@ -653,59 +649,57 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   } catch (err) {
     console.warn('Failed to load logo:', err.message);
   }
- 
-  // Page number
+
   if (pageNumber) {
     doc.font(FONTS.body)
        .fontSize(10)
        .fillColor('#FFFFFF')
        .text(`Page ${pageNumber}`, pageWidth - margin, 45, { align: 'right' });
   }
- 
-  // Divider line
+
   doc.moveTo(margin, 70)
      .lineTo(pageWidth - margin, 70)
      .strokeColor('#FFFFFF')
      .lineWidth(1)
      .stroke();
- 
+
   return y + 80;
 };
 
 // Helper function to draw section header with improved design
 const drawSectionHeader = (doc, text, y) => {
   const margin = 50;
-  
+
   doc.rect(margin, y, doc.page.width - 2 * margin, 20)
      .fill(COLORS.lightBg);
-  
+
   doc.font(FONTS.subtitle)
      .fontSize(14)
      .fillColor(COLORS.primary)
      .text(text, margin + 10, y + 5);
- 
+
   return y + 30;
 };
 
 // Helper function to draw order details table with improved design
 const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, y) => {
-  const margin = 50;
+  const margin = Document
   const pageWidth = doc.page.width;
   const tableWidth = pageWidth - 2 * margin;
   const rowHeight = 25;
   const colWidth = tableWidth / 2;
-  
+
   // Table header
   doc.rect(margin, y, tableWidth, rowHeight)
      .fill(COLORS.tableHeader);
-  
+
   doc.font(FONTS.tableHeader)
      .fontSize(12)
      .fillColor(COLORS.primary)
      .text('ORDER DETAILS', margin + 10, y + 7);
-  
+
   y += rowHeight;
-  
+
   // Table rows
   const rows = [
     ['JOB REFERENCE', JobReference],
@@ -714,36 +708,32 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
     ['ORDER DATE', OrderDate],
     ['DELIVERY ADDRESS', DeliveryAddress || 'PICKUP']
   ];
-  
+
   rows.forEach(([label, value], i) => {
-    // Alternate row background
     if (i % 2 === 0) {
       doc.rect(margin, y, tableWidth, rowHeight)
          .fill(COLORS.tableRow);
     }
-    
-    // Label
+
     doc.font(FONTS.tableHeader)
        .fontSize(10)
        .fillColor(COLORS.darkText)
        .text(label, margin + 10, y + 7);
-    
-    // Value
+
     doc.font(FONTS.tableBody)
        .fontSize(10)
        .fillColor(COLORS.darkText)
        .text(value, margin + colWidth, y + 7);
-    
-    // Row border
+
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
        .strokeColor(COLORS.border)
        .lineWidth(0.5)
        .stroke();
-    
+
     y += rowHeight;
   });
-  
+
   return y + 20;
 };
 
@@ -751,15 +741,15 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
 const drawInstructions = (doc, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
-  
+
   y = drawSectionHeader(doc, 'IMPORTANT NOTES', y);
-  
+
   const instructions = [
     '• Arrow points to the (solid) coloured side',
     '• 90° degrees are not labelled',
     '• F = Total number of folds, each crush counts as 2 folds'
   ];
-  
+
   instructions.forEach(instruction => {
     doc.font(FONTS.body)
        .fontSize(10)
@@ -768,14 +758,13 @@ const drawInstructions = (doc, y) => {
          width: pageWidth - 2 * margin,
          align: 'left'
        });
-    
+
     y += 15;
   });
-  
-  // Warning text with improved styling
+
   doc.rect(margin, y + 10, pageWidth - 2 * margin, 25)
      .fill('#fee2e2');
-  
+
   doc.font(FONTS.subtitle)
      .fontSize(11)
      .fillColor(COLORS.accent)
@@ -783,33 +772,32 @@ const drawInstructions = (doc, y) => {
        width: pageWidth - 2 * margin,
        align: 'center'
      });
-  
+
   return y + 45;
 };
 
 // Helper function to draw footer with improved design
 const drawFooter = (doc, pageWidth, pageHeight) => {
   const margin = 50;
-  
-  // Footer divider
+
   doc.moveTo(margin, pageHeight - 40)
      .lineTo(pageWidth - margin, pageHeight - 40)
      .strokeColor(COLORS.border)
      .lineWidth(0.5)
      .stroke();
-  
+
   doc.font('Helvetica-Oblique')
      .fontSize(9)
      .fillColor(COLORS.darkText)
-     .text('This order made possible thanks to the Flash.it Roofing App', 
-           pageWidth / 2, pageHeight - 30, 
+     .text('This order made possible thanks to the Flash.it Roofing App',
+           pageWidth / 2, pageHeight - 30,
            { align: 'center' });
-           
+
   doc.font('Helvetica')
      .fontSize(8)
      .fillColor(COLORS.darkText)
-     .text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 
-           pageWidth / 2, pageHeight - 15, 
+     .text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
+           pageWidth / 2, pageHeight - 15,
            { align: 'center' });
 };
 
@@ -817,8 +805,8 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
   const tableWidth = 220;
   const rowHeight = 20;
-  const colWidths = [90, 130]; // Adjusted for better spacing
-  
+  const colWidths = [90, 130];
+
   const rows = [
     ['Name', pathData.name || 'Unnamed'],
     ['Colour', pathData.color || 'N/A'],
@@ -829,17 +817,15 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
     ['Total (T)', totalFolds.toString()]
   ];
 
-  // Table header
   doc.rect(x, y, tableWidth, rowHeight)
      .fill(COLORS.tableHeader);
-  
+
   doc.font(FONTS.tableHeader).fontSize(10).fillColor(COLORS.primary);
   doc.text('PROPERTY', x + 5, y + 5, { width: colWidths[0] - 10, align: 'left' });
   doc.text('VALUE', x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'left' });
 
   y += rowHeight;
 
-  // Data rows
   rows.forEach((row, index) => {
     if (index % 2 === 0) {
       doc.rect(x, y, tableWidth, rowHeight)
@@ -853,18 +839,16 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
       doc.fillColor(COLORS.accent);
     }
     doc.text(row[1], x + colWidths[0] + 5, y + 5, { width: colWidths[1] - 10, align: 'left' });
-    doc.fillColor(COLORS.darkText); // Reset color
+    doc.fillColor(COLORS.darkText);
 
     y += rowHeight;
   });
 
-  // Outer border
   doc.rect(x, y - rowHeight * rows.length, tableWidth, rowHeight * (rows.length + 1))
      .lineWidth(1)
      .strokeColor(COLORS.border)
      .stroke();
 
-  // Vertical divider
   doc.moveTo(x + colWidths[0], y - rowHeight * rows.length)
      .lineTo(x + colWidths[0], y)
      .lineWidth(0.5)
@@ -879,41 +863,37 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
-  
+
   y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
-  
-  // Table Header
+
   const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L', 'T'];
   const colWidths = [25, 70, 70, 60, 30, 60, 100, 30];
   const rowHeight = 20;
-  
-  // Draw table header with background
+
   let xPos = margin;
   doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
      .fill(COLORS.tableHeader);
-  
+
   doc.font(FONTS.tableHeader).fontSize(10).fillColor(COLORS.primary);
   headers.forEach((h, i) => {
     doc.text(h, xPos + 5, y + 6, { width: colWidths[i] - 10, align: 'center' });
     xPos += colWidths[i];
   });
-  
+
   y += rowHeight;
-  
-  // Table Rows
+
   doc.font(FONTS.tableBody).fontSize(9);
   validPaths.forEach((path, index) => {
     const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[index] || [];
     const qxL = formatQxL(pathQuantitiesAndLengths);
     const totalFolds = calculateTotalFolds(path);
     const girth = calculateGirth(path);
-    
-    // Alternate row background
+
     if (index % 2 === 0) {
       doc.rect(margin, y, pageWidth - 2 * margin, rowHeight)
          .fill(COLORS.tableRow);
     }
-    
+
     const row = [
       `${index + 1}`,
       path.name || 'Unnamed',
@@ -924,10 +904,9 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       qxL || 'N/A',
       totalFolds.toString()
     ];
-    
+
     xPos = margin;
     row.forEach((val, i) => {
-      // Make code values red
       if (i === 3) {
         doc.fillColor(COLORS.accent).text(val, xPos + 5, y + 6, {
           width: colWidths[i] - 10,
@@ -941,27 +920,24 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       }
       xPos += colWidths[i];
     });
-    
-    // Row border
+
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
        .strokeColor(COLORS.border)
        .lineWidth(0.5)
        .stroke();
-    
+
     y += rowHeight;
-    
-    // Check if we need a new page
+
     if (y > pageHeight - 50) {
       doc.addPage();
       const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
       y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY) + rowHeight;
-      
-      // Redraw table header
+
       xPos = margin;
       doc.rect(margin, y - rowHeight, pageWidth - 2 * margin, rowHeight)
          .fill(COLORS.tableHeader);
-      
+
       doc.font(FONTS.tableHeader).fontSize(10).fillColor(COLORS.primary);
       headers.forEach((h, i) => {
         doc.text(h, xPos + 5, y - rowHeight + 6, { width: colWidths[i] - 10, align: 'center' });
@@ -969,7 +945,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       });
     }
   });
-  
+
   return y + 20;
 };
 
@@ -977,42 +953,36 @@ export const generatePdfDownload = async (req, res) => {
   try {
     const { selectedProjectData, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, PickupNotes, Notes, AdditionalItems } = req.body;
     const { userId } = req.params;
-    
-    // Validate inputs
+
     if (!JobReference || !Number || !OrderContact || !OrderDate) {
       return res.status(400).json({ message: 'JobReference, Number, OrderContact, and OrderDate are required' });
     }
-    
+
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'Valid userId is required' });
     }
-    
-    // Validate uploadsDir
+
     if (!uploadsDir) {
       console.error('Uploads directory is not defined');
       return res.status(500).json({ message: 'Uploads directory is not defined' });
     }
-    
-    // Validate QuantitiesAndLengths
+
     const QuantitiesAndLengths = selectedProjectData?.QuantitiesAndLengths || [];
     if (!Array.isArray(QuantitiesAndLengths) || QuantitiesAndLengths.length === 0) {
       return res.status(400).json({ message: 'QuantitiesAndLengths must be a non-empty array' });
     }
-    
+
     for (const item of QuantitiesAndLengths) {
       if (!item.quantity || !item.length) {
         return res.status(400).json({ message: 'Each QuantitiesAndLengths item must have quantity and length' });
       }
     }
-    
-    // Validate AdditionalItems
+
     const additionalItemsText = AdditionalItems || '';
-    
-    // Find user
+
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    
-    // Validate project data
+
     let projectData;
     try {
       projectData = typeof selectedProjectData === 'string' ? JSON.parse(selectedProjectData) : selectedProjectData;
@@ -1023,18 +993,17 @@ export const generatePdfDownload = async (req, res) => {
       console.error('Error parsing projectData:', error.message);
       return res.status(400).json({ message: 'Invalid project data' });
     }
-    
+
     const scale = parseFloat(projectData.scale) || 1;
     const showBorder = projectData.showBorder || false;
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
-    
-    // Initialize groupedQuantitiesAndLengths early
+
     const validPaths = projectData.paths.filter(path => validatePoints(path.points));
     if (validPaths.length === 0) {
       console.warn('No valid paths found in projectData');
       return res.status(400).json({ message: 'No valid paths found in project data' });
     }
-    
+
     const itemsPerPath = Math.ceil(QuantitiesAndLengths.length / validPaths.length);
     const groupedQuantitiesAndLengths = [];
     for (let i = 0; i < validPaths.length; i++) {
@@ -1042,8 +1011,7 @@ export const generatePdfDownload = async (req, res) => {
       const endIndex = Math.min(startIndex + itemsPerPath, QuantitiesAndLengths.length);
       groupedQuantitiesAndLengths.push(QuantitiesAndLengths.slice(startIndex, endIndex));
     }
-    
-    // Initialize PDF document with A4 size
+
     const doc = new PDFDocument({
       size: 'A4',
       bufferPages: true,
@@ -1055,58 +1023,51 @@ export const generatePdfDownload = async (req, res) => {
         CreationDate: new Date(),
       }
     });
-    
+
     const timestamp = Date.now();
     const pdfPath = path.join(uploadsDir, `project-${timestamp}.pdf`);
     console.log('Saving PDF to:', pdfPath);
-    
-    // Create a write stream and pipe the document to it
+
     const writeStream = fs.createWriteStream(pdfPath);
     doc.pipe(writeStream);
-    
+
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
     const imgSize = 200;
     const gap = 30;
-    
-    // Page 1: Header and Order Details
+
     let y = drawHeader(doc, pageWidth, 0, 1);
-    
-    // Order Details Table
-    y = drawOrderDetailsTable(doc, JobReference, Number, OrderContact, OrderDate, 
+
+    y = drawOrderDetailsTable(doc, JobReference, Number, OrderContact, OrderDate,
                              DeliveryAddress || PickupNotes, y);
-    
-    // Instructions Section
+
     y = drawInstructions(doc, y);
-    
-    // Image handling
+
     const pathsPerRow = 2;
     const firstPageMaxPaths = 2;
     const remainingPathsPerPage = 4;
-    
-    // First part: Up to 2 images on the current page
+
     const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
     const totalImagePages = firstPagePaths > 0 ? 1 + Math.ceil((validPaths.length - firstPagePaths) / remainingPathsPerPage) : 0;
-    
+
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART 1 OF ${totalImagePages}`, y);
-      
+
       const startX = margin;
       const startY = y;
-      
+
       for (let i = 0; i < firstPagePaths; i++) {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 180); // Increased for table
-        
+        const yPos = startY + row * (imgSize + gap + 180);
+
         try {
           const pathData = validPaths[i];
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
-          
-          // Convert SVG to PNG with higher resolution
+
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
               width: imgSize * 4,
@@ -1116,28 +1077,24 @@ export const generatePdfDownload = async (req, res) => {
             })
             .png({ quality: 100, compressionLevel: 0 })
             .toBuffer();
-          
-          // Border around diagram
+
           doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
              .lineWidth(1)
              .strokeColor(COLORS.border)
              .stroke();
-          
-          // Embed image in PDF
+
           const img = doc.openImage(imageBuffer);
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
-          
-          // Image
+
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-          
-          // Property table below image
+
           const infoY = yPos + imgH + 15;
           const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
           const girth = calculateGirth(pathData);
-          
+
           drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
@@ -1145,40 +1102,38 @@ export const generatePdfDownload = async (req, res) => {
             .text(`Image unavailable`, x, yPos);
         }
       }
-      
+
       y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 180);
     }
-    
-    // Remaining images: 4 per page on new pages
+
     const remainingPathsCount = validPaths.length - firstPagePaths;
     if (remainingPathsCount > 0) {
       const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
-      
+
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
         const pageNumber = doc.bufferedPageRange().count;
-        
+
         y = drawHeader(doc, pageWidth, 0, pageNumber);
         y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${pageIndex + 2} OF ${totalImagePages}`, y);
-        
+
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
         const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
         const startX = margin;
         const startY = y;
-        
+
         for (let j = 0; j < (endPath - startPath); j++) {
           const i = startPath + j;
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 180); // Increased for table
-          
+          const yPos = startY + row * (imgSize + gap + 180);
+
           try {
             const pathData = validPaths[i];
             const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
             const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
-            
-            // Convert SVG to PNG with higher resolution
+
             const imageBuffer = await sharp(Buffer.from(svgString))
               .resize({
                 width: imgSize * 4,
@@ -1188,28 +1143,24 @@ export const generatePdfDownload = async (req, res) => {
               })
               .png({ quality: 100, compressionLevel: 0 })
               .toBuffer();
-            
-            // Border around diagram
+
             doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
                .lineWidth(1)
                .strokeColor(COLORS.border)
                .stroke();
-            
-            // Embed image in PDF
+
             const img = doc.openImage(imageBuffer);
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
-            
-            // Image
+
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-            
-            // Property table below image
+
             const infoY = yPos + imgH + 15;
             const pathQuantitiesAndLengths = groupedQuantitiesAndLengths[i] || [];
             const qxL = formatQxL(pathQuantitiesAndLengths);
             const totalFolds = calculateTotalFolds(pathData);
             const girth = calculateGirth(pathData);
-            
+
             drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
@@ -1217,29 +1168,25 @@ export const generatePdfDownload = async (req, res) => {
               .text(`Image unavailable`, x, yPos);
           }
         }
-        
+
         y = startY + Math.ceil((endPath - startPath) / pathsPerRow) * (imgSize + gap + 180);
       }
     }
-    
-    // Add summary table on a new page
+
     doc.addPage();
     const lastPageNumber = doc.bufferedPageRange().count;
     y = drawHeader(doc, pageWidth, 0, lastPageNumber);
     y = drawSummaryTable(doc, validPaths, groupedQuantitiesAndLengths, y);
-    
-    // Draw footer on all pages
+
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
       drawFooter(doc, pageWidth, pageHeight);
     }
-    
-    // Finalize the PDF
+
     doc.flushPages();
     doc.end();
-    
-    // Wait for the PDF to be written
+
     await new Promise((resolve, reject) => {
       writeStream.on('finish', () => {
         console.log('PDF written successfully to:', pdfPath);
@@ -1250,15 +1197,13 @@ export const generatePdfDownload = async (req, res) => {
         reject(error);
       });
     });
-    
-    // Verify file exists
+
     const exists = await fsPromises.access(pdfPath).then(() => true).catch(() => false);
     if (!exists) {
       console.error('PDF file not found at:', pdfPath);
       return res.status(500).json({ message: 'PDF file not generated' });
     }
-    
-    // Upload to Cloudinary
+
     let uploadResult;
     try {
       uploadResult = await cloudinary.uploader.upload(pdfPath, {
@@ -1271,13 +1216,12 @@ export const generatePdfDownload = async (req, res) => {
       console.error('Cloudinary upload error:', uploadError.message);
       return res.status(500).json({ message: 'Failed to upload PDF to Cloudinary', error: uploadError.message });
     }
-    
+
     if (!uploadResult || !uploadResult.public_id || !uploadResult.secure_url) {
       console.error('Cloudinary upload result is invalid:', uploadResult);
       return res.status(500).json({ message: 'Invalid Cloudinary upload result' });
     }
-    
-    // Save order in DB
+
     try {
       await new UserPdf({
         userId: userId,
@@ -1288,15 +1232,14 @@ export const generatePdfDownload = async (req, res) => {
       console.error('Database save error:', dbError.message);
       return res.status(500).json({ message: 'Failed to save order in database', error: dbError.message });
     }
-    
-    // Delete local PDF file
+
     try {
       await fsPromises.unlink(pdfPath);
       console.log('Local PDF deleted successfully:', pdfPath);
     } catch (deleteError) {
       console.warn('Failed to delete local PDF:', deleteError.message);
     }
-    
+
     return res.status(200).json({
       message: 'PDF generated successfully',
       localPath: pdfPath,
