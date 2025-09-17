@@ -1184,14 +1184,14 @@ export const generatePdfDownload = async (req, res) => {
     const writeStream = fs.createWriteStream(pdfPath);
     doc.pipe(writeStream);
 
-    const pageWidth = doc.page.width;
-    const pageHeight = doc.page.height;
     const margin = 50;
     const imgSize = 220; // Increased for better detail
     const gap = 35;
 
     // Add first page
     doc.addPage();
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
 
     // Page 1: Header and Order Details
     let y = drawHeader(doc, pageWidth, 0, 1);
