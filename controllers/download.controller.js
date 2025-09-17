@@ -1,3 +1,4 @@
+
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv';
 import fs, { promises as fsPromises } from 'fs';
@@ -183,8 +184,12 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         if (length !== 0) {
           const unitX = dx / length;
           const unitY = dy / length;
-          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
-          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+          
+          // FIXED: Corrected the normal vector calculation for arrow direction
+          const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
+          const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
+          
+          const chevronSize = 8;
           const chevronBaseDistance = 10;
           const chevronX = midX + normalX * chevronBaseDistance;
           const chevronY = midY + normalY * chevronBaseDistance;
@@ -222,8 +227,11 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
     if (length === 0) continue;
     const unitX = dx / length;
     const unitY = dy / length;
-    const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
-    const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+    
+    // FIXED: Corrected the normal vector calculation for offset direction
+    const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
+    const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
+    
     offsetSegments.push({
       p1: { x: parseFloat(p1.x) + normalX * offsetDistance, y: parseFloat(p1.y) + normalY * offsetDistance },
       p2: { x: parseFloat(p2.x) + normalX * offsetDistance, y: parseFloat(p2.y) + normalY * offsetDistance },
@@ -346,8 +354,11 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         if (length !== 0) {
           const unitX = dx / length;
           const unitY = dy / length;
-          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
-          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
+          
+          // FIXED: Corrected the normal vector calculation for arrow direction
+          const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
+          const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
+          
           const chevronBaseDistance = 10;
           const chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor;
           const chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor;
