@@ -350,8 +350,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const chevronBaseDistance = 10;
-          const chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor;
-          const chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor;
+          const chevronXView = midXView - normalX * chevronBaseDistance * scaleFactor;
+          const chevronYView = midYView - normalY * chevronBaseDistance * scaleFactor;
           const chevronSize = 8 * scaleFactor;
           const direction = 1;
           const chevronPath = `
@@ -359,7 +359,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${chevronXView},${chevronYView}
             L${chevronXView + chevronSize * normalX * direction - chevronSize * unitX},${chevronYView + chevronSize * normalY * direction - chevronSize * unitY}
           `;
-          svgContent += `<path d="${chevronPath}" stroke="#000000" stroke-width="${2 * scaleFactor}" fill="none"/>`;
+          svgContent += `<path d="${chevronPath}" stroke="${COLORS.accent}" stroke-width="${2 * scaleFactor}" fill="none"/>`;
         }
       }
     }
