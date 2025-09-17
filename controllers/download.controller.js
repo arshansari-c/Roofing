@@ -33,36 +33,40 @@ try {
 // Path to company logo
 const logoPath = path.join(__dirname, 'assets', 'company.png');
 
-// Professional color scheme (refined blue and gray tones for better contrast and appeal)
+// Professional color scheme (enhanced with more subtle tones for professionalism)
 const COLORS = {
   primary: '#0f3c5e',       // Deeper blue for headers
   secondary: '#2563eb',     // Brighter blue for accents
   accent: '#dc2626',        // Vibrant red for important elements
-  lightBg: '#f3f4f6',       // Softer light gray for backgrounds
+  lightBg: '#f8fafc',       // Softer light gray for backgrounds
   darkText: '#111827',      // Darker gray for text
-  border: '#d1d5db',        // Light gray for borders
-  tableHeader: '#e2e8f0',   // Softer table header background
-  tableRow: '#f9fafb',      // Table row background
-  shadow: '#00000033',      // Semi-transparent black for shadows
+  border: '#d4d4d8',        // Softer border color
+  tableHeader: '#e2e8f0',   // Softer table header
+  tableRow: '#f8fafc',      // Softer row background
+  grid: '#e4e4e7',          // Lighter grid lines
+  labelBg: '#ffffff',       // White for labels
+  labelBorder: '#9ca3af',   // Gray label borders
 };
 
-// Font settings (added italic for emphasis)
+// Font settings (added professional sans-serif fallback)
 const FONTS = {
   title: 'Helvetica-Bold',
   subtitle: 'Helvetica-Bold',
   body: 'Helvetica',
-  italic: 'Helvetica-Oblique',
   tableHeader: 'Helvetica-Bold',
   tableBody: 'Helvetica',
+  svgFont: 'Arial, Helvetica, sans-serif', // For SVG text professionalism
 };
 
-// Configuration constants (increased sizes for better visibility)
+// Configuration constants (adjusted for better visuals)
 const GRID_SIZE = 20;
-const FOLD_LENGTH = 16;     // Slightly larger folds
-const ARROW_SIZE = 12;      // Improved arrow size for professionalism
-const CHEVRON_SIZE = 10;
-const HOOK_RADIUS = 9;
-const ZIGZAG_SIZE = 10;
+const FOLD_LENGTH = 14;
+const ARROW_SIZE = 12;     // Increased for better visibility
+const CHEVRON_SIZE = 10;   // Slightly larger chevrons
+const HOOK_RADIUS = 8;
+const ZIGZAG_SIZE = 10;    // Improved zigzag
+const LABEL_PADDING = 8;   // Added for label improvements
+const LABEL_RADIUS = 6;    // Softer corners
 
 // Helper function to validate points
 const validatePoints = (points) => {
@@ -280,11 +284,11 @@ const formatQxL = (quantitiesAndLengths) => {
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(', ');
 };
 
-// Helper function to generate SVG string with improvements: professional fonts, improved arrows, finer grid, shadows for labels
+// Helper function to generate SVG string with improvements: professional fonts, smoother arrows, anti-aliased lines, better labels
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Skipping SVG generation for path due to invalid points:', path);
-    return '<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="50" font-size="14" text-anchor="middle" fill="#000000" font-family="Helvetica, sans-serif">Invalid path data</text></svg>';
+    return '<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="50" font-size="14" text-anchor="middle" fill="#000000">Invalid path data</text></svg>';
   }
   // Check if this is a large diagram
   const width = bounds.maxX - bounds.minX;
@@ -304,7 +308,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   };
   // Adjusted sizes (since we normalized, adjust sizes accordingly)
   const adjScale = scale;
-  // Generate grid - finer lines for professional look
+  // Generate grid - lighter lines for professional look
    let gridLines = '';
   const gridSize = GRID_SIZE;
   const gridStartX = Math.floor(bounds.minX / gridSize) * gridSize;
@@ -314,32 +318,32 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   for (let x = gridStartX; x <= gridEndX; x += gridSize) {
     const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
     const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#d1d5db" stroke-width="${0.3 * scaleFactor}"/>`; // Finer grid
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="${COLORS.grid}" stroke-width="${0.3 * scaleFactor}" stroke-opacity="0.7"/>`; // Lighter, semi-transparent
   }
   for (let y = gridStartY; y <= gridEndY; y += gridSize) {
     const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
     const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#d1d5db" stroke-width="${0.3 * scaleFactor}"/>`; // Finer grid
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="${COLORS.grid}" stroke-width="${0.3 * scaleFactor}" stroke-opacity="0.7"/>`; // Lighter, semi-transparent
   }
-  // Generate path points and lines (smaller circles for points)
+  // Generate path points and lines with anti-aliasing (stroke-linecap round)
   let svgContent = path.points.map((point) => {
     const {x: cx, y: cy} = transformCoord(point.x, point.y);
-    return `<circle cx="${cx}" cy="${cy}" r="${2 * scaleFactor}" fill="#000000"/>`; // Smaller points
+    return `<circle cx="${cx}" cy="${cy}" r="${3 * scaleFactor}" fill="#000000" stroke="none"/>`;
   }).join('');
   if (path.points.length > 1) {
     const d = path.points.map(p => {
       const {x, y} = transformCoord(p.x, p.y);
       return `${x},${y}`;
     }).join(' L');
-    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2 * scaleFactor}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; // Rounded lines for UI improvement
+    svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; // Improved smoothness
   }
-  // Generate offset segments for border
+  // Generate offset segments for border with dashed style improvement
   if (showBorder && path.points.length > 1) {
     const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
     svgContent += offsetSegments.map((segment) => {
       const {x: x1, y: y1} = transformCoord(segment.p1.x, segment.p1.y);
       const {x: x2, y: y2} = transformCoord(segment.p2.x, segment.p2.y);
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" stroke-dasharray="${5 * scaleFactor},${3 * scaleFactor}"/>`; // Adjusted dash for better look
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${3 * scaleFactor}" stroke-dasharray="${5 * scaleFactor},${3 * scaleFactor}" stroke-linecap="round"/>`; // Softer dashes
     }).join('');
     const segment = offsetSegments[0];
     if (segment) {
@@ -363,28 +367,29 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
           const chevronBaseDistance = 10;
           const chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor;
           const chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor;
-          const chevronSize = 8 * scaleFactor;
+          const chevronSize = CHEVRON_SIZE * scaleFactor;
           const direction = 1;
           const chevronPath = `
             M${chevronXView + chevronSize * normalX * direction + chevronSize * unitX},${chevronYView + chevronSize * normalY * direction + chevronSize * unitY}
             L${chevronXView},${chevronYView}
             L${chevronXView + chevronSize * normalX * direction - chevronSize * unitX},${chevronYView + chevronSize * normalY * direction - chevronSize * unitY}
-            Z`; // Closed path for filled chevron
-          svgContent += `<path d="${chevronPath}" stroke="${COLORS.accent}" stroke-width="${1.5 * scaleFactor}" fill="${COLORS.accent}"/>`; // Filled arrow for improved UI
+            Z
+          `; // Closed for fill
+          svgContent += `<path d="${chevronPath}" stroke="${COLORS.accent}" stroke-width="${1.5 * scaleFactor}" fill="${COLORS.accent}" stroke-linejoin="round"/>`; // Filled arrow for professional look
         }
       }
     }
   }
-  // Label design parameters (added shadow for professional look)
-  const labelWidth = 70; // Slightly wider
+  // Label design parameters (improved with padding, softer borders)
+  const labelWidth = 70; // Slightly wider for better readability
   const labelHeight = 32;
-  const labelRadius = 8; // Smoother corners
+  const labelRadius = LABEL_RADIUS;
   const fontSize = 16;
-  const tailSize = 7;
+  const tailSize = 7; // Smoother tail
   const attachSize = 7;
-  const labelBg = '#FFFFFF';
+  const labelBg = COLORS.labelBg;
   const labelText = '#000000';
-  const tailFill = '#000000';
+  const tailFill = '#111827'; // Darker tail for contrast
   // Generate segments with labels, tails, and folds
   svgContent += (Array.isArray(path.segments) ? path.segments : []).map((segment, i) => {
     const p1 = path.points[i];
@@ -493,8 +498,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${chevron2.x},${chevron2.y}
             L${chevron2.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * foldDirX},${chevron2.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * foldDirY}
             Z
-          `; // Closed paths for filled chevrons
-          foldElement = `<path d="${foldPath}" stroke="${foldColor}" stroke-width="${1.5 * scaleFactor}" fill="${foldColor}"/>`; // Filled for better UI
+          `; // Closed for fill
+          foldElement = `<path d="${foldPath}" stroke="${foldColor}" stroke-width="${1.5 * scaleFactor}" fill="${foldColor}" stroke-linejoin="round"/>`; // Filled for better look
         } else if (foldType === 'Crush Hook') {
           const arcPath = `M${foldBase.x},${foldBase.y} L${foldEnd.x},${foldEnd.y} A${hookRadiusAdj},${hookRadiusAdj} 0 0 1 ${foldEnd.x + hookRadiusAdj * foldDirX},${foldEnd.y + hookRadiusAdj * foldDirY}`;
           foldElement = `<path d="${arcPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none" stroke-linecap="round"/>`; // Rounded cap
@@ -509,7 +514,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
             L${mid.x - zigzagAdj * foldDirX},${mid.y - zigzagAdj * foldDirY}
             L${foldEnd.x},${foldEnd.y}
           `;
-          foldElement = `<path d="${zigzagPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none" stroke-linecap="round"/>`;
+          foldElement = `<path d="${zigzagPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; // Smoother
         } else if (foldType === 'Open') {
           foldElement = `<line x1="${foldBase.x}" y1="${foldBase.y}" x2="${foldEnd.x}" y2="${foldEnd.y}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" stroke-linecap="round"/>`;
         }
@@ -520,36 +525,39 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         const foldArrowDist = Math.sqrt(foldArrowDx * foldArrowDx + foldArrowDy * foldArrowDy) || 1;
         const foldArrowUnitX = foldArrowDx / foldArrowDist;
         const foldArrowUnitY = foldArrowDy / foldArrowDist;
+        const arrowHeadSize = ARROW_SIZE * scaleFactor;
+        const arrowWing = arrowHeadSize * 0.6; // For symmetric wings
         const foldArrowPath = `
-          M${foldArrowX - foldArrowUnitX * ARROW_SIZE * scaleFactor},${foldArrowY - foldArrowUnitY * ARROW_SIZE * scaleFactor}
+          M${foldArrowX - foldArrowUnitX * arrowHeadSize},${foldArrowY - foldArrowUnitY * arrowHeadSize}
           L${foldArrowX},${foldArrowY}
-          L${foldArrowX - foldArrowUnitX * ARROW_SIZE * scaleFactor + foldArrowUnitY * ARROW_SIZE * scaleFactor * 0.5},${foldArrowY - foldArrowUnitY * ARROW_SIZE * scaleFactor - foldArrowUnitX * ARROW_SIZE * scaleFactor * 0.5}
-          Z
-        `; // Closed for filled arrow
+          L${foldArrowX - foldArrowUnitX * arrowHeadSize + foldArrowUnitY * arrowWing},${foldArrowY - foldArrowUnitY * arrowHeadSize - foldArrowUnitX * arrowWing}
+          M${foldArrowX},${foldArrowY}
+          L${foldArrowX - foldArrowUnitX * arrowHeadSize - foldArrowUnitY * arrowWing},${foldArrowY - foldArrowUnitY * arrowHeadSize + foldArrowUnitX * arrowWing}
+        `; // Improved symmetric arrow (open V shape for professionalism)
         foldElement += `
-          <text x="${foldLabelPos.x + 1}" y="${foldLabelPos.y + 1}" font-size="${14 * scaleFactor}" fill="${COLORS.shadow}" text-anchor="middle" alignment-baseline="middle" font-family="Helvetica, sans-serif">
+          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 * scaleFactor}" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle" font-family="${FONTS.svgFont}">
             ${foldType}
           </text>
-          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 * scaleFactor}" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle" font-family="Helvetica, sans-serif">
-            ${foldType}
-          </text>
-          <path d="${foldArrowPath}" stroke="${foldColor}" stroke-width="${1 * scaleFactor}" fill="${foldColor}"/>
+          <path d="${foldArrowPath}" stroke="${foldColor}" stroke-width="${1.5 * scaleFactor}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         `;
       }
     }
    return `
       <g>
-        <rect x="${posX - labelWidth/2 + 1}" y="${posY - labelHeight/2 + 1}" width="${labelWidth}" height="${labelHeight}" fill="${COLORS.shadow}" rx="${labelRadius}" opacity="0.3"/>
-        <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="0.5"/>
-        <path d="${tailPath}" fill="${tailFill}"/>
-        <text x="${posX}" y="${posY}" font-size="${fontSize}" fill="${labelText}" text-anchor="middle" alignment-baseline="middle" font-family="Helvetica, sans-serif">
+        <rect x="${posX - labelWidth/2}" y="${posY - labelHeight/2}"
+              width="${labelWidth}" height="${labelHeight}"
+              fill="${labelBg}" rx="${labelRadius}"
+              stroke="${COLORS.labelBorder}" stroke-width="1"/> <!-- Softer border -->
+        <path d="${tailPath}" fill="${tailFill}" stroke="${tailFill}" stroke-width="0.5"/> <!-- Outlined tail -->
+        <text x="${posX}" y="${posY}" font-size="${fontSize}"
+              fill="${labelText}" text-anchor="middle" alignment-baseline="middle" font-family="${FONTS.svgFont}">
           ${segment.length}
         </text>
         ${foldElement}
       </g>
     `;
   }).join('');
-  // Generate angles with labels and tails
+  // Generate angles with labels and tails (improved text)
  svgContent += (Array.isArray(path.angles) ? path.angles : []).map((angle) => {
     if (!angle.labelPosition || typeof angle.labelPosition.x === 'undefined' || typeof angle.labelPosition.y === 'undefined') {
         return '';
@@ -608,16 +616,16 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const roundedAngle = roundedValue;
     return `
       <g>
-        <rect x="${posX - labelWidth / 2 + 1}" y="${posY - labelHeight / 2 + 1}" width="${labelWidth}" height="${labelHeight}" fill="${COLORS.shadow}" rx="${labelRadius}" opacity="0.3"/>
-        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="0.5"/>
-        <path d="${tailPath}" fill="${tailFill}"/>
-        <text x="${posX}" y="${posY}" font-size="${fontSize}" fill="${labelText}" text-anchor="middle" alignment-baseline="middle" font-family="Helvetica, sans-serif">
+        <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="${COLORS.labelBorder}" stroke-width="1"/>
+        <path d="${tailPath}" fill="${tailFill}" stroke="${tailFill}" stroke-width="0.5"/>
+        <text x="${posX}" y="${posY}" font-size="${fontSize}" fill="${labelText}" text-anchor="middle" alignment-baseline="middle" font-family="${FONTS.svgFont}">
           ${roundedAngle}°
         </text>
       </g>
     `;
   }).join('');
 return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
+    <style>text { font-family: ${FONTS.svgFont}; font-weight: 500; }</style> <!-- Professional font -->
     <g>${gridLines}</g>
     <g>${svgContent}</g>
   </svg>`;
@@ -627,7 +635,7 @@ return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
  
-  // Header with gradient background
+  // Header with gradient background (smoother gradient)
   const gradient = doc.linearGradient(0, 0, pageWidth, 80)
     .stop(0, COLORS.primary)
     .stop(1, COLORS.secondary);
@@ -637,20 +645,20 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
  
   // Left side: Business info
   doc.font(FONTS.title)
-     .fontSize(18) // Larger for better presentation
+     .fontSize(18) // Slightly larger for professionalism
      .fillColor('#FFFFFF')
-     .text('COMMERCIAL ROOFERS PTY LTD', margin, 20);
+     .text('COMMERCIAL ROOFERS PTY LTD', margin, 18);
  
   doc.font(FONTS.body)
      .fontSize(11)
      .fillColor('#FFFFFF')
-     .text('info@commercialroofers.net.au | 0421259430', margin, 40);
+     .text('info@commercialroofers.net.au | 0421259430', margin, 42);
  
   try {
     const logo = doc.openImage(logoPath);
-    const logoHeight = 50; // Larger logo
+    const logoHeight = 45; // Slightly larger logo
     const logoWidth = (logo.width * logoHeight) / logo.height;
-    doc.image(logo, pageWidth - margin - logoWidth, 15, {
+    doc.image(logo, pageWidth - margin - logoWidth, 17, {
       width: logoWidth,
       height: logoHeight
     });
@@ -661,16 +669,16 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   // Page number
   if (pageNumber) {
     doc.font(FONTS.body)
-       .fontSize(10)
+       .fontSize(11)
        .fillColor('#FFFFFF')
        .text(`Page ${pageNumber}`, pageWidth - margin, 45, { align: 'right' });
   }
  
-  // Divider line with shadow effect
-  doc.moveTo(margin, 70)
-     .lineTo(pageWidth - margin, 70)
+  // Divider line (thinner for elegance)
+  doc.moveTo(margin, 72)
+     .lineTo(pageWidth - margin, 72)
      .strokeColor('#FFFFFF')
-     .lineWidth(1)
+     .lineWidth(0.5)
      .stroke();
  
   return y + 80;
@@ -680,23 +688,23 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
 const drawSectionHeader = (doc, text, y) => {
   const margin = 50;
   
-  doc.rect(margin, y, doc.page.width - 2 * margin, 25) // Taller header
+  doc.rect(margin, y, doc.page.width - 2 * margin, 25) // Taller for better presence
      .fill(COLORS.tableHeader);
   
   doc.font(FONTS.subtitle)
-     .fontSize(16) // Larger font
+     .fontSize(15)
      .fillColor(COLORS.primary)
-     .text(text, margin + 10, y + 5);
+     .text(text, margin + 12, y + 6);
  
   return y + 35;
 };
 
-// Helper function to draw order details table with improved design (added vertical lines)
+// Helper function to draw order details table with improved design
 const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
   const tableWidth = pageWidth - 2 * margin;
-  const rowHeight = 25;
+  const rowHeight = 28; // Taller rows for readability
   const colWidth = tableWidth / 2;
   
   // Table header
@@ -704,9 +712,9 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
      .fill(COLORS.tableHeader);
   
   doc.font(FONTS.tableHeader)
-     .fontSize(12)
+     .fontSize(13)
      .fillColor(COLORS.primary)
-     .text('ORDER DETAILS', margin + 10, y + 7);
+     .text('ORDER DETAILS', margin + 12, y + 8);
   
   y += rowHeight;
   
@@ -728,17 +736,17 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
     
     // Label
     doc.font(FONTS.tableHeader)
-       .fontSize(10)
+       .fontSize(11)
        .fillColor(COLORS.darkText)
-       .text(label, margin + 10, y + 7);
+       .text(label, margin + 12, y + 8);
     
     // Value
     doc.font(FONTS.tableBody)
-       .fontSize(10)
+       .fontSize(11)
        .fillColor(COLORS.darkText)
-       .text(value, margin + colWidth + 10, y + 7); // Added padding
+       .text(value, margin + colWidth, y + 8);
     
-    // Horizontal row border
+    // Row border
     doc.moveTo(margin, y + rowHeight)
        .lineTo(pageWidth - margin, y + rowHeight)
        .strokeColor(COLORS.border)
@@ -748,20 +756,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
     y += rowHeight;
   });
   
-  // Vertical divider
-  doc.moveTo(margin + colWidth, y - rowHeight * rows.length)
-     .lineTo(margin + colWidth, y)
-     .strokeColor(COLORS.border)
-     .lineWidth(0.5)
-     .stroke();
-  
-  // Outer borders
-  doc.rect(margin, y - rowHeight * rows.length - rowHeight, tableWidth, rowHeight * (rows.length + 1))
-     .lineWidth(1)
-     .strokeColor(COLORS.border)
-     .stroke();
-  
-  return y + 20;
+  return y + 25; // Extra spacing
 };
 
 // Helper function to draw instructions with improved design
@@ -779,7 +774,7 @@ const drawInstructions = (doc, y) => {
   
   instructions.forEach(instruction => {
     doc.font(FONTS.body)
-       .fontSize(11) // Slightly larger
+       .fontSize(11)
        .fillColor(COLORS.darkText)
        .text(instruction, margin, y, {
          width: pageWidth - 2 * margin,
@@ -790,13 +785,13 @@ const drawInstructions = (doc, y) => {
   });
   
   // Warning text with improved styling
-  doc.rect(margin, y + 10, pageWidth - 2 * margin, 30) // Taller warning
+  doc.rect(margin, y + 10, pageWidth - 2 * margin, 30)
      .fill('#fee2e2');
   
   doc.font(FONTS.subtitle)
      .fontSize(12)
      .fillColor(COLORS.accent)
-     .text('*** PLEASE WRITE ALL CODES ON FLASHINGS ***', margin, y + 17, {
+     .text('*** PLEASE WRITE ALL CODES ON FLASHINGS ***', margin, y + 18, {
        width: pageWidth - 2 * margin,
        align: 'center'
      });
@@ -809,32 +804,33 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
   const margin = 50;
   
   // Footer divider
-  doc.moveTo(margin, pageHeight - 40)
-     .lineTo(pageWidth - margin, pageHeight - 40)
+  doc.moveTo(margin, pageHeight - 45)
+     .lineTo(pageWidth - margin, pageHeight - 45)
      .strokeColor(COLORS.border)
      .lineWidth(0.5)
      .stroke();
   
-  doc.font(FONTS.italic)
+  doc.font('Helvetica-Oblique')
      .fontSize(10)
      .fillColor(COLORS.darkText)
      .text('This order made possible thanks to the Flash.it Roofing App', 
-           pageWidth / 2, pageHeight - 30, 
+           pageWidth / 2, pageHeight - 35, 
            { align: 'center' });
            
-  doc.font(FONTS.body)
+  doc.font('Helvetica')
      .fontSize(9)
      .fillColor(COLORS.darkText)
      .text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 
-           pageWidth / 2, pageHeight - 15, 
+           pageWidth / 2, pageHeight - 20, 
            { align: 'center' });
 };
 
-// Improved helper: Draw bordered property table below each diagram (added full grid lines, shadows)
+// Improved helper: Draw bordered property table below each diagram (added shadows, better spacing)
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
-  const tableWidth = 230; // Wider for better presentation
+  const tableWidth = 230; // Wider for professionalism
   const rowHeight = 22;
   const colWidths = [100, 130]; // Adjusted
+  const shadowOffset = 2; // For subtle shadow effect
   
   const rows = [
     ['Name', pathData.name || 'Unnamed'],
@@ -846,20 +842,21 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
     ['Total (T)', totalFolds.toString()]
   ];
 
-  // Table header with shadow
-  doc.rect(x + 2, y + 2, tableWidth, rowHeight)
-     .fill(COLORS.shadow)
-     .opacity(0.2);
+  // Shadow for table
+  doc.rect(x + shadowOffset, y + shadowOffset, tableWidth, rowHeight * (rows.length + 1))
+     .fill('#e5e7eb'); // Light shadow
+  
+  // Table header
   doc.rect(x, y, tableWidth, rowHeight)
      .fill(COLORS.tableHeader);
   
   doc.font(FONTS.tableHeader).fontSize(11).fillColor(COLORS.primary);
-  doc.text('PROPERTY', x + 10, y + 6, { width: colWidths[0] - 10, align: 'left' });
-  doc.text('VALUE', x + colWidths[0] + 10, y + 6, { width: colWidths[1] - 10, align: 'left' });
+  doc.text('PROPERTY', x + 8, y + 6, { width: colWidths[0] - 10, align: 'left' });
+  doc.text('VALUE', x + colWidths[0] + 8, y + 6, { width: colWidths[1] - 10, align: 'left' });
 
   y += rowHeight;
 
-  // Data rows with horizontal lines
+  // Data rows
   rows.forEach((row, index) => {
     if (index % 2 === 0) {
       doc.rect(x, y, tableWidth, rowHeight)
@@ -867,32 +864,25 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
     }
 
     doc.font(FONTS.tableBody).fontSize(10).fillColor(COLORS.darkText);
-    doc.text(row[0], x + 10, y + 6, { width: colWidths[0] - 10, align: 'left' });
+    doc.text(row[0], x + 8, y + 6, { width: colWidths[0] - 10, align: 'left' });
 
     if (row[0] === 'Code') {
       doc.fillColor(COLORS.accent);
     }
-    doc.text(row[1], x + colWidths[0] + 10, y + 6, { width: colWidths[1] - 10, align: 'left' });
+    doc.text(row[1], x + colWidths[0] + 8, y + 6, { width: colWidths[1] - 10, align: 'left' });
     doc.fillColor(COLORS.darkText); // Reset color
-
-    // Horizontal divider
-    doc.moveTo(x, y + rowHeight)
-       .lineTo(x + tableWidth, y + rowHeight)
-       .lineWidth(0.5)
-       .strokeColor(COLORS.border)
-       .stroke();
 
     y += rowHeight;
   });
 
   // Outer border
-  doc.rect(x, y - rowHeight * rows.length - rowHeight, tableWidth, rowHeight * (rows.length + 1))
+  doc.rect(x, y - rowHeight * rows.length, tableWidth, rowHeight * (rows.length + 1))
      .lineWidth(1)
      .strokeColor(COLORS.border)
      .stroke();
 
   // Vertical divider
-  doc.moveTo(x + colWidths[0], y - rowHeight * rows.length - rowHeight)
+  doc.moveTo(x + colWidths[0], y - rowHeight * rows.length)
      .lineTo(x + colWidths[0], y)
      .lineWidth(0.5)
      .strokeColor(COLORS.border)
@@ -901,7 +891,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) =
   return y;
 };
 
-// Helper function to draw summary table with improved design (added full grid lines)
+// Helper function to draw summary table with improved design
 const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
@@ -911,7 +901,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   
   // Table Header
   const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L', 'T'];
-  const colWidths = [25, 80, 80, 70, 35, 65, 110, 35]; // Adjusted for better spacing
+  const colWidths = [30, 80, 80, 70, 35, 70, 110, 35]; // Adjusted for better fit
   const rowHeight = 22;
   
   // Draw table header with background
@@ -989,7 +979,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       doc.rect(margin, y - rowHeight, pageWidth - 2 * margin, rowHeight)
          .fill(COLORS.tableHeader);
       
-      doc.font(FONTS.tableHeader).fontSize(10).fillColor(COLORS.primary);
+      doc.font(FONTS.tableHeader).fontSize(11).fillColor(COLORS.primary);
       headers.forEach((h, i) => {
         doc.text(h, xPos + 5, y - rowHeight + 6, { width: colWidths[i] - 10, align: 'center' });
         xPos += colWidths[i];
@@ -997,15 +987,45 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     }
   });
   
-  // Add vertical lines for full grid
-  xPos = margin;
-  for (let i = 0; i <= headers.length; i++) {
-    doc.moveTo(xPos, y - rowHeight * validPaths.length - rowHeight)
-       .lineTo(xPos, y)
-       .lineWidth(0.5)
-       .strokeColor(COLORS.border)
-       .stroke();
-    if (i < headers.length) xPos += colWidths[i];
+  return y + 25;
+};
+
+// New helper: Draw additional items and notes section
+const drawAdditionalSection = (doc, y, AdditionalItems, Notes, PickupNotes) => {
+  const margin = 50;
+  const pageWidth = doc.page.width;
+  
+  y = drawSectionHeader(doc, 'ADDITIONAL ITEMS & NOTES', y);
+  
+  doc.font(FONTS.body)
+     .fontSize(11)
+     .fillColor(COLORS.darkText)
+     .text(AdditionalItems || 'None specified', margin, y, {
+       width: pageWidth - 2 * margin,
+       align: 'left'
+     });
+  
+  y += 30;
+  
+  doc.font(FONTS.body)
+     .fontSize(11)
+     .fillColor(COLORS.darkText)
+     .text(Notes || 'No additional notes', margin, y, {
+       width: pageWidth - 2 * margin,
+       align: 'left'
+     });
+  
+  y += 30;
+  
+  if (PickupNotes) {
+    doc.font(FONTS.body)
+       .fontSize(11)
+       .fillColor(COLORS.darkText)
+       .text(`Pickup Notes: ${PickupNotes}`, margin, y, {
+         width: pageWidth - 2 * margin,
+         align: 'left'
+       });
+    y += 30;
   }
   
   return y + 20;
@@ -1105,8 +1125,8 @@ export const generatePdfDownload = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 50;
-    const imgSize = 220; // Larger images for better presentation
-    const gap = 35;
+    const imgSize = 220; // Larger images for better detail
+    const gap = 35; // More spacing
     
     // Page 1: Header and Order Details
     let y = drawHeader(doc, pageWidth, 0, 1);
@@ -1137,34 +1157,31 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 200); // Increased space for table and title
+        const yPos = startY + row * (imgSize + gap + 200); // Increased for table and title
         
         try {
           const pathData = validPaths[i];
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
           
-          // Convert SVG to PNG with higher resolution and anti-aliasing
+          // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: imgSize * 4,
-              height: imgSize * 4,
+              width: imgSize * 5, // Higher res for sharpness
+              height: imgSize * 5,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255, alpha: 1 },
             })
-            .png({ quality: 100, compressionLevel: 0, force: true })
+            .png({ quality: 100, compressionLevel: 0 })
             .toBuffer();
           
-          // Diagram title
-          doc.font(FONTS.subtitle)
-             .fontSize(13)
-             .fillColor(COLORS.primary)
-             .text(`Flashing #${i + 1}: ${pathData.name || 'Unnamed'}`, x, yPos - 25);
+          // Title above diagram
+          doc.font(FONTS.subtitle).fontSize(13).fillColor(COLORS.primary)
+             .text(`Flashing ${i + 1}: ${pathData.name || 'Unnamed'}`, x, yPos - 25);
           
-          // Border around diagram with shadow
-          doc.rect(x + 2, yPos + 2, imgSize + 10, imgSize + 10)
-             .fill(COLORS.shadow)
-             .opacity(0.2);
+          // Border around diagram (with shadow)
+          doc.rect(x - 5 + 2, yPos - 5 + 2, imgSize + 10, imgSize + 10)
+             .fill('#e5e7eb'); // Shadow
           doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
              .lineWidth(1)
              .strokeColor(COLORS.border)
@@ -1218,7 +1235,7 @@ export const generatePdfDownload = async (req, res) => {
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * (imgSize + gap + 200); // Increased space
+          const yPos = startY + row * (imgSize + gap + 200); // Increased
           
           try {
             const pathData = validPaths[i];
@@ -1228,24 +1245,21 @@ export const generatePdfDownload = async (req, res) => {
             // Convert SVG to PNG with higher resolution
             const imageBuffer = await sharp(Buffer.from(svgString))
               .resize({
-                width: imgSize * 4,
-                height: imgSize * 4,
+                width: imgSize * 5,
+                height: imgSize * 5,
                 fit: 'contain',
                 background: { r: 255, g: 255, b: 255, alpha: 1 },
               })
               .png({ quality: 100, compressionLevel: 0 })
               .toBuffer();
             
-            // Diagram title
-            doc.font(FONTS.subtitle)
-               .fontSize(13)
-               .fillColor(COLORS.primary)
-               .text(`Flashing #${i + 1}: ${pathData.name || 'Unnamed'}`, x, yPos - 25);
+            // Title above diagram
+            doc.font(FONTS.subtitle).fontSize(13).fillColor(COLORS.primary)
+               .text(`Flashing ${i + 1}: ${pathData.name || 'Unnamed'}`, x, yPos - 25);
             
-            // Border around diagram with shadow
-            doc.rect(x + 2, yPos + 2, imgSize + 10, imgSize + 10)
-               .fill(COLORS.shadow)
-               .opacity(0.2);
+            // Border around diagram (with shadow)
+            doc.rect(x - 5 + 2, yPos - 5 + 2, imgSize + 10, imgSize + 10)
+               .fill('#e5e7eb');
             doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
                .lineWidth(1)
                .strokeColor(COLORS.border)
@@ -1280,9 +1294,12 @@ export const generatePdfDownload = async (req, res) => {
     
     // Add summary table on a new page
     doc.addPage();
-    const lastPageNumber = doc.bufferedPageRange().count;
+    let lastPageNumber = doc.bufferedPageRange().count;
     y = drawHeader(doc, pageWidth, 0, lastPageNumber);
     y = drawSummaryTable(doc, validPaths, groupedQuantitiesAndLengths, y);
+    
+    // Add additional items and notes
+    y = drawAdditionalSection(doc, y, AdditionalItems, Notes, PickupNotes);
     
     // Draw footer on all pages
     const pages = doc.bufferedPageRange();
