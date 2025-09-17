@@ -183,9 +183,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         if (length !== 0) {
           const unitX = dx / length;
           const unitY = dy / length;
-          // Fix: Reverse the normal direction calculation
-          const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
-          const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
+          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const chevronSize = 8;
           const chevronBaseDistance = 10;
           const chevronX = midX + normalX * chevronBaseDistance;
@@ -224,9 +223,8 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
     if (length === 0) continue;
     const unitX = dx / length;
     const unitY = dy / length;
-    // Fix: Reverse the normal direction calculation
-    const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
-    const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
+    const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+    const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
     offsetSegments.push({
       p1: { x: parseFloat(p1.x) + normalX * offsetDistance, y: parseFloat(p1.y) + normalY * offsetDistance },
       p2: { x: parseFloat(p2.x) + normalX * offsetDistance, y: parseFloat(p2.y) + normalY * offsetDistance },
@@ -349,21 +347,19 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         if (length !== 0) {
           const unitX = dx / length;
           const unitY = dy / length;
-          // Fix: Reverse the normal direction calculation
-          const normalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
-          const normalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
+          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
+          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const chevronBaseDistance = 10;
-          const chevronXView = midXView + normalX * chevronBaseDistance * scaleFactor;
-          const chevronYView = midYView + normalY * chevronBaseDistance * scaleFactor;
+          const chevronXView = midXView - normalX * chevronBaseDistance * scaleFactor;
+          const chevronYView = midYView - normalY * chevronBaseDistance * scaleFactor;
           const chevronSize = 8 * scaleFactor;
-          // Fix: Draw chevron pointing in the correct direction
+          const direction = 1;
           const chevronPath = `
-            M${chevronXView},${chevronYView}
-            L${chevronXView - normalX * chevronSize + unitX * chevronSize * 0.5},${chevronYView - normalY * chevronSize + unitY * chevronSize * 0.5}
-            L${chevronXView - normalX * chevronSize - unitX * chevronSize * 0.5},${chevronYView - normalY * chevronSize - unitY * chevronSize * 0.5}
-            Z
+            M${chevronXView + chevronSize * normalX * direction + chevronSize * unitX},${chevronYView + chevronSize * normalY * direction + chevronSize * unitY}
+            L${chevronXView},${chevronYView}
+            L${chevronXView + chevronSize * normalX * direction - chevronSize * unitX},${chevronYView + chevronSize * normalY * direction - chevronSize * unitY}
           `;
-          svgContent += `<path d="${chevronPath}" stroke="none" fill="#000000"/>`;
+          svgContent += `<path d="${chevronPath}" stroke="${COLORS.accent}" stroke-width="${2 * scaleFactor}" fill="none"/>`;
         }
       }
     }
