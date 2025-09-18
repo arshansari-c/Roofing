@@ -798,3 +798,106 @@ export const fetchUploadOrder = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+export const forgetPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const findUser = await User.findOne({ email });
+    if (!findUser) {
+      return res.status(400).json({ message: "Email not found" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    findUser.otp = otp;
+    findUser.otpExpires = otpExpires;
+    findUser.resetPassword = false;
+    await findUser.save();
+
+    await transporter.sendMail({
+      from: '"Commercial Roofers" <no-reply@yourdomain.com>',
+      to: email,
+      subject: 'Reset Password OTP',
+      text: `Your OTP for password reset is: ${otp}`,
+      html: `<p>Your OTP for password reset is: <strong>${otp}</strong></p>`,
+    });
+
+    res.status(200).json({ message: "OTP sent successfully" });
+  } catch (error) {
+    console.error("forgetPassword error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+export const resetPasswordOtpVerify = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    const findUser = await User.findOne({ email });
+    if (!findUser) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    // Check OTP match and expiry
+    if (
+      findUser.otp !== parseInt(otp) ||
+      !findUser.otpExpires ||
+      findUser.otpExpires < Date.now()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    findUser.resetPassword = true;
+    findUser.otp = undefined;
+    findUser.otpExpires = undefined;
+    await findUser.save();
+
+    res.status(200).json({ message: "OTP verified successfully" });
+  } catch (error) {
+    console.log("resetPasswordOtpVerify error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const findUser = await User.findOne({ email });
+    if (!findUser) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    if (!findUser.resetPassword) {
+      return res.status(400).json({ message: "OTP not verified or reset not allowed" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    findUser.password = hashedPassword;
+    findUser.resetPassword = false;
+    await findUser.save();
+
+    const token = jwt.sign({ userId: findUser._id }, process.env.SECRET_TOKEN_KEY, {
+      expiresIn: '7d',
+    });
+
+    res.status(200).json({
+      message: "Password reset successfully",
+      userId: findUser._id,
+      token,
+    });
+  } catch (error) {
+    console.log("resetPassword error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+

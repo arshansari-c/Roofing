@@ -17,6 +17,18 @@ const AuthSchema = new Schema(
     image:{
       type : String
     },
+    otp:{
+      type : Number,
+    },
+    otpExpires: {
+  type: Date,
+  index: { expires: '5m' }, // auto-deletes after 5 minutes
+},
+
+    resetPassword:{
+      type : Boolean,
+      default :false
+    },
     email: {
       type: String,
       required: [true, "Email is required"],

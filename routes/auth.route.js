@@ -1,5 +1,5 @@
 import express from 'express'
-import { addTeamMemberEmail, fetchSelectedProjectData, fetchTeamEmails, fetchUploadOrder, fetchUploadProjectData, login,  Profile, register, sendPdfToTeamFromEmail, UpdateJobOrder, UpdateProfile,  updateUploadProjectPdf,  UploadProjectPdf } from '../controllers/auth.controller.js'
+import { addTeamMemberEmail, fetchSelectedProjectData, fetchTeamEmails, fetchUploadOrder, fetchUploadProjectData, forgetPassword, login,  Profile, register, resetPassword, resetPasswordOtpVerify, sendPdfToTeamFromEmail, UpdateJobOrder, UpdateProfile,  updateUploadProjectPdf,  UploadProjectPdf } from '../controllers/auth.controller.js'
 import { CheckAuth } from '../middlewares/CheckAuth.js'
 import { EditSupplierDetails, fetchSupplierList, SupplierDetails } from '../controllers/supplier.controller.js'
 import { EditFreelancerDetails, fetchFreelancerList, fetchOtherFreelancerDetails, fetchOtherUserDetails, FreelancerDetails } from '../controllers/freelancer.controller.js'
@@ -47,3 +47,6 @@ AuthRouter.get('/fetchuploadorder/:userId',fetchUploadOrder)
 AuthRouter.post('/generatepdfandsendteam/:userId',generatePdf)
 AuthRouter.put('/updategeneratepdfandsendteam/:userId/:orderId',UpdateGerantePdfOrder)
 AuthRouter.post('/generatepdfpreview/:userId',generatePdfDownload)
+AuthRouter.post('/forgetPassword',forgetPassword)
+AuthRouter.post('/resetPasswordotp',resetPasswordOtpVerify)
+AuthRouter.post('/resetPassword',resetPassword)
