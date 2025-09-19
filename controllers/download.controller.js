@@ -810,16 +810,13 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 };
 // Draw bordered property table below each diagram (with dynamic row heights)
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxL, totalFolds, girth) => {
-  const tableWidth = 230;
-  const colWidths = [100, 130];
+  const tableWidth = 180;
+  const colWidths = [70, 110];
   const minRowHeight = 22;
   const padding = 12;
   const rows = [
     ['Colour', pathData.color || 'N/A'],
-    ['Code', pathData.code || 'N/A'],
-    ['Q x L', qxL || 'N/A'],
-    ['Folds (F)', totalFolds.toString()],
-    ['Girth', `${girth}mm`]
+    ['Code', pathData.code || 'N/A']
   ];
   // Table header
   doc.font(FONTS.tableHeader).fontSize(11);
@@ -1101,8 +1098,8 @@ export const generatePdfDownload = async (req, res) => {
     const writeStream = fs.createWriteStream(pdfPath);
     doc.pipe(writeStream);
     const margin = 50;
-    const imgSize = 220;
-    const gap = 40; // Increased gap to prevent layout collapse
+    const imgSize = 325;
+    const gap = 20;
     // Add first page
     doc.addPage();
     const pageWidth = doc.page.width;
@@ -1115,8 +1112,8 @@ export const generatePdfDownload = async (req, res) => {
     // Instructions Section
     y = drawInstructions(doc, y);
     // Image handling - 2 diagrams on first page
-    const firstPageMaxPaths = 2;
-    const remainingPathsPerPage = 3;
+    const firstPageMaxPaths = 1;
+    const remainingPathsPerPage = 2;
     // Calculate total image pages
     const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
     const remainingPathsCount = validPaths.length - firstPagePaths;
@@ -1127,11 +1124,14 @@ export const generatePdfDownload = async (req, res) => {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
       const startX = margin;
       const startY = y;
-      const pathsPerRow = 2;
+      const pathsPerRow = firstPagePaths > 1 ? 2 : 1;
       for (let i = 0; i < firstPagePaths; i++) {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
-        const x = startX + col * (imgSize + gap);
+        let x = startX + col * (imgSize + gap);
+        if (pathsPerRow === 1) {
+          x = (pageWidth - imgSize) / 2;
+        }
         const yPos = startY + row * (imgSize + gap + 220); // Increased spacing
         try {
           const pathData = validPaths[i];
@@ -1164,7 +1164,11 @@ export const generatePdfDownload = async (req, res) => {
           const qxL = formatQxL(pathQuantitiesAndLengths);
           const totalFolds = calculateTotalFolds(pathData);
           const girth = calculateGirth(pathData);
-          drawDiagramPropertyTable(doc, x - 10, infoY, pathData, qxL, totalFolds, girth);
+          let tableX = x - 10;
+          if (pathsPerRow === 1) {
+            tableX = x + (imgSize - 180) / 2; // Center table under image, tableWidth=180
+          }
+          drawDiagramPropertyTable(doc, tableX, infoY, pathData, qxL, totalFolds, girth);
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
