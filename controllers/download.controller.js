@@ -775,22 +775,6 @@ const drawDiagramPropertyTable = (doc, x, y, pathData) => {
   const padding = 10;
   const fontSize = 12;
 
-  // Table header
-  doc.font(FONTS.tableHeader)
-     .fontSize(fontSize)
-     .fillColor(COLORS.primary);
-  doc.text('PROPERTY', x + 5, y + padding);
-  doc.text('VALUE', x + 120, y + padding);
-  y += rowHeight;
-
-  // Horizontal divider
-  doc.moveTo(x, y)
-     .lineTo(x + tableWidth, y)
-     .strokeColor(COLORS.border)
-     .lineWidth(1)
-     .stroke();
-  y += 5;
-
   // Data rows - only color and code
   const rows = [
     ['Colour/Material', pathData.color || 'N/A'],
@@ -801,34 +785,42 @@ const drawDiagramPropertyTable = (doc, x, y, pathData) => {
      .fontSize(fontSize)
      .fillColor(COLORS.darkText);
 
+  let currentY = y;
   rows.forEach(([label, value], index) => {
-    doc.text(label, x + 5, y + padding);
+    doc.text(label, x + 5, currentY + padding);
     
     // Highlight code with accent color
     if (label === 'Code') {
       doc.fillColor(COLORS.accent);
     }
     
-    doc.text(value, x + 120, y + padding);
+    doc.text(value, x + 120, currentY + padding);
     doc.fillColor(COLORS.darkText);
     
-    y += rowHeight;
+    currentY += rowHeight;
   });
 
   // Outer border
-  doc.rect(x, y - rowHeight * rows.length - 20, tableWidth, rowHeight * rows.length + 25)
+  doc.rect(x, y, tableWidth, rowHeight * rows.length)
      .lineWidth(1)
      .strokeColor(COLORS.border)
      .stroke();
 
   // Vertical divider
-  doc.moveTo(x + 110, y - rowHeight * rows.length - 20)
-     .lineTo(x + 110, y)
+  doc.moveTo(x + 110, y)
+     .lineTo(x + 110, y + rowHeight * rows.length)
      .lineWidth(0.5)
      .strokeColor(COLORS.border)
      .stroke();
 
-  return y + 10;
+  // Middle horizontal divider (between rows)
+  doc.moveTo(x, y + rowHeight)
+     .lineTo(x + tableWidth, y + rowHeight)
+     .lineWidth(0.5)
+     .strokeColor(COLORS.border)
+     .stroke();
+
+  return currentY + 10;
 };
 
 // Helper function to draw summary table (with dynamic row heights and adjusted totals position) (improved: better alignment)
@@ -1081,6 +1073,7 @@ export const generatePdfDownload = async (req, res) => {
     const writeStream = fs.createWriteStream(pdfPath);
     doc.pipe(writeStream);
 
+    // Page 1: Header and Order Details
     const margin = 50;
     const imgSize = 240; // Adjusted size to fit 2 per row
     const gap = 15; // Adjusted gap
@@ -1090,7 +1083,6 @@ export const generatePdfDownload = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
 
-    // Page 1: Header and Order Details
     let y = drawHeader(doc, pageWidth, 0, 1);
 
     // Order Details Table
