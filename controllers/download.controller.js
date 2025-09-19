@@ -107,10 +107,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(segment.labelPosition.x);
     const labelY = parseFloat(segment.labelPosition.y);
-    minX = Math.min(minX, labelX - 50); // Increased fixed padding, removed /scale
-    maxX = Math.max(maxX, labelX + 50);
-    minY = Math.min(minY, labelY - 30);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
+    minX = Math.min(minX, labelX - 80); // Increased fixed padding
+    maxX = Math.max(maxX, labelX + 80);
+    minY = Math.min(minY, labelY - 50);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 50);
 
     let foldType = 'None';
     let foldLength = FOLD_LENGTH;
@@ -147,10 +147,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const foldEndY = foldBaseY + rotNormalY * foldLength;
         const foldLabelX = foldEndX + rotNormalX * 25;
         const foldLabelY = foldEndY + rotNormalY * 25;
-        minX = Math.min(minX, foldLabelX - 50, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 50, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 30, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 30, foldEndY, foldBaseY);
+        minX = Math.min(minX, foldLabelX - 80, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 80, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 50, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 50, foldEndY, foldBaseY);
       }
     }
   });
@@ -165,10 +165,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
-    minX = Math.min(minX, labelX - 50); // Consistent increased padding
-    maxX = Math.max(maxX, labelX + 50);
-    minY = Math.min(minY, labelY - 30);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
+    minX = Math.min(minX, labelX - 80); // Consistent increased padding
+    maxX = Math.max(maxX, labelX + 80);
+    minY = Math.min(minY, labelY - 50);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 50);
   });
 
   if (showBorder && path.points.length > 1) {
@@ -197,19 +197,18 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
           const arrowNormalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
           const arrowNormalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
           const chevronBaseDistance = 10;
-          const chevronSize = 8;
           const chevronX = midX_main + arrowNormalX * chevronBaseDistance;
           const chevronY = midY_main + arrowNormalY * chevronBaseDistance;
-          minX = Math.min(minX, chevronX - chevronSize);
-          maxX = Math.max(maxX, chevronX + chevronSize);
-          minY = Math.min(minY, chevronY - chevronSize);
-          maxY = Math.max(maxY, chevronY + chevronSize);
+          minX = Math.min(minX, chevronX - CHEVRON_SIZE);
+          maxX = Math.max(maxX, chevronX + CHEVRON_SIZE);
+          minY = Math.min(minY, chevronY - CHEVRON_SIZE);
+          maxY = Math.max(maxY, chevronY + CHEVRON_SIZE);
         }
       }
     }
   }
 
-  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 60; // Increased base padding
+  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 80; // Increased base padding
   return {
     minX: minX - padding,
     minY: minY - padding,
@@ -276,15 +275,10 @@ const calculateGirth = (path) => {
   return totalLength.toFixed(2);
 };
 
-// Helper function to format number with commas
-const formatNumberWithCommas = (num) => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-};
-
 // Helper function to format Q x L
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
-  return quantitiesAndLengths.map(item => `${item.quantity} x ${formatNumberWithCommas(parseFloat(item.length).toFixed(0))}`).join(', ');
+  return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(',');
 };
 
 // Generate SVG string without arrows at line ends (improved text design: bold font, better padding, dynamic label width)
@@ -336,24 +330,24 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   for (let x = gridStartX; x <= gridEndX; x += minorGridSize) {
     const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
     const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="${0.3 * scaleFactor}"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="0.3"/>`;
   }
   for (let y = gridStartY; y <= gridEndY; y += minorGridSize) {
     const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
     const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="${0.3 * scaleFactor}"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="0.3"/>`;
   }
 
   // Major grid
   for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
     const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
     const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
   }
   for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
     const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
     const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
   }
 
   // Generate path points and lines (removed arrow marker)
@@ -415,7 +409,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
 
   // Label design parameters (improved: dynamic width, larger height, bold text)
-  let labelWidth = 90; // Base width, will adjust dynamically
+  let labelWidth = 60; // Base width, will adjust dynamically
   const labelHeight = 36; // Slightly increased
   const labelRadius = 12;
   const fontSize = 18; // Increased for professionalism
@@ -443,7 +437,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     // Dynamic label width based on text length
     const textContent = segment.length || '';
     const approxTextWidth = textContent.length * (fontSize * 0.6); // Approximate char width
-    labelWidth = Math.max(90, approxTextWidth + 20); // Min 90, plus padding
+    labelWidth = Math.max(60, approxTextWidth + 20); // Min 60, plus padding
 
     let tailPath = '';
     if (absLabelDx > absLabelDy) {
@@ -606,7 +600,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     // Dynamic label width for angles
     const textContent = `${roundedValue}°`;
     const approxTextWidth = textContent.length * (fontSize * 0.6);
-    labelWidth = Math.max(90, approxTextWidth + 20);
+    labelWidth = Math.max(60, approxTextWidth + 20);
 
     let tailPath = '';
     if (absLabelDx > absLabelDy) {
@@ -662,7 +656,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   svgContent += `
     <g>
       <rect x="${scaleBarX}" y="${scaleBarY}" width="${scaleBarWidth}" height="${5 * scaleFactor}" fill="#000000" />
-      <text x="${scaleBarX + scaleBarWidth / 2}" y="${scaleBarY + 20 * scaleFactor}" font-size="${12 * scaleFactor}" fill="#000000" text-anchor="middle">
+      <text x="${scaleBarX + scaleBarWidth / 2}" y="${scaleBarY + 20}" font-size="12" fill="#000000" text-anchor="middle">
         Scale: ${SCALE_BAR_LENGTH} units
       </text>
     </g>
@@ -670,22 +664,22 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   // Add title
   svgContent += `
-    <text x="${targetViewBoxSize / 2}" y="${30 * scaleFactor}" font-size="${20 * scaleFactor}" fill="${COLORS.primary}" text-anchor="middle" font-family="Helvetica-Bold, sans-serif">
-      Flashing Diagram
+    <text x="${targetViewBoxSize / 2}" y="30" font-size="20" fill="${COLORS.primary}" text-anchor="middle" font-family="Helvetica-Bold, sans-serif">
+      ${path.name || 'Flashing Diagram'}
     </text>
   `;
 
   // Add legend if folds present
   if (path.segments.some(s => s.fold && s.fold !== 'None')) {
-    const legendX = 20 * scaleFactor;
-    const legendY = targetViewBoxSize - 150 * scaleFactor;
+    const legendX = 20;
+    const legendY = targetViewBoxSize - 150;
     svgContent += `
       <g filter="url(#dropShadow)">
-        <rect x="${legendX}" y="${legendY}" width="${150 * scaleFactor}" height="${100 * scaleFactor}" fill="#FFFFFF" stroke="#000000" rx="10" />
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 20 * scaleFactor}" font-size="${14 * scaleFactor}">Legend</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 40 * scaleFactor}" font-size="${12 * scaleFactor}">Crush: Double Chevron</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 60 * scaleFactor}" font-size="${12 * scaleFactor}">Hook: Curved Line</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 80 * scaleFactor}" font-size="${12 * scaleFactor}">Break: Zigzag</text>
+        <rect x="${legendX}" y="${legendY}" width="150" height="100" fill="#FFFFFF" stroke="#000000" rx="10" />
+        <text x="${legendX + 10}" y="${legendY + 20}" font-size="14">Legend</text>
+        <text x="${legendX + 10}" y="${legendY + 40}" font-size="12">Crush: Double Chevron</text>
+        <text x="${legendX + 10}" y="${legendY + 60}" font-size="12">Hook: Curved Line</text>
+        <text x="${legendX + 10}" y="${legendY + 80}" font-size="12">Break: Zigzag</text>
       </g>
     `;
   }
@@ -878,7 +872,7 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 };
 
 // Draw simplified property table below each diagram (only color/material and code)
-const drawDiagramPropertyTable = (doc, x, y, pathData, quantitiesAndLengths, pathIndex) => {
+const drawDiagramPropertyTable = (doc, x, y, pathData) => {
   const tableWidth = 230;
   const rowHeight = 24;
   const padding = 10;
@@ -901,16 +895,9 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, quantitiesAndLengths, pat
   y += 5;
 
   // Data rows - only color and code
-  const totalFolds = calculateTotalFolds(pathData);
-  const girth = parseFloat(calculateGirth(pathData)).toFixed(0);
-  const qxL = formatQxL(quantitiesAndLengths);
   const rows = [
-    ['#', `${pathIndex + 1}`],
     ['Colour/Material', pathData.color || 'N/A'],
-    ['Code', pathData.code || 'N/A'],
-    ['F', totalFolds.toString()],
-    ['GIRTH', `${girth}mm`],
-    ['Q x L', qxL || 'N/A']
+    ['Code', pathData.code || 'N/A']
   ];
 
   doc.font(FONTS.tableBody)
@@ -955,8 +942,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
 
   // Table Header
-  const headers = ['#', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
-  const colWidths = [40, 100, 100, 50, 80, 140];
+  const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
+  const colWidths = [25, 90, 90, 60, 30, 60, 140];
   const minRowHeight = 22;
   const padding = 12;
 
@@ -995,10 +982,11 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
 
     const row = [
       `${index + 1}`,
+      path.name || 'Unnamed',
       path.color || 'N/A',
       path.code || 'N/A',
       totalFolds.toString(),
-      `${girth.toFixed(0)}mm`,
+      `${girth}mm`,
       qxL || 'N/A'
     ];
 
@@ -1022,8 +1010,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       const cellWidth = colWidths[i] - 10;
       const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
       const textY = y + (rowHeight - textHeight) / 2;
-      const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
-      if (i === 2) {
+      const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
+      if (i === 3) {
         doc.fillColor(COLORS.accent);
       } else {
         doc.fillColor(COLORS.darkText);
@@ -1081,9 +1069,9 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     y += headerHeight;
   }
 
-  // Totals row (place 'Totals' in the '#' column for better fit)
+  // Totals row (place 'Totals' in the 'Name' column for better fit)
   doc.font(FONTS.tableHeader).fontSize(11);
-  const totalsRow = ['Totals', '', '', totalF.toString(), `${totalG.toFixed(0)}mm`, ''];
+  const totalsRow = ['', 'Totals', '', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
   let totalsMaxHeight = 0;
   totalsRow.forEach((val, i) => {
     const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
@@ -1098,7 +1086,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     const cellWidth = colWidths[i] - 10;
     const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
     const textY = y + (totalsRowHeight - textHeight) / 2;
-    const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
+    const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
     doc.text(val, xPos + 5, textY, { width: cellWidth, align: align });
     xPos += colWidths[i];
   });
@@ -1227,7 +1215,7 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 150;
+    const tableHeightApprox = 100;
     const diagramHeight = imgSize + tableHeightApprox;
 
     if (firstPagePaths > 0) {
@@ -1265,7 +1253,7 @@ export const generatePdfDownload = async (req, res) => {
           // Property table first (on top)
           const tableY = yPos;
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
+          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
           // Diagram below table
           const imageY = tableEndY + 10; // Reduced spacing
@@ -1332,7 +1320,7 @@ export const generatePdfDownload = async (req, res) => {
             // Property table first (on top)
             const tableY = yPos;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
+            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
             // Diagram below table
             const imageY = tableEndY + 10; // Reduced spacing
