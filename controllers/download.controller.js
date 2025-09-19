@@ -769,56 +769,75 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 };
 
 // Draw simplified property table below each diagram (only color/material and code) (improved: better padding)
-const drawDiagramPropertyTable = (doc, x, y, pathData) => {
-  const tableWidth = 230;
-  const rowHeight = 24;
-  const padding = 10;
-  const fontSize = 12;
+const drawDiagramPropertyTable = (doc, x, y, pathData, girth, qxl) => {
+  const tableWidth = 250;
+  const padding = 8;
+  const labelFontSize = 12;
+  const valueFontSize = 14;
 
-  // Data rows - only color and code
+  const col1Width = 120;
+  const col2Width = tableWidth - col1Width;
+
+  // Data rows
   const rows = [
-    ['Colour/Material', pathData.color || 'N/A'],
-    ['Code', pathData.code || 'N/A']
+    { label: 'Colour/Material', value: pathData.color || 'N/A' },
+    { label: 'Code', value: pathData.code || 'N/A' },
+    { label: 'Girth', value: `${girth}mm` },
+    { label: 'Q x L', value: qxl || 'N/A' }
   ];
 
-  doc.font(FONTS.tableBody)
-     .fontSize(fontSize)
-     .fillColor(COLORS.darkText);
+  doc.font(FONTS.tableBody);
 
   let currentY = y;
-  rows.forEach(([label, value], index) => {
-    doc.text(label, x + 5, currentY + padding);
-    
-    // Highlight code with accent color
-    if (label === 'Code') {
+  let totalHeight = 0;
+
+  const rowHeights = rows.map(row => {
+    const labelHeight = doc.fontSize(labelFontSize).heightOfString(row.label, { width: col1Width - padding * 2 });
+    const valueHeight = doc.fontSize(valueFontSize).heightOfString(row.value, { width: col2Width - padding * 2 });
+    return Math.max(labelHeight, valueHeight) + padding * 2;
+  });
+
+  rows.forEach((row, index) => {
+    const rowHeight = rowHeights[index];
+
+    doc.fontSize(labelFontSize).fillColor(COLORS.darkText);
+    doc.text(row.label, x + padding, currentY + padding, { width: col1Width - padding * 2 });
+
+    if (row.label === 'Code') {
       doc.fillColor(COLORS.accent);
+    } else {
+      doc.fillColor(COLORS.darkText);
     }
-    
-    doc.text(value, x + 120, currentY + padding);
-    doc.fillColor(COLORS.darkText);
-    
+
+    doc.fontSize(valueFontSize);
+    doc.text(row.value, x + col1Width + padding, currentY + padding, { width: col2Width - padding * 2 });
+
+    // Horizontal divider
+    doc.moveTo(x, currentY + rowHeight)
+       .lineTo(x + tableWidth, currentY + rowHeight)
+       .lineWidth(0.5)
+       .strokeColor(COLORS.border)
+       .stroke();
+
     currentY += rowHeight;
+    totalHeight += rowHeight;
   });
 
   // Outer border
-  doc.rect(x, y, tableWidth, rowHeight * rows.length)
+  doc.rect(x, y, tableWidth, totalHeight)
      .lineWidth(1)
      .strokeColor(COLORS.border)
      .stroke();
 
   // Vertical divider
-  doc.moveTo(x + 110, y)
-     .lineTo(x + 110, y + rowHeight * rows.length)
+  doc.moveTo(x + col1Width, y)
+     .lineTo(x + col1Width, y + totalHeight)
      .lineWidth(0.5)
      .strokeColor(COLORS.border)
      .stroke();
 
-  // Middle horizontal divider (between rows)
-  doc.moveTo(x, y + rowHeight)
-     .lineTo(x + tableWidth, y + rowHeight)
-     .lineWidth(0.5)
-     .strokeColor(COLORS.border)
-     .stroke();
+  // Reset font
+  doc.fillColor(COLORS.darkText).fontSize(12);
 
   return currentY + 10;
 };
@@ -1104,7 +1123,7 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 100;
+    const tableHeightApprox = 150;
     const diagramHeight = imgSize + tableHeightApprox;
 
     if (firstPagePaths > 0) {
@@ -1120,6 +1139,8 @@ export const generatePdfDownload = async (req, res) => {
 
         try {
           const pathData = validPaths[i];
+          const girth = calculateGirth(pathData);
+          const qxl = formatQxL(groupedQuantitiesAndLengths[i]);
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
@@ -1141,11 +1162,11 @@ export const generatePdfDownload = async (req, res) => {
 
           // Property table first (on top)
           const tableY = yPos;
-          const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+          const tableX = x + (imgSize - 250) / 2; // Center table under diagram
+          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, girth, qxl);
 
           // Diagram below table
-          const imageY = tableEndY + 15; // Added spacing between table and diagram
+          const imageY = tableEndY; // Removed spacing
           doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
 
           // Removed border around diagram and property table
@@ -1183,6 +1204,8 @@ export const generatePdfDownload = async (req, res) => {
 
           try {
             const pathData = validPaths[i];
+            const girth = calculateGirth(pathData);
+            const qxl = formatQxL(groupedQuantitiesAndLengths[i]);
             const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
             const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
@@ -1204,11 +1227,11 @@ export const generatePdfDownload = async (req, res) => {
 
             // Property table first (on top)
             const tableY = yPos;
-            const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+            const tableX = x + (imgSize - 250) / 2; // Center table under diagram
+            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, girth, qxl);
 
             // Diagram below table
-            const imageY = tableEndY + 15; // Added spacing between table and diagram
+            const imageY = tableEndY; // Removed spacing
             doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
 
             // Removed border around diagram and property table
