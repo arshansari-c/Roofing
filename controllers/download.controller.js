@@ -1243,15 +1243,20 @@ export const generatePdfDownload = async (req, res) => {
           const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
           const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
-          // Convert SVG to PNG with higher resolution
+          // Convert SVG to PNG with optimized settings
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: imgSize * 5,
-              height: imgSize * 5,
+              width: imgSize * 4, // Reduced multiplier for optimization (960px at 300DPI equivalent)
+              height: imgSize * 4,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255, alpha: 1 },
             })
-            .png({ quality: 100, compressionLevel: 0, density: 300 })
+            .png({ 
+              quality: 100, 
+              compressionLevel: 9, // Max compression
+              effort: 10, // Max effort for compression
+              palette: true // Use palette for color reduction (good for diagrams)
+            })
             .toBuffer();
 
           // Embed image in PDF
@@ -1316,15 +1321,20 @@ export const generatePdfDownload = async (req, res) => {
             const bounds = calculateBounds(pathData, scale, showBorder, borderOffsetDirection);
             const svgString = generateSvgString(pathData, bounds, scale, showBorder, borderOffsetDirection);
 
-            // Convert SVG to PNG with higher resolution
+            // Convert SVG to PNG with optimized settings
             const imageBuffer = await sharp(Buffer.from(svgString))
               .resize({
-                width: imgSize * 5,
-                height: imgSize * 5,
+                width: imgSize * 4, // Reduced multiplier for optimization (960px at 300DPI equivalent)
+                height: imgSize * 4,
                 fit: 'contain',
                 background: { r: 255, g: 255, b: 255, alpha: 1 },
               })
-              .png({ quality: 100, compressionLevel: 0, density: 300 })
+              .png({ 
+                quality: 100, 
+                compressionLevel: 9, // Max compression
+                effort: 10, // Max effort for compression
+                palette: true // Use palette for color reduction (good for diagrams)
+              })
               .toBuffer();
 
             // Embed image in PDF
