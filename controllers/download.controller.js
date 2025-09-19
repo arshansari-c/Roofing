@@ -853,7 +853,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const tableWidth = 230;
   const minRowHeight = 24;
   const colWidths = [20, 80, 40, 30, 60];
-  const headerFontSize = 10;
+  const headerFontSize = 7;
   const fontSize = 12;
   const headers = ['', 'Colour / Material', 'CODE', 'F', 'GIRTH'];
 
