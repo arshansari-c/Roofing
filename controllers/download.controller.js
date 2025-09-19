@@ -1184,8 +1184,8 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 100;
-    const diagramHeight = imgSize + tableHeightApprox;
+    const tableHeightApprox = 60; // Adjusted for rows * rowHeight + padding (2*24 + 12)
+    const diagramHeight = imgSize + tableHeightApprox + 10; // Added small spacing
 
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
@@ -1219,16 +1219,25 @@ export const generatePdfDownload = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Property table first (on top)
-          const tableY = yPos;
+          // Diagram first (on top)
+          const imageY = yPos;
+          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+          // Property table below diagram
+          const tableY = imageY + imgH + 5; // Small spacing between image and table
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
           const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-          // Diagram below table
-          const imageY = tableEndY; // Removed spacing
-          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+          // Draw professional frame around the entire unit (diagram + table)
+          const frameX = x;
+          const frameY = yPos;
+          const frameWidth = imgSize;
+          const frameHeight = imgH + (24 * 2) + 10; // imgH + rowHeight * rows + padding
+          doc.rect(frameX, frameY, frameWidth, frameHeight)
+            .lineWidth(0.5)
+            .strokeColor(COLORS.border)
+            .stroke();
 
-          // Removed border around diagram and property table
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
@@ -1282,16 +1291,25 @@ export const generatePdfDownload = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
 
-            // Property table first (on top)
-            const tableY = yPos;
+            // Diagram first (on top)
+            const imageY = yPos;
+            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+            // Property table below diagram
+            const tableY = imageY + imgH + 5; // Small spacing between image and table
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
             const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-            // Diagram below table
-            const imageY = tableEndY; // Removed spacing
-            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+            // Draw professional frame around the entire unit (diagram + table)
+            const frameX = x;
+            const frameY = yPos;
+            const frameWidth = imgSize;
+            const frameHeight = imgH + (24 * 2) + 10; // imgH + rowHeight * rows + padding
+            doc.rect(frameX, frameY, frameWidth, frameHeight)
+              .lineWidth(0.5)
+              .strokeColor(COLORS.border)
+              .stroke();
 
-            // Removed border around diagram and property table
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
