@@ -848,57 +848,79 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .stroke();
 };
 
-// Draw simplified property table below each diagram (only color/material and code) (improved: better padding, no outer border for blending into frame)
-const drawDiagramPropertyTable = (doc, x, y, pathData) => {
+// Draw simplified property table below each diagram (modified to match photo: horizontal layout with #, Colour/Material, CODE, F, GIRTH, and Q x L T below)
+const drawDiagramPropertyTable = (doc, x, y, pathData, index, quantitiesAndLengths) => {
   const tableWidth = 230;
   const rowHeight = 24;
-  const padding = 10;
-  const fontSize = 12;
+  const colWidths = [20, 80, 40, 30, 60]; // Sum 230
+  const headers = ['#', 'Colour/Material', 'CODE', 'F', 'GIRTH'];
+  const f = calculateTotalFolds(pathData);
+  const girth = parseFloat(calculateGirth(pathData)).toFixed(0); // Remove .00 and no mm
+  const values = [`${index + 1}`, pathData.color || 'N/A', pathData.code || 'N/A', f, girth];
+  const fontSize = 10;
 
-  // Data rows - only color and code
-  const rows = [
-    ['Colour/Material', pathData.color || 'N/A'],
-    ['Code', pathData.code || 'N/A']
-  ];
+  // Draw horizontal lines
+  for (let row = 0; row <= 2; row++) { // 0,1,2 for top, middle, bottom
+    doc.moveTo(x, y + row * rowHeight)
+       .lineTo(x + tableWidth, y + row * rowHeight)
+       .lineWidth(0.5)
+       .strokeColor(COLORS.border)
+       .stroke();
+  }
 
-  doc.font(FONTS.tableBody)
-     .fontSize(fontSize)
-     .fillColor(COLORS.darkText);
+  // Draw vertical lines
+  let colX = x;
+  for (let col = 0; col <= headers.length; col++) {
+    doc.moveTo(colX, y)
+       .lineTo(colX, y + 2 * rowHeight)
+       .lineWidth(0.5)
+       .strokeColor(COLORS.border)
+       .stroke();
+    if (col < headers.length) colX += colWidths[col];
+  }
 
-  let currentY = y;
-  rows.forEach(([label, value], index) => {
-    doc.text(label, x + 5, currentY + padding);
-    
-    // Highlight code with accent color
-    if (label === 'Code') {
-      doc.fillColor(COLORS.accent);
+  // Draw headers and values
+  for (let row = 0; row < 2; row++) {
+    let currentX = x;
+    const isHeader = row === 0;
+    doc.font(isHeader ? FONTS.tableHeader : FONTS.tableBody)
+       .fontSize(fontSize)
+       .fillColor(COLORS.darkText);
+    for (let col = 0; col < headers.length; col++) {
+      const text = isHeader ? headers[col] : values[col];
+      let align = 'center';
+      if (col === 1) align = 'left'; // Colour left-aligned
+      if (!isHeader && col === 2) { // Highlight code
+        doc.fillColor(COLORS.accent);
+      } else {
+        doc.fillColor(COLORS.darkText);
+      }
+      const cellWidth = colWidths[col] - 10;
+      const textY = y + row * rowHeight + (rowHeight / 2) - (fontSize / 2);
+      doc.text(text, currentX + 5, textY, { width: cellWidth, align });
+      currentX += colWidths[col];
     }
-    
-    doc.text(value, x + 120, currentY + padding);
-    doc.fillColor(COLORS.darkText);
-    
-    currentY += rowHeight;
+  }
+
+  let currentY = y + 2 * rowHeight;
+
+  // Draw Q x L and T below the table
+  const qxl = formatQxL(quantitiesAndLengths);
+  let totalM = 0;
+  quantitiesAndLengths.forEach(item => {
+    totalM += parseFloat(item.quantity) * parseFloat(item.length) / 1000;
   });
+  totalM = totalM.toFixed(1);
+  currentY += 5;
+  doc.font(FONTS.tableBody)
+     .fontSize(12)
+     .fillColor(COLORS.darkText)
+     .text(`Q x L ${qxl}`, x + 5, currentY);
+  const tText = `T - ${totalM}`;
+  const tWidth = doc.widthOfString(tText);
+  doc.text(tText, x + tableWidth - tWidth - 5, currentY);
 
-  // No outer border (removed for blending into frame)
-  // doc.rect(x, y, tableWidth, rowHeight * rows.length)
-  //    .lineWidth(1)
-  //    .strokeColor(COLORS.border)
-  //    .stroke();
-
-  // Vertical divider
-  doc.moveTo(x + 110, y)
-     .lineTo(x + 110, y + rowHeight * rows.length)
-     .lineWidth(0.5)
-     .strokeColor(COLORS.border)
-     .stroke();
-
-  // Middle horizontal divider (between rows)
-  doc.moveTo(x, y + rowHeight)
-     .lineTo(x + tableWidth, y + rowHeight)
-     .lineWidth(0.5)
-     .strokeColor(COLORS.border)
-     .stroke();
+  currentY += 20;
 
   return currentY;
 };
@@ -1184,7 +1206,7 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 48; // Exact table height (2 rows * 24)
+    const tableHeightApprox = 68; // Increased for new table layout + QxL (2 rows *24 +20)
     const diagramHeight = imgSize + tableHeightApprox;
 
     if (firstPagePaths > 0) {
@@ -1226,7 +1248,7 @@ export const generatePdfDownload = async (req, res) => {
           // Property table below diagram (no gap)
           const tableY = imageY + imgH;
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+          drawDiagramPropertyTable(doc, tableX, tableY, pathData, i, groupedQuantitiesAndLengths[i]);
 
           // Draw professional frame around diagram and properties
           const framePadding = 5;
@@ -1299,7 +1321,7 @@ export const generatePdfDownload = async (req, res) => {
             // Property table below diagram (no gap)
             const tableY = imageY + imgH;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+            drawDiagramPropertyTable(doc, tableX, tableY, pathData, i, groupedQuantitiesAndLengths[i]);
 
             // Draw professional frame around diagram and properties
             const framePadding = 5;
