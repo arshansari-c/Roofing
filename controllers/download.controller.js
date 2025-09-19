@@ -276,10 +276,10 @@ const calculateGirth = (path) => {
   return totalLength.toFixed(2);
 };
 
-// Helper function to format Q x L (unchanged)
+// Helper function to format Q x L (modified to match photo format with comma thousands separator and space)
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
-  return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(',');
+  return quantitiesAndLengths.map(item => `${item.quantity} x ${parseFloat(item.length).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`).join('   ');
 };
 
 // Generate SVG string without arrows at line ends (restored border drawing)
@@ -848,79 +848,75 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .stroke();
 };
 
-// Draw simplified property table below each diagram (modified to match photo: horizontal layout with #, Colour/Material, CODE, F, GIRTH, and Q x L T below)
-const drawDiagramPropertyTable = (doc, x, y, pathData, index, quantitiesAndLengths) => {
+// Draw property table below each diagram to match the photo (with #, Colour/Material, CODE, F, GIRTH in table, Q x L and T below)
+const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const tableWidth = 230;
   const rowHeight = 24;
-  const colWidths = [20, 80, 40, 30, 60]; // Sum 230
-  const headers = ['#', 'Colour/Material', 'CODE', 'F', 'GIRTH'];
-  const f = calculateTotalFolds(pathData);
-  const girth = parseFloat(calculateGirth(pathData)).toFixed(0); // Remove .00 and no mm
-  const values = [`${index + 1}`, pathData.color || 'N/A', pathData.code || 'N/A', f, girth];
-  const fontSize = 10;
+  const colWidths = [20, 80, 40, 30, 60];
+  const headerFontSize = 10;
+  const fontSize = 12;
+  const headers = ['1', 'Colour / Material', 'CODE', 'F', 'GIRTH']; // Static '1' as in photo, but we'll override with dynamic #
 
-  // Draw horizontal lines
-  for (let row = 0; row <= 2; row++) { // 0,1,2 for top, middle, bottom
-    doc.moveTo(x, y + row * rowHeight)
-       .lineTo(x + tableWidth, y + row * rowHeight)
-       .lineWidth(0.5)
-       .strokeColor(COLORS.border)
-       .stroke();
-  }
+  const totalFolds = calculateTotalFolds(pathData).toString();
+  const girth = calculateGirth(pathData);
+  const color = pathData.color || 'Shale Grey';
+  const code = pathData.code || '';
+  const num = (pathIndex + 1).toString();
 
-  // Draw vertical lines
-  let colX = x;
-  for (let col = 0; col <= headers.length; col++) {
-    doc.moveTo(colX, y)
-       .lineTo(colX, y + 2 * rowHeight)
-       .lineWidth(0.5)
-       .strokeColor(COLORS.border)
-       .stroke();
-    if (col < headers.length) colX += colWidths[col];
-  }
+  // Override header for # with empty or adjust
+  headers[0] = ''; // No header for #
 
-  // Draw headers and values
-  for (let row = 0; row < 2; row++) {
-    let currentX = x;
-    const isHeader = row === 0;
-    doc.font(isHeader ? FONTS.tableHeader : FONTS.tableBody)
-       .fontSize(fontSize)
-       .fillColor(COLORS.darkText);
-    for (let col = 0; col < headers.length; col++) {
-      const text = isHeader ? headers[col] : values[col];
-      let align = 'center';
-      if (col === 1) align = 'left'; // Colour left-aligned
-      if (!isHeader && col === 2) { // Highlight code
-        doc.fillColor(COLORS.accent);
-      } else {
-        doc.fillColor(COLORS.darkText);
-      }
-      const cellWidth = colWidths[col] - 10;
-      const textY = y + row * rowHeight + (rowHeight / 2) - (fontSize / 2);
-      doc.text(text, currentX + 5, textY, { width: cellWidth, align });
-      currentX += colWidths[col];
-    }
-  }
-
-  let currentY = y + 2 * rowHeight;
-
-  // Draw Q x L and T below the table
-  const qxl = formatQxL(quantitiesAndLengths);
-  let totalM = 0;
-  quantitiesAndLengths.forEach(item => {
-    totalM += parseFloat(item.quantity) * parseFloat(item.length) / 1000;
+  // Draw header row (as in photo)
+  let currentY = y;
+  doc.font(FONTS.tableHeader).fontSize(headerFontSize).fillColor(COLORS.darkText);
+  let currentX = x;
+  headers.forEach((h, i) => {
+    doc.text(h, currentX + 2, currentY + (rowHeight / 4), { width: colWidths[i] - 4, align: 'center' });
+    currentX += colWidths[i];
   });
-  totalM = totalM.toFixed(1);
-  currentY += 5;
-  doc.font(FONTS.tableBody)
-     .fontSize(12)
-     .fillColor(COLORS.darkText)
-     .text(`Q x L ${qxl}`, x + 5, currentY);
-  const tText = `T - ${totalM}`;
-  const tWidth = doc.widthOfString(tText);
-  doc.text(tText, x + tableWidth - tWidth - 5, currentY);
+  currentY += rowHeight;
 
-  currentY += 20;
+  // Draw data row
+  const row = [num, color, code, totalFolds, girth];
+  doc.font(FONTS.tableBody).fontSize(fontSize).fillColor(COLORS.darkText);
+  currentX = x;
+  row.forEach((val, i) => {
+    const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
+    if (i === 2) { // Code accent
+      doc.fillColor(COLORS.accent);
+    }
+    doc.text(val, currentX + 2, currentY + (rowHeight / 4), { width: colWidths[i] - 4, align });
+    doc.fillColor(COLORS.darkText);
+    currentX += colWidths[i];
+  });
+  currentY += rowHeight;
+
+  // Draw borders (horizontal and vertical lines)
+  doc.lineWidth(0.5).strokeColor(COLORS.border);
+  // Horizontal
+  doc.moveTo(x, y).lineTo(x + tableWidth, y).stroke();
+  doc.moveTo(x, y + rowHeight).lineTo(x + tableWidth, y + rowHeight).stroke();
+  doc.moveTo(x, y + rowHeight * 2).lineTo(x + tableWidth, y + rowHeight * 2).stroke();
+  // Vertical
+  currentX = x;
+  for (let i = 0; i <= colWidths.length; i++) {
+    doc.moveTo(currentX, y).lineTo(currentX, y + rowHeight * 2).stroke();
+    if (i < colWidths.length) currentX += colWidths[i];
+  }
+
+  // Below table: Q x L and T -
+  const qxlStr = formatQxL(qxlGroup);
+  let totalM = 0;
+  qxlGroup.forEach(item => {
+    totalM += item.quantity * parseFloat(item.length) / 1000;
+  });
+  const totalStr = totalM.toFixed(1);
+
+  doc.font(FONTS.body).fontSize(11).fillColor(COLORS.darkText);
+  doc.text(`Q x L ${qxlStr}`, x, currentY + 5);
+  doc.text(`T - ${totalStr}`, x + tableWidth - 60, currentY + 5, { align: 'right', width: 60 });
+
+  currentY += 20; // Space for Q x L line
 
   return currentY;
 };
@@ -1206,7 +1202,7 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 68; // Increased for new table layout + QxL (2 rows *24 +20)
+    const tableHeightApprox = 48 + 20; // Adjusted for table (48) + Q x L line (20)
     const diagramHeight = imgSize + tableHeightApprox;
 
     if (firstPagePaths > 0) {
@@ -1248,7 +1244,7 @@ export const generatePdfDownload = async (req, res) => {
           // Property table below diagram (no gap)
           const tableY = imageY + imgH;
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          drawDiagramPropertyTable(doc, tableX, tableY, pathData, i, groupedQuantitiesAndLengths[i]);
+          drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
           // Draw professional frame around diagram and properties
           const framePadding = 5;
@@ -1321,7 +1317,7 @@ export const generatePdfDownload = async (req, res) => {
             // Property table below diagram (no gap)
             const tableY = imageY + imgH;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            drawDiagramPropertyTable(doc, tableX, tableY, pathData, i, groupedQuantitiesAndLengths[i]);
+            drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
             // Draw professional frame around diagram and properties
             const framePadding = 5;
