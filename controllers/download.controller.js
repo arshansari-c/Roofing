@@ -872,36 +872,28 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .stroke();
 };
 
-// Draw simplified property table below each diagram (only color/material and code) - Fixed positioning and styling for professional UI
+// Draw simplified property table below each diagram (only color/material and code)
 const drawDiagramPropertyTable = (doc, x, y, pathData) => {
   const tableWidth = 230;
   const rowHeight = 24;
   const padding = 10;
   const fontSize = 12;
-  const tableX = x; // Align directly under the image for centered alignment
-  const tableY = y; // Start position below image
 
-  // Outer border with subtle shadow effect (professional touch)
-  doc.rect(tableX - 2, tableY - 2, tableWidth + 4, rowHeight * 3 + 20, { radius: 3 }) // Rounded corners
-     .lineWidth(1)
-     .strokeColor(COLORS.border)
-     .stroke();
-
-  // Table header background
-  doc.rect(tableX, tableY, tableWidth, rowHeight)
-     .fill(COLORS.tableHeader)
-     .strokeColor(COLORS.border)
-     .lineWidth(0.5)
-     .stroke();
-
-  // Header text
+  // Table header
   doc.font(FONTS.tableHeader)
-     .fontSize(fontSize + 1)
+     .fontSize(fontSize)
      .fillColor(COLORS.primary);
-  doc.text('PROPERTY', tableX + padding, tableY + padding / 2);
-  doc.text('VALUE', tableX + 120, tableY + padding / 2);
+  doc.text('PROPERTY', x + 5, y + padding);
+  doc.text('VALUE', x + 120, y + padding);
+  y += rowHeight;
 
-  let currentY = tableY + rowHeight + 5;
+  // Horizontal divider
+  doc.moveTo(x, y)
+     .lineTo(x + tableWidth, y)
+     .strokeColor(COLORS.border)
+     .lineWidth(1)
+     .stroke();
+  y += 5;
 
   // Data rows - only color and code
   const rows = [
@@ -914,45 +906,33 @@ const drawDiagramPropertyTable = (doc, x, y, pathData) => {
      .fillColor(COLORS.darkText);
 
   rows.forEach(([label, value], index) => {
-    // Alternate subtle row shading
-    if (index % 2 === 1) {
-      doc.rect(tableX, currentY, tableWidth, rowHeight)
-         .fill(COLORS.tableRow)
-         .strokeColor(COLORS.border)
-         .lineWidth(0.5)
-         .stroke();
-    }
-
-    // Label
-    doc.text(label + ':', tableX + padding, currentY + padding / 2);
-
-    // Value with accent for code
+    doc.text(label, x + 5, y + padding);
+    
+    // Highlight code with accent color
     if (label === 'Code') {
-      doc.fillColor(COLORS.accent).font(FONTS.tableHeader);
-      doc.text(value, tableX + 120, currentY + padding / 2);
-      doc.fillColor(COLORS.darkText).font(FONTS.tableBody);
-    } else {
-      doc.text(value, tableX + 120, currentY + padding / 2);
+      doc.fillColor(COLORS.accent);
     }
-
-    // Vertical divider line
-    doc.moveTo(tableX + 110, currentY)
-       .lineTo(tableX + 110, currentY + rowHeight)
-       .lineWidth(0.5)
-       .strokeColor(COLORS.border)
-       .stroke();
-
-    currentY += rowHeight;
+    
+    doc.text(value, x + 120, y + padding);
+    doc.fillColor(COLORS.darkText);
+    
+    y += rowHeight;
   });
 
-  // Bottom border
-  doc.moveTo(tableX, currentY)
-     .lineTo(tableX + tableWidth, currentY)
+  // Outer border
+  doc.rect(x, y - rowHeight * rows.length - 20, tableWidth, rowHeight * rows.length + 25)
      .lineWidth(1)
      .strokeColor(COLORS.border)
      .stroke();
 
-  return currentY + 10; // Return the end position for layout
+  // Vertical divider
+  doc.moveTo(x + 110, y - rowHeight * rows.length - 20)
+     .lineTo(x + 110, y)
+     .lineWidth(0.5)
+     .strokeColor(COLORS.border)
+     .stroke();
+
+  return y + 10;
 };
 
 // Helper function to draw summary table (with dynamic row heights and adjusted totals position)
@@ -1245,7 +1225,7 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * (imgSize + gap + 100); // Increased spacing for table
+        const yPos = startY + row * (imgSize + gap + 80); // Reduced spacing for property table
 
         try {
           const pathData = validPaths[i];
@@ -1263,8 +1243,8 @@ export const generatePdfDownload = async (req, res) => {
             .png({ quality: 100, compressionLevel: 0, density: 300 })
             .toBuffer();
 
-          // Border around diagram only (tightened to image bounds, excluding table)
-          doc.rect(x - 3, yPos - 3, imgSize + 6, imgSize + 6)
+          // Border around diagram with shadow simulation
+          doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
              .lineWidth(1)
              .strokeColor(COLORS.border)
              .stroke();
@@ -1277,16 +1257,16 @@ export const generatePdfDownload = async (req, res) => {
           // Image
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
-          // Property table below image - aligned under image, increased spacing
-          const infoY = yPos + imgH + 25; // Increased spacing from image
-          const tableEndY = drawDiagramPropertyTable(doc, x, infoY, pathData);
+          // Property table below image - simplified to only color and code
+          const infoY = yPos + imgH + 15; // Reduced spacing
+          drawDiagramPropertyTable(doc, x + 35, infoY, pathData);
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
             .text(`Image unavailable`, x, yPos);
         }
       }
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 100); // Adjusted for table height
+      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * (imgSize + gap + 80);
     }
 
     // Remaining images: 1 per page on new pages, with diagram centered and table below
@@ -1321,8 +1301,8 @@ export const generatePdfDownload = async (req, res) => {
               .png({ quality: 100, compressionLevel: 0, density: 300 })
               .toBuffer();
 
-            // Border around diagram only (tightened)
-            doc.rect(x - 3, yPos - 3, imgSize + 6, imgSize + 6)
+            // Border around diagram
+            doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
                .lineWidth(1)
                .strokeColor(COLORS.border)
                .stroke();
@@ -1335,10 +1315,10 @@ export const generatePdfDownload = async (req, res) => {
             // Image
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
-            // Property table below image - aligned and spaced
-            const infoY = yPos + imgH + 25;
-            const tableEndY = drawDiagramPropertyTable(doc, x, infoY, pathData);
-            y = tableEndY + 20; // Position for next element with extra space
+            // Property table below image - simplified to only color and code
+            const infoY = yPos + imgH + 15;
+            drawDiagramPropertyTable(doc, x + 35, infoY, pathData);
+            y = infoY + 80; // Position for next element
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
