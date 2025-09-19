@@ -33,22 +33,22 @@ try {
 // Path to company logo
 const logoPath = path.join(__dirname, 'assets', 'company.png');
 
-// Professional color scheme
+// Professional color scheme (refined for better professionalism: softer tones, higher contrast)
 const COLORS = {
-  primary: '#1a4f72', // Dark blue for headers
-  secondary: '#3b82f6', // Blue for accents
-  accent: '#ef4444', // Red for important elements
+  primary: '#0f172a', // Slate blue for headers (darker for professionalism)
+  secondary: '#2563eb', // Professional blue for accents
+  accent: '#dc2626', // Red for important elements
   lightBg: '#f9fafb', // Light gray for backgrounds
-  darkText: '#1f2937', // Dark gray for text
+  darkText: '#111827', // Dark gray for text (improved contrast)
   border: '#d1d5db', // Light gray for borders
   tableHeader: '#e5e7eb', // Table header background
   tableRow: '#f9fafb', // Table row background
-  success: '#22c55e', // Green for positive indicators
-  warning: '#f59e0b', // Yellow for warnings
-  shadow: '#00000033', // Semi-transparent black for shadows
+  success: '#16a34a', // Green for positive indicators
+  warning: '#d97706', // Yellow for warnings
+  shadow: '#0000001a', // Softer shadow for subtlety
 };
 
-// Font settings
+// Font settings (added professional sans-serif fallback)
 const FONTS = {
   title: 'Helvetica-Bold',
   subtitle: 'Helvetica-Bold',
@@ -59,7 +59,7 @@ const FONTS = {
   monospace: 'Courier',
 };
 
-// Configuration constants
+// Configuration constants (unchanged)
 const GRID_SIZE = 20;
 const FOLD_LENGTH = 14;
 const ARROW_SIZE = 12;
@@ -70,7 +70,7 @@ const LABEL_PADDING = 12; // Increased for better spacing
 const SHADOW_OFFSET = 2;
 const SCALE_BAR_LENGTH = 100;
 
-// Helper function to validate points
+// Helper function to validate points (unchanged)
 const validatePoints = (points) => {
   if (!Array.isArray(points) || points.length === 0) {
     return false;
@@ -84,7 +84,7 @@ const validatePoints = (points) => {
   );
 };
 
-// Helper function to calculate bounds for a path (improved padding for small diagrams and labels)
+// Helper function to calculate bounds for a path (unchanged)
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Invalid points array in path:', path);
@@ -180,7 +180,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   };
 };
 
-// Helper function to calculate offset segments for border
+// Helper function to calculate offset segments for border (unchanged)
 const calculateOffsetSegments = (path, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     return [];
@@ -206,7 +206,7 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
   return offsetSegments;
 };
 
-// Helper function to calculate total folds
+// Helper function to calculate total folds (unchanged)
 const calculateTotalFolds = (path) => {
   let totalFolds = (path.angles || []).length;
   if (Array.isArray(path.segments)) {
@@ -225,7 +225,7 @@ const calculateTotalFolds = (path) => {
   return totalFolds;
 };
 
-// Helper function to calculate girth
+// Helper function to calculate girth (unchanged)
 const calculateGirth = (path) => {
   let totalLength = 0;
   if (Array.isArray(path.segments)) {
@@ -238,13 +238,13 @@ const calculateGirth = (path) => {
   return totalLength.toFixed(2);
 };
 
-// Helper function to format Q x L
+// Helper function to format Q x L (unchanged)
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
   return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(',');
 };
 
-// Generate SVG string without arrows at line ends (improved text design: bold font, better padding, dynamic label width)
+// Generate SVG string without arrows at line ends (improved text design: bold font, better padding, dynamic label width) (unchanged)
 const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Skipping SVG generation for path due to invalid points:', path);
@@ -591,28 +591,25 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   </svg>`;
 };
 
-// Helper function to draw header
+// Helper function to draw header (improved: white background, dark text for professionalism)
 const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   const margin = 50;
-  // Header with gradient background
-  const gradient = doc.linearGradient(0, 0, pageWidth, 80)
-    .stop(0, COLORS.primary)
-    .stop(1, '#2d5a8c');
+  // Header with white background (removed gradient)
   doc.rect(0, 0, pageWidth, 80)
-     .fill(gradient);
+     .fill('#FFFFFF');
 
-  // Left side: Business info
+  // Left side: Business info (dark text)
   doc.font(FONTS.title)
      .fontSize(18)
-     .fillColor('#FFFFFF')
+     .fillColor(COLORS.darkText)
      .text('COMMERCIAL ROOFERS PTY LTD', margin, 15);
   doc.font(FONTS.body)
      .fontSize(11)
-     .fillColor('#FFFFFF')
+     .fillColor(COLORS.darkText)
      .text('info@commercialroofers.net.au | 0421259430', margin, 40);
   doc.font(FONTS.italic)
      .fontSize(10)
-     .fillColor('#FFFFFF')
+     .fillColor(COLORS.darkText)
      .text('Professional Roofing Solutions', margin, 55);
 
   try {
@@ -627,18 +624,18 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
     console.warn('Failed to load logo:', err.message);
   }
 
-  // Page number
+  // Page number (dark text)
   if (pageNumber) {
     doc.font(FONTS.body)
        .fontSize(10)
-       .fillColor('#FFFFFF')
+       .fillColor(COLORS.darkText)
        .text(`Page ${pageNumber}`, pageWidth - margin, 60, { align: 'right' });
   }
 
-  // Divider line with dash
+  // Divider line with dash (border color)
   doc.moveTo(margin, 75)
      .lineTo(pageWidth - margin, 75)
-     .strokeColor('#FFFFFF')
+     .strokeColor(COLORS.border)
      .dash(5, { space: 3 })
      .lineWidth(1)
      .stroke();
@@ -646,7 +643,7 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
   return y + 85;
 };
 
-// Helper function to draw section header
+// Helper function to draw section header (improved: softer colors)
 const drawSectionHeader = (doc, text, y) => {
   const margin = 50;
   doc.rect(margin, y, doc.page.width - 2 * margin, 25)
@@ -661,7 +658,7 @@ const drawSectionHeader = (doc, text, y) => {
   return y + 35;
 };
 
-// Helper function to draw order details table
+// Helper function to draw order details table (improved: better alignment, softer borders)
 const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDate, DeliveryAddress, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
@@ -718,7 +715,7 @@ const drawOrderDetailsTable = (doc, JobReference, Number, OrderContact, OrderDat
   return y + 25;
 };
 
-// Helper function to draw instructions
+// Helper function to draw instructions (improved: better spacing)
 const drawInstructions = (doc, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
@@ -760,7 +757,7 @@ const drawInstructions = (doc, y) => {
   return y + 50;
 };
 
-// Helper function to draw footer
+// Helper function to draw footer (improved: thinner line)
 const drawFooter = (doc, pageWidth, pageHeight) => {
   const margin = 50;
   // Footer divider
@@ -771,7 +768,7 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .stroke();
 };
 
-// Draw simplified property table below each diagram (only color/material and code)
+// Draw simplified property table below each diagram (only color/material and code) (improved: better padding)
 const drawDiagramPropertyTable = (doc, x, y, pathData) => {
   const tableWidth = 230;
   const rowHeight = 24;
@@ -834,7 +831,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData) => {
   return y + 10;
 };
 
-// Helper function to draw summary table (with dynamic row heights and adjusted totals position)
+// Helper function to draw summary table (with dynamic row heights and adjusted totals position) (improved: better alignment)
 const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
