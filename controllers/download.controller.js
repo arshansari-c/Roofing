@@ -193,7 +193,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const midX_main = (parseFloat(origP1.x) + parseFloat(origP2.x)) / 2;
-          const midY_main = (parseFloat(origP1.y) + parseFloat(origP2.y)) / 2;
+          const midY_main = (parseFloat(origP1.y) + parseFloat(origP1.y)) / 2;
           const arrowNormalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
           const arrowNormalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
           const chevronBaseDistance = 10;
@@ -1216,7 +1216,7 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 100; // Approximate height for property table + spacing
+    const tableHeightApprox = 100;
     const diagramHeight = imgSize + tableHeightApprox;
 
     if (firstPagePaths > 0) {
@@ -1251,16 +1251,17 @@ export const generatePdfDownload = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Image
-          doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-
-          // Property table below image - simplified to only color and code
-          const infoY = yPos + imgH + 15; // Reduced spacing
+          // Property table first (on top)
+          const tableY = yPos;
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          const tableEndY = drawDiagramPropertyTable(doc, tableX, infoY, pathData);
+          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-          // Single border around both diagram and table
-          doc.rect(x - 5, yPos - 5, imgSize + 10, tableEndY - (yPos - 5))
+          // Diagram below table
+          const imageY = tableEndY + 10; // Reduced spacing
+          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+          // Single border around both property table and diagram
+          doc.rect(x - 5, tableY - 5, imgSize + 10, (imageY + imgH + 5) - (tableY - 5))
              .lineWidth(1)
              .strokeColor(COLORS.border)
              .stroke();
@@ -1317,16 +1318,17 @@ export const generatePdfDownload = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
 
-            // Image
-            doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
-
-            // Property table below image - simplified to only color and code
-            const infoY = yPos + imgH + 15;
+            // Property table first (on top)
+            const tableY = yPos;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            const tableEndY = drawDiagramPropertyTable(doc, tableX, infoY, pathData);
+            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-            // Single border around both diagram and table
-            doc.rect(x - 5, yPos - 5, imgSize + 10, tableEndY - (yPos - 5))
+            // Diagram below table
+            const imageY = tableEndY + 10; // Reduced spacing
+            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+            // Single border around both property table and diagram
+            doc.rect(x - 5, tableY - 5, imgSize + 10, (imageY + imgH + 5) - (tableY - 5))
                .lineWidth(1)
                .strokeColor(COLORS.border)
                .stroke();
