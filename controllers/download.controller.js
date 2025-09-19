@@ -855,7 +855,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const colWidths = [20, 80, 40, 30, 60];
   const headerFontSize = 10;
   const fontSize = 12;
-  const headers = ['1', 'Colour / Material', 'CODE', 'F', 'GIRTH']; // Static '1' as in photo, but we'll override with dynamic #
+  const headers = ['1', 'Colour', 'CODE', 'F', 'GIRTH']; // Static '1' as in photo, but we'll override with dynamic #
 
   const totalFolds = calculateTotalFolds(pathData).toString();
   const girth = calculateGirth(pathData);
