@@ -848,7 +848,7 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .stroke();
 };
 
-// Draw simplified property table below each diagram (only color/material and code) (improved: better padding)
+// Draw simplified property table below each diagram (only color/material and code) (improved: better padding, no outer border for blending into frame)
 const drawDiagramPropertyTable = (doc, x, y, pathData) => {
   const tableWidth = 230;
   const rowHeight = 24;
@@ -880,11 +880,11 @@ const drawDiagramPropertyTable = (doc, x, y, pathData) => {
     currentY += rowHeight;
   });
 
-  // Outer border
-  doc.rect(x, y, tableWidth, rowHeight * rows.length)
-     .lineWidth(1)
-     .strokeColor(COLORS.border)
-     .stroke();
+  // No outer border (removed for blending into frame)
+  // doc.rect(x, y, tableWidth, rowHeight * rows.length)
+  //    .lineWidth(1)
+  //    .strokeColor(COLORS.border)
+  //    .stroke();
 
   // Vertical divider
   doc.moveTo(x + 110, y)
@@ -900,7 +900,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData) => {
      .strokeColor(COLORS.border)
      .stroke();
 
-  return currentY + 10;
+  return currentY;
 };
 
 // Helper function to draw summary table (with dynamic row heights and adjusted totals position) (improved: better alignment)
@@ -1184,8 +1184,8 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 60; // Adjusted for rows * rowHeight + padding (2*24 + 12)
-    const diagramHeight = imgSize + tableHeightApprox + 10; // Added small spacing
+    const tableHeightApprox = 48; // Exact table height (2 rows * 24)
+    const diagramHeight = imgSize + tableHeightApprox;
 
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
@@ -1223,20 +1223,21 @@ export const generatePdfDownload = async (req, res) => {
           const imageY = yPos;
           doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
 
-          // Property table below diagram
-          const tableY = imageY + imgH + 5; // Small spacing between image and table
+          // Property table below diagram (no gap)
+          const tableY = imageY + imgH;
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+          drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-          // Draw professional frame around the entire unit (diagram + table)
-          const frameX = x;
-          const frameY = yPos;
-          const frameWidth = imgSize;
-          const frameHeight = imgH + (24 * 2) + 10; // imgH + rowHeight * rows + padding
+          // Draw professional frame around diagram and properties
+          const framePadding = 5;
+          const frameX = Math.min(x, tableX) - framePadding;
+          const frameY = yPos - framePadding;
+          const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
+          const frameHeight = imgH + tableHeightApprox + 2 * framePadding;
           doc.rect(frameX, frameY, frameWidth, frameHeight)
-            .lineWidth(0.5)
-            .strokeColor(COLORS.border)
-            .stroke();
+             .lineWidth(0.5)
+             .strokeColor(COLORS.border)
+             .stroke();
 
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
@@ -1295,20 +1296,21 @@ export const generatePdfDownload = async (req, res) => {
             const imageY = yPos;
             doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
 
-            // Property table below diagram
-            const tableY = imageY + imgH + 5; // Small spacing between image and table
+            // Property table below diagram (no gap)
+            const tableY = imageY + imgH;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+            drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-            // Draw professional frame around the entire unit (diagram + table)
-            const frameX = x;
-            const frameY = yPos;
-            const frameWidth = imgSize;
-            const frameHeight = imgH + (24 * 2) + 10; // imgH + rowHeight * rows + padding
+            // Draw professional frame around diagram and properties
+            const framePadding = 5;
+            const frameX = Math.min(x, tableX) - framePadding;
+            const frameY = yPos - framePadding;
+            const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
+            const frameHeight = imgH + tableHeightApprox + 2 * framePadding;
             doc.rect(frameX, frameY, frameWidth, frameHeight)
-              .lineWidth(0.5)
-              .strokeColor(COLORS.border)
-              .stroke();
+               .lineWidth(0.5)
+               .strokeColor(COLORS.border)
+               .stroke();
 
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
