@@ -851,11 +851,11 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 // Draw property table below each diagram to match the photo (with #, Colour/Material, CODE, F, GIRTH in table, Q x L and T below)
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const tableWidth = 230;
-  const rowHeight = 24;
+  const minRowHeight = 24;
   const colWidths = [20, 80, 40, 30, 60];
   const headerFontSize = 10;
   const fontSize = 12;
-  const headers = ['1', 'Colour', 'CODE', 'F', 'GIRTH']; // Static '1' as in photo, but we'll override with dynamic #
+  const headers = ['', 'Colour / Material', 'CODE', 'F', 'GIRTH'];
 
   const totalFolds = calculateTotalFolds(pathData).toString();
   const girth = calculateGirth(pathData);
@@ -863,44 +863,60 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const code = pathData.code || '';
   const num = (pathIndex + 1).toString();
 
-  // Override header for # with empty or adjust
-  headers[0] = ''; // No header for #
+  const row = [num, color, code, totalFolds, girth];
+  const aligns = ['center', 'left', 'center', 'center', 'center'];
 
-  // Draw header row (as in photo)
   let currentY = y;
+
+  // Draw header row
   doc.font(FONTS.tableHeader).fontSize(headerFontSize).fillColor(COLORS.darkText);
   let currentX = x;
   headers.forEach((h, i) => {
-    doc.text(h, currentX + 2, currentY + (rowHeight / 4), { width: colWidths[i] - 4, align: 'center' });
+    const opt = {width: colWidths[i] - 4, align: 'center'};
+    doc.text(h, currentX + 2, currentY + (minRowHeight / 4), opt);
     currentX += colWidths[i];
   });
-  currentY += rowHeight;
+  const headerRowHeight = minRowHeight;
+  currentY += headerRowHeight;
+
+  // Compute data row height
+  let dataMaxH = 0;
+  doc.font(FONTS.tableBody).fontSize(fontSize);
+  row.forEach((val, i) => {
+    const opt = {width: colWidths[i]-4, align: aligns[i], paragraphGap: 0, lineGap: 0};
+    const h = doc.heightOfString(val, opt);
+    dataMaxH = Math.max(dataMaxH, h);
+  });
+  const dataRowHeight = Math.max(minRowHeight, dataMaxH + 4); // small padding
 
   // Draw data row
-  const row = [num, color, code, totalFolds, girth];
-  doc.font(FONTS.tableBody).fontSize(fontSize).fillColor(COLORS.darkText);
   currentX = x;
   row.forEach((val, i) => {
-    const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
+    const align = aligns[i];
     if (i === 2) { // Code accent
       doc.fillColor(COLORS.accent);
+    } else {
+      doc.fillColor(COLORS.darkText);
     }
-    doc.text(val, currentX + 2, currentY + (rowHeight / 4), { width: colWidths[i] - 4, align });
-    doc.fillColor(COLORS.darkText);
+    const opt = {width: colWidths[i]-4, align, paragraphGap: 0, lineGap: 0};
+    const textHeight = doc.heightOfString(val, opt);
+    const textY = currentY + (dataRowHeight - textHeight) / 2;
+    doc.text(val, currentX + 2, textY, opt);
     currentX += colWidths[i];
   });
-  currentY += rowHeight;
+  doc.fillColor(COLORS.darkText); // reset
+  currentY += dataRowHeight;
 
   // Draw borders (horizontal and vertical lines)
   doc.lineWidth(0.5).strokeColor(COLORS.border);
   // Horizontal
   doc.moveTo(x, y).lineTo(x + tableWidth, y).stroke();
-  doc.moveTo(x, y + rowHeight).lineTo(x + tableWidth, y + rowHeight).stroke();
-  doc.moveTo(x, y + rowHeight * 2).lineTo(x + tableWidth, y + rowHeight * 2).stroke();
+  doc.moveTo(x, y + headerRowHeight).lineTo(x + tableWidth, y + headerRowHeight).stroke();
+  doc.moveTo(x, currentY).lineTo(x + tableWidth, currentY).stroke();
   // Vertical
   currentX = x;
   for (let i = 0; i <= colWidths.length; i++) {
-    doc.moveTo(currentX, y).lineTo(currentX, y + rowHeight * 2).stroke();
+    doc.moveTo(currentX, y).lineTo(currentX, currentY).stroke();
     if (i < colWidths.length) currentX += colWidths[i];
   }
 
@@ -913,10 +929,17 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const totalStr = totalM.toFixed(1);
 
   doc.font(FONTS.body).fontSize(11).fillColor(COLORS.darkText);
-  doc.text(`Q x L ${qxlStr}`, x, currentY + 5);
-  doc.text(`T - ${totalStr}`, x + tableWidth - 60, currentY + 5, { align: 'right', width: 60 });
+  const qxlX = x;
+  const qxlWidth = tableWidth - 60;
+  const qxlOpt = {width: qxlWidth, paragraphGap: 0, lineGap: 0};
+  const qxlText = `Q x L ${qxlStr}`;
+  const qxlH = doc.heightOfString(qxlText, qxlOpt);
+  const belowY = currentY + 5;
+  doc.text(qxlText, qxlX, belowY, qxlOpt);
+  doc.text(`T - ${totalStr}`, x + tableWidth - 60, belowY, { align: 'right', width: 60 });
 
-  currentY += 20; // Space for Q x L line
+  const belowHeight = Math.max(20, qxlH + 5);
+  currentY += belowHeight;
 
   return currentY;
 };
