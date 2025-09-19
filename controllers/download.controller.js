@@ -852,10 +852,10 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const tableWidth = 230;
   const minRowHeight = 24;
-  const colWidths = [20, 80, 40, 30, 60];
-  const headerFontSize = 7;
+  const colWidths = [20, 90, 40, 30, 50];
+  const headerFontSize = 10;
   const fontSize = 12;
-  const headers = ['', 'Colour / Material', 'CODE', 'F', 'GIRTH'];
+  const headers = ['', 'Colour/Material', 'CODE', 'F', 'GIRTH'];
 
   const totalFolds = calculateTotalFolds(pathData).toString();
   const girth = calculateGirth(pathData);
@@ -1225,8 +1225,7 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 48 + 20; // Adjusted for table (48) + Q x L line (20)
-    const diagramHeight = imgSize + tableHeightApprox;
+    const tableHeightApprox = 68; // Approximate, but actual will be used for frame
 
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
@@ -1237,7 +1236,7 @@ export const generatePdfDownload = async (req, res) => {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * diagramHeight;
+        const yPos = startY + row * (imgSize + tableHeightApprox);
 
         try {
           const pathData = validPaths[i];
@@ -1267,14 +1266,14 @@ export const generatePdfDownload = async (req, res) => {
           // Property table below diagram (no gap)
           const tableY = imageY + imgH;
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
+          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
           // Draw professional frame around diagram and properties
           const framePadding = 5;
           const frameX = Math.min(x, tableX) - framePadding;
           const frameY = yPos - framePadding;
           const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-          const frameHeight = imgH + tableHeightApprox + 2 * framePadding;
+          const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
           doc.rect(frameX, frameY, frameWidth, frameHeight)
              .lineWidth(0.5)
              .strokeColor(COLORS.border)
@@ -1287,7 +1286,7 @@ export const generatePdfDownload = async (req, res) => {
         }
       }
       const rowsCount = Math.ceil(firstPagePaths / pathsPerRow);
-      y = startY + rowsCount * diagramHeight;
+      y = startY + rowsCount * (imgSize + tableHeightApprox);
     }
 
     // Remaining images: 4 per page on new pages, in 2x2 grid
@@ -1310,7 +1309,7 @@ export const generatePdfDownload = async (req, res) => {
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
           const x = startX + col * (imgSize + gap);
-          const yPos = startY + row * diagramHeight;
+          const yPos = startY + row * (imgSize + tableHeightApprox);
 
           try {
             const pathData = validPaths[i];
@@ -1340,14 +1339,14 @@ export const generatePdfDownload = async (req, res) => {
             // Property table below diagram (no gap)
             const tableY = imageY + imgH;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
+            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
             // Draw professional frame around diagram and properties
             const framePadding = 5;
             const frameX = Math.min(x, tableX) - framePadding;
             const frameY = yPos - framePadding;
             const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-            const frameHeight = imgH + tableHeightApprox + 2 * framePadding;
+            const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
             doc.rect(frameX, frameY, frameWidth, frameHeight)
                .lineWidth(0.5)
                .strokeColor(COLORS.border)
@@ -1360,7 +1359,7 @@ export const generatePdfDownload = async (req, res) => {
           }
         }
         const rowsCount = Math.ceil(pathsThisPage / pathsPerRow);
-        y = startY + rowsCount * diagramHeight;
+        y = startY + rowsCount * (imgSize + tableHeightApprox);
       }
     }
 
