@@ -100,6 +100,18 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxY = Math.max(maxY, y);
   });
 
+  // Ensure minimum size for small diagrams
+  if (maxX - minX < 50) {
+    const centerX = (minX + maxX) / 2;
+    minX = centerX - 25;
+    maxX = centerX + 25;
+  }
+  if (maxY - minY < 50) {
+    const centerY = (minY + maxY) / 2;
+    minY = centerY - 25;
+    maxY = centerY + 25;
+  }
+
   const isLargeDiagram = (maxX - minX > 10000 || maxY - minY > 10000);
   path.segments.forEach((segment, i) => {
     if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
@@ -107,10 +119,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(segment.labelPosition.x);
     const labelY = parseFloat(segment.labelPosition.y);
-    minX = Math.min(minX, labelX - 80); // Increased fixed padding
-    maxX = Math.max(maxX, labelX + 80);
-    minY = Math.min(minY, labelY - 50);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 50);
+    minX = Math.min(minX, labelX - 50); // Increased fixed padding, removed /scale
+    maxX = Math.max(maxX, labelX + 50);
+    minY = Math.min(minY, labelY - 30);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
 
     let foldType = 'None';
     let foldLength = FOLD_LENGTH;
@@ -147,10 +159,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const foldEndY = foldBaseY + rotNormalY * foldLength;
         const foldLabelX = foldEndX + rotNormalX * 25;
         const foldLabelY = foldEndY + rotNormalY * 25;
-        minX = Math.min(minX, foldLabelX - 80, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 80, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 50, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 50, foldEndY, foldBaseY);
+        minX = Math.min(minX, foldLabelX - 50, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 50, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 30, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 30, foldEndY, foldBaseY);
       }
     }
   });
@@ -165,10 +177,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
-    minX = Math.min(minX, labelX - 80); // Consistent increased padding
-    maxX = Math.max(maxX, labelX + 80);
-    minY = Math.min(minY, labelY - 50);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 50);
+    minX = Math.min(minX, labelX - 50); // Consistent increased padding
+    maxX = Math.max(maxX, labelX + 50);
+    minY = Math.min(minY, labelY - 30);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
   });
 
   if (showBorder && path.points.length > 1) {
@@ -193,22 +205,23 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const midX_main = (parseFloat(origP1.x) + parseFloat(origP2.x)) / 2;
-          const midY_main = (parseFloat(origP1.y) + parseFloat(origP2.y)) / 2;
+          const midY_main = (parseFloat(origP1.y) + parseFloat(origP1.y)) / 2;
           const arrowNormalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
           const arrowNormalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
           const chevronBaseDistance = 10;
+          const chevronSize = 8;
           const chevronX = midX_main + arrowNormalX * chevronBaseDistance;
           const chevronY = midY_main + arrowNormalY * chevronBaseDistance;
-          minX = Math.min(minX, chevronX - CHEVRON_SIZE);
-          maxX = Math.max(maxX, chevronX + CHEVRON_SIZE);
-          minY = Math.min(minY, chevronY - CHEVRON_SIZE);
-          maxY = Math.max(maxY, chevronY + CHEVRON_SIZE);
+          minX = Math.min(minX, chevronX - chevronSize);
+          maxX = Math.max(maxX, chevronX + chevronSize);
+          minY = Math.min(minY, chevronY - chevronSize);
+          maxY = Math.max(maxY, chevronY + chevronSize);
         }
       }
     }
   }
 
-  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 80; // Increased base padding
+  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 60; // Increased base padding
   return {
     minX: minX - padding,
     minY: minY - padding,
@@ -289,8 +302,16 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
+  
+  // Adjust scale factor for small diagrams
   const targetViewBoxSize = 1200;
-  const scaleFactor = targetViewBoxSize * 0.85 / Math.max(width, height, 1);
+  let scaleFactor;
+  if (width === 0 || height === 0) {
+    scaleFactor = 1;
+  } else {
+    scaleFactor = targetViewBoxSize * 0.85 / Math.max(width, height, 1);
+  }
+  
   const offsetX = (targetViewBoxSize - width * scaleFactor) / 2;
   const offsetY = (targetViewBoxSize - height * scaleFactor) / 2;
   const viewBox = `0 0 ${targetViewBoxSize} ${targetViewBoxSize}`;
@@ -330,24 +351,24 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   for (let x = gridStartX; x <= gridEndX; x += minorGridSize) {
     const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
     const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="0.3"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="${0.3 * scaleFactor}"/>`;
   }
   for (let y = gridStartY; y <= gridEndY; y += minorGridSize) {
     const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
     const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="0.3"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="${0.3 * scaleFactor}"/>`;
   }
 
   // Major grid
   for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
     const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
     const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
   }
   for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
     const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
     const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="0.5"/>`;
+    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
   }
 
   // Generate path points and lines (removed arrow marker)
@@ -409,7 +430,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
 
   // Label design parameters (improved: dynamic width, larger height, bold text)
-  let labelWidth = 60; // Base width, will adjust dynamically
+  let labelWidth = 90; // Base width, will adjust dynamically
   const labelHeight = 36; // Slightly increased
   const labelRadius = 12;
   const fontSize = 18; // Increased for professionalism
@@ -437,7 +458,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     // Dynamic label width based on text length
     const textContent = segment.length || '';
     const approxTextWidth = textContent.length * (fontSize * 0.6); // Approximate char width
-    labelWidth = Math.max(60, approxTextWidth + 20); // Min 60, plus padding
+    labelWidth = Math.max(90, approxTextWidth + 20); // Min 90, plus padding
 
     let tailPath = '';
     if (absLabelDx > absLabelDy) {
@@ -600,7 +621,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     // Dynamic label width for angles
     const textContent = `${roundedValue}°`;
     const approxTextWidth = textContent.length * (fontSize * 0.6);
-    labelWidth = Math.max(60, approxTextWidth + 20);
+    labelWidth = Math.max(90, approxTextWidth + 20);
 
     let tailPath = '';
     if (absLabelDx > absLabelDy) {
@@ -656,7 +677,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   svgContent += `
     <g>
       <rect x="${scaleBarX}" y="${scaleBarY}" width="${scaleBarWidth}" height="${5 * scaleFactor}" fill="#000000" />
-      <text x="${scaleBarX + scaleBarWidth / 2}" y="${scaleBarY + 20}" font-size="12" fill="#000000" text-anchor="middle">
+      <text x="${scaleBarX + scaleBarWidth / 2}" y="${scaleBarY + 20 * scaleFactor}" font-size="${12 * scaleFactor}" fill="#000000" text-anchor="middle">
         Scale: ${SCALE_BAR_LENGTH} units
       </text>
     </g>
@@ -664,22 +685,22 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
   // Add title
   svgContent += `
-    <text x="${targetViewBoxSize / 2}" y="30" font-size="20" fill="${COLORS.primary}" text-anchor="middle" font-family="Helvetica-Bold, sans-serif">
+    <text x="${targetViewBoxSize / 2}" y="${30 * scaleFactor}" font-size="${20 * scaleFactor}" fill="${COLORS.primary}" text-anchor="middle" font-family="Helvetica-Bold, sans-serif">
       ${path.name || 'Flashing Diagram'}
     </text>
   `;
 
   // Add legend if folds present
   if (path.segments.some(s => s.fold && s.fold !== 'None')) {
-    const legendX = 20;
-    const legendY = targetViewBoxSize - 150;
+    const legendX = 20 * scaleFactor;
+    const legendY = targetViewBoxSize - 150 * scaleFactor;
     svgContent += `
       <g filter="url(#dropShadow)">
-        <rect x="${legendX}" y="${legendY}" width="150" height="100" fill="#FFFFFF" stroke="#000000" rx="10" />
-        <text x="${legendX + 10}" y="${legendY + 20}" font-size="14">Legend</text>
-        <text x="${legendX + 10}" y="${legendY + 40}" font-size="12">Crush: Double Chevron</text>
-        <text x="${legendX + 10}" y="${legendY + 60}" font-size="12">Hook: Curved Line</text>
-        <text x="${legendX + 10}" y="${legendY + 80}" font-size="12">Break: Zigzag</text>
+        <rect x="${legendX}" y="${legendY}" width="${150 * scaleFactor}" height="${100 * scaleFactor}" fill="#FFFFFF" stroke="#000000" rx="10" />
+        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 20 * scaleFactor}" font-size="${14 * scaleFactor}">Legend</text>
+        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 40 * scaleFactor}" font-size="${12 * scaleFactor}">Crush: Double Chevron</text>
+        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 60 * scaleFactor}" font-size="${12 * scaleFactor}">Hook: Curved Line</text>
+        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 80 * scaleFactor}" font-size="${12 * scaleFactor}">Break: Zigzag</text>
       </g>
     `;
   }
@@ -1360,7 +1381,7 @@ export const generatePdfDownload = async (req, res) => {
     doc.end();
 
     // Wait for the PDF to be written
-    await new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) {
       writeStream.on('finish', () => {
         console.log('PDF written successfully to:', pdfPath);
         resolve();
