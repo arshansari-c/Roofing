@@ -873,19 +873,18 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 };
 
 // Draw simplified property table below each diagram (only color/material and code)
-const drawDiagramPropertyTable = (doc, x, y, pathData, tableWidth = 230) => {
+const drawDiagramPropertyTable = (doc, x, y, pathData) => {
+  const tableWidth = 230;
   const rowHeight = 24;
   const padding = 10;
   const fontSize = 12;
-  const col1Width = Math.floor(tableWidth * 0.48);
-  const valueX = x + col1Width + 5;
 
   // Table header
   doc.font(FONTS.tableHeader)
      .fontSize(fontSize)
      .fillColor(COLORS.primary);
   doc.text('PROPERTY', x + 5, y + padding);
-  doc.text('VALUE', valueX, y + padding);
+  doc.text('VALUE', x + 120, y + padding);
   y += rowHeight;
 
   // Horizontal divider
@@ -914,22 +913,21 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, tableWidth = 230) => {
       doc.fillColor(COLORS.accent);
     }
     
-    doc.text(value, valueX, y + padding);
+    doc.text(value, x + 120, y + padding);
     doc.fillColor(COLORS.darkText);
     
     y += rowHeight;
   });
 
   // Outer border
-  const totalHeight = rowHeight * rows.length + 25;
-  doc.rect(x, y - rowHeight * rows.length - 20, tableWidth, totalHeight)
+  doc.rect(x, y - rowHeight * rows.length - 20, tableWidth, rowHeight * rows.length + 25)
      .lineWidth(1)
      .strokeColor(COLORS.border)
      .stroke();
 
   // Vertical divider
-  doc.moveTo(x + col1Width, y - rowHeight * rows.length - 20)
-     .lineTo(x + col1Width, y)
+  doc.moveTo(x + 110, y - rowHeight * rows.length - 20)
+     .lineTo(x + 110, y)
      .lineWidth(0.5)
      .strokeColor(COLORS.border)
      .stroke();
@@ -1188,13 +1186,8 @@ export const generatePdfDownload = async (req, res) => {
     doc.pipe(writeStream);
 
     const margin = 50;
-    const gap = 30;
-    const imgSizeFirst = 300;
-    const imgSizeRemaining = 220;
-    const tableWidthFirst = 230;
-    const tableWidthRemaining = 180;
-    const propertySpacing = 80;
-    const resMultiplier = 3; // Reduced for performance
+    const imgSize = 240; // Adjusted size to fit 2 per row
+    const gap = 15; // Adjusted gap
 
     // Add first page
     doc.addPage();
@@ -1213,7 +1206,7 @@ export const generatePdfDownload = async (req, res) => {
 
     // Image handling - 2 diagrams on first page
     const firstPageMaxPaths = 2;
-    const remainingPathsPerPage = 4;
+    const remainingPathsPerPage = 4; // 4 diagrams per subsequent page
 
     // Calculate total image pages
     const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
@@ -1222,19 +1215,20 @@ export const generatePdfDownload = async (req, res) => {
     const imagePageCount = (firstPagePaths > 0 ? 1 : 0) + remainingPagesNeeded;
     let imagePart = 1;
 
+    const pathsPerRow = 2;
+    const tableHeightApprox = 100; // Approximate height for property table + spacing
+    const diagramHeight = imgSize + tableHeightApprox;
+
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
       const startX = margin;
       const startY = y;
-      const pathsPerRow = 2;
-      const imgSize = imgSizeFirst;
-      const verticalSpacing = imgSize + gap + propertySpacing;
 
       for (let i = 0; i < firstPagePaths; i++) {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
-        const yPos = startY + row * verticalSpacing;
+        const yPos = startY + row * diagramHeight;
 
         try {
           const pathData = validPaths[i];
@@ -1244,8 +1238,8 @@ export const generatePdfDownload = async (req, res) => {
           // Convert SVG to PNG with higher resolution
           const imageBuffer = await sharp(Buffer.from(svgString))
             .resize({
-              width: imgSize * resMultiplier,
-              height: imgSize * resMultiplier,
+              width: imgSize * 5,
+              height: imgSize * 5,
               fit: 'contain',
               background: { r: 255, g: 255, b: 255, alpha: 1 },
             })
@@ -1253,34 +1247,35 @@ export const generatePdfDownload = async (req, res) => {
             .toBuffer();
 
           // Border around diagram with shadow simulation
-          const img = doc.openImage(imageBuffer);
-          const imgW = imgSize;
-          const imgH = (img.height * imgW) / img.width;
-          doc.rect(x - 5, yPos - 5, imgW + 10, imgH + 10)
+          doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
              .lineWidth(1)
              .strokeColor(COLORS.border)
              .stroke();
 
           // Embed image in PDF
+          const img = doc.openImage(imageBuffer);
+          const imgW = imgSize;
+          const imgH = (img.height * imgW) / img.width;
+
+          // Image
           doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
-          // Property table below image - centered
-          const infoY = yPos + imgH + 15;
-          const offsetX = (imgSize - tableWidthFirst) / 2;
-          drawDiagramPropertyTable(doc, x + offsetX, infoY, pathData, tableWidthFirst);
+          // Property table below image - simplified to only color and code
+          const infoY = yPos + imgH + 15; // Reduced spacing
+          const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+          drawDiagramPropertyTable(doc, tableX, infoY, pathData);
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
             .text(`Image unavailable`, x, yPos);
         }
       }
-      y = startY + Math.ceil(firstPagePaths / pathsPerRow) * verticalSpacing;
+      const rowsCount = Math.ceil(firstPagePaths / pathsPerRow);
+      y = startY + rowsCount * diagramHeight;
     }
 
-    // Remaining images: up to 4 per page on new pages, in 2x2 grid
+    // Remaining images: 4 per page on new pages, in 2x2 grid
     if (remainingPathsCount > 0) {
-      const pathsPerRow = 2;
-      const verticalSpacing = imgSizeRemaining + gap + propertySpacing;
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
         const pageNumber = doc.bufferedPageRange().count;
@@ -1289,15 +1284,17 @@ export const generatePdfDownload = async (req, res) => {
 
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
         const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
-        const numPathsThisPage = endPath - startPath;
-        const numRows = Math.ceil(numPathsThisPage / pathsPerRow);
+        const pathsThisPage = endPath - startPath;
 
-        for (let j = 0; j < numPathsThisPage; j++) {
+        const startX = margin;
+        const startY = y;
+
+        for (let j = 0; j < pathsThisPage; j++) {
           const i = startPath + j;
           const row = Math.floor(j / pathsPerRow);
           const col = j % pathsPerRow;
-          const x = margin + col * (imgSizeRemaining + gap);
-          const yPos = y + row * verticalSpacing;
+          const x = startX + col * (imgSize + gap);
+          const yPos = startY + row * diagramHeight;
 
           try {
             const pathData = validPaths[i];
@@ -1307,8 +1304,8 @@ export const generatePdfDownload = async (req, res) => {
             // Convert SVG to PNG with higher resolution
             const imageBuffer = await sharp(Buffer.from(svgString))
               .resize({
-                width: imgSizeRemaining * resMultiplier,
-                height: imgSizeRemaining * resMultiplier,
+                width: imgSize * 5,
+                height: imgSize * 5,
                 fit: 'contain',
                 background: { r: 255, g: 255, b: 255, alpha: 1 },
               })
@@ -1316,28 +1313,31 @@ export const generatePdfDownload = async (req, res) => {
               .toBuffer();
 
             // Border around diagram
-            const img = doc.openImage(imageBuffer);
-            const imgW = imgSizeRemaining;
-            const imgH = (img.height * imgW) / img.width;
-            doc.rect(x - 5, yPos - 5, imgW + 10, imgH + 10)
+            doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
                .lineWidth(1)
                .strokeColor(COLORS.border)
                .stroke();
 
             // Embed image in PDF
+            const img = doc.openImage(imageBuffer);
+            const imgW = imgSize;
+            const imgH = (img.height * imgW) / img.width;
+
+            // Image
             doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
 
-            // Property table below image - centered
+            // Property table below image - simplified to only color and code
             const infoY = yPos + imgH + 15;
-            const offsetX = (imgSizeRemaining - tableWidthRemaining) / 2;
-            drawDiagramPropertyTable(doc, x + offsetX, infoY, pathData, tableWidthRemaining);
+            const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+            drawDiagramPropertyTable(doc, tableX, infoY, pathData);
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
               .text(`Image unavailable`, x, yPos);
           }
         }
-        y = y + numRows * verticalSpacing;
+        const rowsCount = Math.ceil(pathsThisPage / pathsPerRow);
+        y = startY + rowsCount * diagramHeight;
       }
     }
 
