@@ -1145,7 +1145,7 @@ export const generatePdfDownload = async (req, res) => {
           const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
           // Diagram below table
-          const imageY = tableEndY; // Removed spacing
+          const imageY = tableEndY + 15; // Added spacing between table and diagram
           doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
 
           // Removed border around diagram and property table
@@ -1208,7 +1208,7 @@ export const generatePdfDownload = async (req, res) => {
             const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
             // Diagram below table
-            const imageY = tableEndY; // Removed spacing
+            const imageY = tableEndY + 15; // Added spacing between table and diagram
             doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
 
             // Removed border around diagram and property table
@@ -1307,4 +1307,4 @@ export const generatePdfDownload = async (req, res) => {
     console.error('GeneratePdf error:', error.message);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
-}; 
+};
