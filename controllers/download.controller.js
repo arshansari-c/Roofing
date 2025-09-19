@@ -107,10 +107,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(segment.labelPosition.x);
     const labelY = parseFloat(segment.labelPosition.y);
-    minX = Math.min(minX, labelX - 100); // Increased padding for labels
-    maxX = Math.max(maxX, labelX + 100);
-    minY = Math.min(minY, labelY - 60);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 60);
+    minX = Math.min(minX, labelX - 50); // Reduced padding for labels
+    maxX = Math.max(maxX, labelX + 50);
+    minY = Math.min(minY, labelY - 30);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
 
     let foldType = 'None';
     let foldLength = FOLD_LENGTH;
@@ -147,10 +147,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const foldEndY = foldBaseY + rotNormalY * foldLength;
         const foldLabelX = foldEndX + rotNormalX * 25;
         const foldLabelY = foldEndY + rotNormalY * 25;
-        minX = Math.min(minX, foldLabelX - 100, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 100, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 60, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 60, foldEndY, foldBaseY);
+        minX = Math.min(minX, foldLabelX - 50, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 50, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 30, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 30, foldEndY, foldBaseY);
       }
     }
   });
@@ -165,10 +165,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
-    minX = Math.min(minX, labelX - 100); // Increased padding
-    maxX = Math.max(maxX, labelX + 100);
-    minY = Math.min(minY, labelY - 60);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 60);
+    minX = Math.min(minX, labelX - 50); // Reduced padding
+    maxX = Math.max(maxX, labelX + 50);
+    minY = Math.min(minY, labelY - 30);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
   });
 
   if (showBorder && path.points.length > 1) {
@@ -209,7 +209,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
   }
 
-  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 80; // Increased base padding for small diagrams
+  const padding = isLargeDiagram ? Math.max(50, (maxX - minX) * 0.03) : 40; // Reduced base padding
   return {
     minX: minX - padding,
     minY: minY - padding,
@@ -291,7 +291,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const targetViewBoxSize = 1200;
-  const scaleFactor = targetViewBoxSize * 0.85 / Math.max(width, height, 1);
+  const scaleFactor = targetViewBoxSize * 0.95 / Math.max(width, height, 1);
   const offsetX = (targetViewBoxSize - width * scaleFactor) / 2;
   const offsetY = (targetViewBoxSize - height * scaleFactor) / 2;
   const viewBox = `0 0 ${targetViewBoxSize} ${targetViewBoxSize}`;
@@ -319,37 +319,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     </defs>
   `;
 
-  // Generate grid lines
+  // Generate grid lines (removed for cleaner diagram)
   let gridLines = '';
-  const minorGridSize = GRID_SIZE / 2;
-  const gridStartX = Math.floor(bounds.minX / GRID_SIZE) * GRID_SIZE;
-  const gridStartY = Math.floor(bounds.minY / GRID_SIZE) * GRID_SIZE;
-  const gridEndX = Math.ceil(bounds.maxX / GRID_SIZE) * GRID_SIZE;
-  const gridEndY = Math.ceil(bounds.maxY / GRID_SIZE) * GRID_SIZE;
-
-  // Minor grid
-  for (let x = gridStartX; x <= gridEndX; x += minorGridSize) {
-    const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
-    const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="${0.3 * scaleFactor}"/>`;
-  }
-  for (let y = gridStartY; y <= gridEndY; y += minorGridSize) {
-    const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
-    const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#e0e0e0" stroke-width="${0.3 * scaleFactor}"/>`;
-  }
-
-  // Major grid
-  for (let x = gridStartX; x <= gridEndX; x += GRID_SIZE) {
-    const {x: tx1, y: ty1} = transformCoord(x, gridStartY);
-    const {x: tx2, y: ty2} = transformCoord(x, gridEndY);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
-  }
-  for (let y = gridStartY; y <= gridEndY; y += GRID_SIZE) {
-    const {x: tx1, y: ty1} = transformCoord(gridStartX, y);
-    const {x: tx2, y: ty2} = transformCoord(gridEndX, y);
-    gridLines += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="#c4b7b7" stroke-width="${0.5 * scaleFactor}"/>`;
-  }
 
   // Generate path points and lines (removed arrow marker)
   let svgContent = path.points.map((point) => {
@@ -366,48 +337,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     svgContent += `<path d="M${d}" stroke="#000000" stroke-width="${2.5 * scaleFactor}" fill="none"/>`;
   }
 
-  // Generate offset segments for border
-  if (showBorder && path.points.length > 1) {
-    const offsetSegments = calculateOffsetSegments(path, borderOffsetDirection);
-    svgContent += offsetSegments.map((segment) => {
-      const {x: x1, y: y1} = transformCoord(segment.p1.x, segment.p1.y);
-      const {x: x2, y: y2} = transformCoord(segment.p2.x, segment.p2.y);
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="${3 * scaleFactor}" stroke-dasharray="${6 * scaleFactor},${4 * scaleFactor}"/>`;
-    }).join('');
-
-    const segment = offsetSegments[0];
-    if (segment) {
-      const origP1 = path.points[0];
-      const origP2 = path.points[1];
-      if (origP1 && origP2) {
-        const dx = parseFloat(origP2.x) - parseFloat(origP1.x);
-        const dy = parseFloat(origP2.y) - parseFloat(origP1.y);
-        const length = Math.sqrt(dx * dx + dy * dy);
-        if (length !== 0) {
-          const unitX = dx / length;
-          const unitY = dy / length;
-          const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
-          const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
-          const midX_main = (parseFloat(origP1.x) + parseFloat(origP2.x)) / 2;
-          const midY_main = (parseFloat(origP1.y) + parseFloat(origP2.y)) / 2;
-          const arrowNormalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
-          const arrowNormalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
-          const chevronBaseDistance = 10;
-          const chevronX = midX_main + arrowNormalX * chevronBaseDistance;
-          const chevronY = midY_main + arrowNormalY * chevronBaseDistance;
-          const {x: chevronXView, y: chevronYView} = transformCoord(chevronX, chevronY);
-          const chevronSize = 8 * scaleFactor;
-          const direction = 1;
-          const chevronPath = `
-            M${chevronXView + chevronSize * arrowNormalX * direction + chevronSize * unitX},${chevronYView + chevronSize * arrowNormalY * direction + chevronSize * unitY}
-            L${chevronXView},${chevronYView}
-            L${chevronXView + chevronSize * arrowNormalX * direction - chevronSize * unitX},${chevronYView + chevronSize * arrowNormalY * direction - chevronSize * unitY}
-            Z`;
-          svgContent += `<path d="${chevronPath}" stroke="${COLORS.accent}" stroke-width="${2 * scaleFactor}" fill="${COLORS.accent}"/>`;
-        }
-      }
-    }
-  }
+  // Generate offset segments for border (removed as per request)
+  // if (showBorder && path.points.length > 1) { ... }
 
   // Label design parameters (improved: dynamic width, larger height, bold text)
   let labelWidth = 90; // Base width, will adjust dynamically
@@ -649,41 +580,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       </g>
     `;
   }).join('');
-
-  // Add scale bar
-  const scaleBarX = targetViewBoxSize - 200;
-  const scaleBarY = targetViewBoxSize - 50;
-  const scaleBarWidth = SCALE_BAR_LENGTH * scaleFactor;
-  svgContent += `
-    <g>
-      <rect x="${scaleBarX}" y="${scaleBarY}" width="${scaleBarWidth}" height="${5 * scaleFactor}" fill="#000000" />
-      <text x="${scaleBarX + scaleBarWidth / 2}" y="${scaleBarY + 20 * scaleFactor}" font-size="${12 * scaleFactor}" fill="#000000" text-anchor="middle">
-        Scale: ${SCALE_BAR_LENGTH} units
-      </text>
-    </g>
-  `;
-
-  // Add title
-  svgContent += `
-    <text x="${targetViewBoxSize / 2}" y="${30 * scaleFactor}" font-size="${20 * scaleFactor}" fill="${COLORS.primary}" text-anchor="middle" font-family="Helvetica-Bold, sans-serif">
-      ${path.name || 'Flashing Diagram'}
-    </text>
-  `;
-
-  // Add legend if folds present
-  if (path.segments.some(s => s.fold && s.fold !== 'None')) {
-    const legendX = 20 * scaleFactor;
-    const legendY = targetViewBoxSize - 150 * scaleFactor;
-    svgContent += `
-      <g filter="url(#dropShadow)">
-        <rect x="${legendX}" y="${legendY}" width="${150 * scaleFactor}" height="${100 * scaleFactor}" fill="#FFFFFF" stroke="#000000" rx="10" />
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 20 * scaleFactor}" font-size="${14 * scaleFactor}">Legend</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 40 * scaleFactor}" font-size="${12 * scaleFactor}">Crush: Double Chevron</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 60 * scaleFactor}" font-size="${12 * scaleFactor}">Hook: Curved Line</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 80 * scaleFactor}" font-size="${12 * scaleFactor}">Break: Zigzag</text>
-      </g>
-    `;
-  }
 
   return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
     ${svgDefs}
@@ -1145,7 +1041,7 @@ export const generatePdfDownload = async (req, res) => {
     }
 
     const scale = parseFloat(projectData.scale) || 1;
-    const showBorder = projectData.showBorder || false;
+    const showBorder = false; // Overridden to false to remove inside diagram border
     const borderOffsetDirection = projectData.borderOffsetDirection || 'inside';
 
     // Initialize groupedQuantitiesAndLengths early
@@ -1186,8 +1082,14 @@ export const generatePdfDownload = async (req, res) => {
     doc.pipe(writeStream);
 
     const margin = 50;
-    const imgSize = 240; // Adjusted size to fit 2 per row
-    const gap = 15; // Adjusted gap
+    const diagramMargin = 20;
+    const imgSize = 300;
+    const gap = 0;
+    const tableApproxHeight = 80;
+    const diagramHeight = imgSize + 30;
+    const firstPageMaxPaths = 1;
+    const remainingPathsPerPage = 2;
+    const pathsPerRow = 1;
 
     // Add first page
     doc.addPage();
@@ -1204,27 +1106,18 @@ export const generatePdfDownload = async (req, res) => {
     // Instructions Section
     y = drawInstructions(doc, y);
 
-    // Image handling - 2 diagrams on first page
-    const firstPageMaxPaths = 2;
-    const remainingPathsPerPage = 4; // 4 diagrams per subsequent page
-
-    // Calculate total image pages
-    const firstPagePaths = Math.min(firstPageMaxPaths, validPaths.length);
-    const remainingPathsCount = validPaths.length - firstPagePaths;
+    // Image handling - 1 diagram on first page
+    const remainingPathsCount = validPaths.length - firstPageMaxPaths;
     const remainingPagesNeeded = Math.ceil(remainingPathsCount / remainingPathsPerPage);
-    const imagePageCount = (firstPagePaths > 0 ? 1 : 0) + remainingPagesNeeded;
+    const imagePageCount = (firstPageMaxPaths > 0 ? 1 : 0) + remainingPagesNeeded;
     let imagePart = 1;
 
-    const pathsPerRow = 2;
-    const tableHeightApprox = 100;
-    const diagramHeight = imgSize + tableHeightApprox;
-
-    if (firstPagePaths > 0) {
+    if (firstPageMaxPaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
-      const startX = margin;
+      const startX = diagramMargin;
       const startY = y;
 
-      for (let i = 0; i < firstPagePaths; i++) {
+      for (let i = 0; i < firstPageMaxPaths; i++) {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
         const x = startX + col * (imgSize + gap);
@@ -1251,17 +1144,20 @@ export const generatePdfDownload = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Property table first (on top)
-          const tableY = yPos;
-          const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+          // Draw image
+          doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+
+          // Property table beside diagram
+          const tableX = x + imgW + 15;
+          const tableY = yPos + (imgH - tableApproxHeight) / 2;
           const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-          // Diagram below table
-          const imageY = tableEndY + 10; // Reduced spacing
-          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
           // Single border around both property table and diagram
-          doc.rect(x - 5, tableY - 5, imgSize + 10, (imageY + imgH + 5) - (tableY - 5))
+          const borderX = x - 5;
+          const borderY = Math.min(yPos, tableY) - 5;
+          const borderWidth = (tableX + tableWidth - x) + 10;
+          const borderHeight = Math.max(yPos + imgH, tableEndY) - Math.min(yPos, tableY) + 10;
+          doc.rect(borderX, borderY, borderWidth, borderHeight)
              .lineWidth(1)
              .strokeColor(COLORS.border)
              .stroke();
@@ -1271,11 +1167,11 @@ export const generatePdfDownload = async (req, res) => {
             .text(`Image unavailable`, x, yPos);
         }
       }
-      const rowsCount = Math.ceil(firstPagePaths / pathsPerRow);
+      const rowsCount = Math.ceil(firstPageMaxPaths / pathsPerRow);
       y = startY + rowsCount * diagramHeight;
     }
 
-    // Remaining images: 4 per page on new pages, in 2x2 grid
+    // Remaining images: 2 per page on new pages
     if (remainingPathsCount > 0) {
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
@@ -1283,11 +1179,11 @@ export const generatePdfDownload = async (req, res) => {
         y = drawHeader(doc, pageWidth, 0, pageNumber);
         y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
 
-        const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
+        const startPath = firstPageMaxPaths + pageIndex * remainingPathsPerPage;
         const endPath = Math.min(startPath + remainingPathsPerPage, validPaths.length);
         const pathsThisPage = endPath - startPath;
 
-        const startX = margin;
+        const startX = diagramMargin;
         const startY = y;
 
         for (let j = 0; j < pathsThisPage; j++) {
@@ -1318,17 +1214,20 @@ export const generatePdfDownload = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
 
-            // Property table first (on top)
-            const tableY = yPos;
-            const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+            // Draw image
+            doc.image(imageBuffer, x, yPos, { width: imgW, height: imgH });
+
+            // Property table beside diagram
+            const tableX = x + imgW + 15;
+            const tableY = yPos + (imgH - tableApproxHeight) / 2;
             const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
 
-            // Diagram below table
-            const imageY = tableEndY + 10; // Reduced spacing
-            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
             // Single border around both property table and diagram
-            doc.rect(x - 5, tableY - 5, imgSize + 10, (imageY + imgH + 5) - (tableY - 5))
+            const borderX = x - 5;
+            const borderY = Math.min(yPos, tableY) - 5;
+            const borderWidth = (tableX + tableWidth - x) + 10;
+            const borderHeight = Math.max(yPos + imgH, tableEndY) - Math.min(yPos, tableY) + 10;
+            doc.rect(borderX, borderY, borderWidth, borderHeight)
                .lineWidth(1)
                .strokeColor(COLORS.border)
                .stroke();
