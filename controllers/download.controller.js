@@ -193,7 +193,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const midX_main = (parseFloat(origP1.x) + parseFloat(origP2.x)) / 2;
-          const midY_main = (parseFloat(origP1.y) + parseFloat(origP1.y)) / 2;
+          const midY_main = (parseFloat(origP1.y) + parseFloat(origP2.y)) / 2;
           const arrowNormalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
           const arrowNormalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
           const chevronBaseDistance = 10;
@@ -276,10 +276,15 @@ const calculateGirth = (path) => {
   return totalLength.toFixed(2);
 };
 
+// Helper function to format number with commas
+const formatNumberWithCommas = (num) => {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
 // Helper function to format Q x L
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
-  return quantitiesAndLengths.map(item => `${item.quantity}x${parseFloat(item.length).toFixed(0)}`).join(',');
+  return quantitiesAndLengths.map(item => `${item.quantity} x ${formatNumberWithCommas(parseFloat(item.length).toFixed(0))}`).join(', ');
 };
 
 // Generate SVG string without arrows at line ends (improved text design: bold font, better padding, dynamic label width)
@@ -666,7 +671,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   // Add title
   svgContent += `
     <text x="${targetViewBoxSize / 2}" y="${30 * scaleFactor}" font-size="${20 * scaleFactor}" fill="${COLORS.primary}" text-anchor="middle" font-family="Helvetica-Bold, sans-serif">
-      ${path.name || 'Flashing Diagram'}
+      Flashing Diagram
     </text>
   `;
 
@@ -873,7 +878,7 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
 };
 
 // Draw simplified property table below each diagram (only color/material and code)
-const drawDiagramPropertyTable = (doc, x, y, pathData) => {
+const drawDiagramPropertyTable = (doc, x, y, pathData, quantitiesAndLengths, pathIndex) => {
   const tableWidth = 230;
   const rowHeight = 24;
   const padding = 10;
@@ -896,9 +901,16 @@ const drawDiagramPropertyTable = (doc, x, y, pathData) => {
   y += 5;
 
   // Data rows - only color and code
+  const totalFolds = calculateTotalFolds(pathData);
+  const girth = parseFloat(calculateGirth(pathData)).toFixed(0);
+  const qxL = formatQxL(quantitiesAndLengths);
   const rows = [
+    ['#', `${pathIndex + 1}`],
     ['Colour/Material', pathData.color || 'N/A'],
-    ['Code', pathData.code || 'N/A']
+    ['Code', pathData.code || 'N/A'],
+    ['F', totalFolds.toString()],
+    ['GIRTH', `${girth}mm`],
+    ['Q x L', qxL || 'N/A']
   ];
 
   doc.font(FONTS.tableBody)
@@ -943,8 +955,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
 
   // Table Header
-  const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
-  const colWidths = [25, 90, 90, 60, 30, 60, 140];
+  const headers = ['#', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
+  const colWidths = [40, 100, 100, 50, 80, 140];
   const minRowHeight = 22;
   const padding = 12;
 
@@ -983,11 +995,10 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
 
     const row = [
       `${index + 1}`,
-      path.name || 'Unnamed',
       path.color || 'N/A',
       path.code || 'N/A',
       totalFolds.toString(),
-      `${girth}mm`,
+      `${girth.toFixed(0)}mm`,
       qxL || 'N/A'
     ];
 
@@ -1011,8 +1022,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       const cellWidth = colWidths[i] - 10;
       const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
       const textY = y + (rowHeight - textHeight) / 2;
-      const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
-      if (i === 3) {
+      const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
+      if (i === 2) {
         doc.fillColor(COLORS.accent);
       } else {
         doc.fillColor(COLORS.darkText);
@@ -1070,9 +1081,9 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     y += headerHeight;
   }
 
-  // Totals row (place 'Totals' in the 'Name' column for better fit)
+  // Totals row (place 'Totals' in the '#' column for better fit)
   doc.font(FONTS.tableHeader).fontSize(11);
-  const totalsRow = ['', 'Totals', '', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
+  const totalsRow = ['Totals', '', '', totalF.toString(), `${totalG.toFixed(0)}mm`, ''];
   let totalsMaxHeight = 0;
   totalsRow.forEach((val, i) => {
     const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
@@ -1087,7 +1098,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     const cellWidth = colWidths[i] - 10;
     const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
     const textY = y + (totalsRowHeight - textHeight) / 2;
-    const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
+    const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
     doc.text(val, xPos + 5, textY, { width: cellWidth, align: align });
     xPos += colWidths[i];
   });
@@ -1216,7 +1227,7 @@ export const generatePdfDownload = async (req, res) => {
     let imagePart = 1;
 
     const pathsPerRow = 2;
-    const tableHeightApprox = 100;
+    const tableHeightApprox = 150;
     const diagramHeight = imgSize + tableHeightApprox;
 
     if (firstPagePaths > 0) {
@@ -1254,7 +1265,7 @@ export const generatePdfDownload = async (req, res) => {
           // Property table first (on top)
           const tableY = yPos;
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+          const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
           // Diagram below table
           const imageY = tableEndY + 10; // Reduced spacing
@@ -1321,7 +1332,7 @@ export const generatePdfDownload = async (req, res) => {
             // Property table first (on top)
             const tableY = yPos;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData);
+            const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
             // Diagram below table
             const imageY = tableEndY + 10; // Reduced spacing
