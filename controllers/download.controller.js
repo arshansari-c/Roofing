@@ -1246,12 +1246,6 @@ export const generatePdfDownload = async (req, res) => {
             .png({ quality: 100, compressionLevel: 0, density: 300 })
             .toBuffer();
 
-          // Border around diagram with shadow simulation
-          doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
-             .lineWidth(1)
-             .strokeColor(COLORS.border)
-             .stroke();
-
           // Embed image in PDF
           const img = doc.openImage(imageBuffer);
           const imgW = imgSize;
@@ -1263,7 +1257,13 @@ export const generatePdfDownload = async (req, res) => {
           // Property table below image - simplified to only color and code
           const infoY = yPos + imgH + 15; // Reduced spacing
           const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-          drawDiagramPropertyTable(doc, tableX, infoY, pathData);
+          const tableEndY = drawDiagramPropertyTable(doc, tableX, infoY, pathData);
+
+          // Single border around both diagram and table
+          doc.rect(x - 5, yPos - 5, imgSize + 10, tableEndY - (yPos - 5))
+             .lineWidth(1)
+             .strokeColor(COLORS.border)
+             .stroke();
         } catch (err) {
           console.warn(`Image error (path ${i}):`, err.message);
           doc.font('Helvetica').fontSize(14)
@@ -1312,12 +1312,6 @@ export const generatePdfDownload = async (req, res) => {
               .png({ quality: 100, compressionLevel: 0, density: 300 })
               .toBuffer();
 
-            // Border around diagram
-            doc.rect(x - 5, yPos - 5, imgSize + 10, imgSize + 10)
-               .lineWidth(1)
-               .strokeColor(COLORS.border)
-               .stroke();
-
             // Embed image in PDF
             const img = doc.openImage(imageBuffer);
             const imgW = imgSize;
@@ -1329,7 +1323,13 @@ export const generatePdfDownload = async (req, res) => {
             // Property table below image - simplified to only color and code
             const infoY = yPos + imgH + 15;
             const tableX = x + (imgSize - 230) / 2; // Center table under diagram
-            drawDiagramPropertyTable(doc, tableX, infoY, pathData);
+            const tableEndY = drawDiagramPropertyTable(doc, tableX, infoY, pathData);
+
+            // Single border around both diagram and table
+            doc.rect(x - 5, yPos - 5, imgSize + 10, tableEndY - (yPos - 5))
+               .lineWidth(1)
+               .strokeColor(COLORS.border)
+               .stroke();
           } catch (err) {
             console.warn(`Image error (path ${i}):`, err.message);
             doc.font('Helvetica').fontSize(14)
