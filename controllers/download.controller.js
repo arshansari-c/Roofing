@@ -84,7 +84,7 @@ const validatePoints = (points) => {
   );
 };
 
-// Helper function to calculate bounds for a path (improved padding and removed inconsistent /scale)
+// Helper function to calculate bounds for a path (improved padding for small diagrams and labels)
 const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
   if (!validatePoints(path.points)) {
     console.warn('Invalid points array in path:', path);
@@ -100,18 +100,6 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     maxY = Math.max(maxY, y);
   });
 
-  // Ensure minimum size for small diagrams
-  if (maxX - minX < 50) {
-    const centerX = (minX + maxX) / 2;
-    minX = centerX - 25;
-    maxX = centerX + 25;
-  }
-  if (maxY - minY < 50) {
-    const centerY = (minY + maxY) / 2;
-    minY = centerY - 25;
-    maxY = centerY + 25;
-  }
-
   const isLargeDiagram = (maxX - minX > 10000 || maxY - minY > 10000);
   path.segments.forEach((segment, i) => {
     if (!segment.labelPosition || typeof segment.labelPosition.x === 'undefined' || typeof segment.labelPosition.y === 'undefined') {
@@ -119,10 +107,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(segment.labelPosition.x);
     const labelY = parseFloat(segment.labelPosition.y);
-    minX = Math.min(minX, labelX - 50); // Increased fixed padding, removed /scale
-    maxX = Math.max(maxX, labelX + 50);
-    minY = Math.min(minY, labelY - 30);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
+    minX = Math.min(minX, labelX - 100); // Increased padding for labels
+    maxX = Math.max(maxX, labelX + 100);
+    minY = Math.min(minY, labelY - 60);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 60);
 
     let foldType = 'None';
     let foldLength = FOLD_LENGTH;
@@ -159,10 +147,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
         const foldEndY = foldBaseY + rotNormalY * foldLength;
         const foldLabelX = foldEndX + rotNormalX * 25;
         const foldLabelY = foldEndY + rotNormalY * 25;
-        minX = Math.min(minX, foldLabelX - 50, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 50, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 30, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 30, foldEndY, foldBaseY);
+        minX = Math.min(minX, foldLabelX - 100, foldEndX, foldBaseX);
+        maxX = Math.max(maxX, foldLabelX + 100, foldEndX, foldBaseX);
+        minY = Math.min(minY, foldLabelY - 60, foldEndY, foldBaseY);
+        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 60, foldEndY, foldBaseY);
       }
     }
   });
@@ -177,10 +165,10 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
     const labelX = parseFloat(angle.labelPosition.x);
     const labelY = parseFloat(angle.labelPosition.y);
-    minX = Math.min(minX, labelX - 50); // Consistent increased padding
-    maxX = Math.max(maxX, labelX + 50);
-    minY = Math.min(minY, labelY - 30);
-    maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
+    minX = Math.min(minX, labelX - 100); // Increased padding
+    maxX = Math.max(maxX, labelX + 100);
+    minY = Math.min(minY, labelY - 60);
+    maxY = Math.max(maxY, labelY + ARROW_SIZE + 60);
   });
 
   if (showBorder && path.points.length > 1) {
@@ -205,7 +193,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
           const normalX = borderOffsetDirection === 'inside' ? unitY : -unitY;
           const normalY = borderOffsetDirection === 'inside' ? -unitX : unitX;
           const midX_main = (parseFloat(origP1.x) + parseFloat(origP2.x)) / 2;
-          const midY_main = (parseFloat(origP1.y) + parseFloat(origP1.y)) / 2;
+          const midY_main = (parseFloat(origP1.y) + parseFloat(origP2.y)) / 2;
           const arrowNormalX = borderOffsetDirection === 'inside' ? -unitY : unitY;
           const arrowNormalY = borderOffsetDirection === 'inside' ? unitX : -unitX;
           const chevronBaseDistance = 10;
@@ -221,7 +209,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     }
   }
 
-  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 60; // Increased base padding
+  const padding = isLargeDiagram ? Math.max(100, (maxX - minX) * 0.05) : 80; // Increased base padding for small diagrams
   return {
     minX: minX - padding,
     minY: minY - padding,
@@ -302,16 +290,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   }
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  
-  // Adjust scale factor for small diagrams
   const targetViewBoxSize = 1200;
-  let scaleFactor;
-  if (width === 0 || height === 0) {
-    scaleFactor = 1;
-  } else {
-    scaleFactor = targetViewBoxSize * 0.85 / Math.max(width, height, 1);
-  }
-  
+  const scaleFactor = targetViewBoxSize * 0.85 / Math.max(width, height, 1);
   const offsetX = (targetViewBoxSize - width * scaleFactor) / 2;
   const offsetY = (targetViewBoxSize - height * scaleFactor) / 2;
   const viewBox = `0 0 ${targetViewBoxSize} ${targetViewBoxSize}`;
@@ -1381,7 +1361,7 @@ export const generatePdfDownload = async (req, res) => {
     doc.end();
 
     // Wait for the PDF to be written
-    await new Promise((resolve, reject) {
+    await new Promise((resolve, reject) => {
       writeStream.on('finish', () => {
         console.log('PDF written successfully to:', pdfPath);
         resolve();
