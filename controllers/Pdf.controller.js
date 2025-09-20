@@ -1413,6 +1413,32 @@ export const generatePdf = async (req, res) => {
       return res.status(500).json({ message: 'PDF file not generated' });
     }
 
+    // Send email with PDF attachment
+    if (emails && Array.isArray(emails) && emails.length > 0) {
+      try {
+        const mailOptions = {
+          from: process.env.EMAIL_USER, // Sender email
+          to: emails.join(','), // Recipients
+          subject: `Flashing Order PDF - ${JobReference}`,
+          text: 'Please find the attached PDF for your flashing order.',
+          attachments: [
+            {
+              filename: `project-${timestamp}.pdf`,
+              path: pdfPath,
+            },
+          ],
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully to:', emails);
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError.message);
+        // Continue even if email fails, as per "don't fail the response"
+      }
+    } else {
+      console.warn('No emails provided, skipping email sending.');
+    }
+
     // Upload to Cloudinary
     let uploadResult;
     try {
@@ -1443,7 +1469,7 @@ export const generatePdf = async (req, res) => {
         JobReference,
         data: selectedProjectData,
         Number,
-        emailList : emails,
+        emailList: emails,
         OrderContact,
         OrderDate,
         DeliveryAddress: DeliveryAddress || null,
@@ -1476,7 +1502,6 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
