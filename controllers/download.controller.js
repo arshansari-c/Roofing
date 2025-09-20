@@ -860,7 +860,8 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const totalFolds = calculateTotalFolds(pathData).toString();
   const girth = calculateGirth(pathData);
   const color = pathData.color || 'Shale Grey';
-  const code = pathData.code || '';
+  // Extract only numeric value from code
+  const code = (pathData.code || '').replace(/\D/g, ''); // Remove non-digit characters
   const num = (pathIndex + 1).toString();
 
   const row = [num, color, code, totalFolds, girth];
