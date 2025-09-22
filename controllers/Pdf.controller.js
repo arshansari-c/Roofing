@@ -1382,9 +1382,9 @@ export const generatePdf = async (req, res) => {
       if (lastDiagramsCount === 0) lastDiagramsCount = remainingPathsPerPage;
     }
 
-    // Add summary table, potentially on the same page if last flashing page has <=2 diagrams
+    // Add summary table on a new page if last flashing page has <=2 diagrams (to avoid UI collapse)
     let addedNewPageForSummary = false;
-    if (lastDiagramsCount > 2) {
+    if (lastDiagramsCount <= 2) {
       doc.addPage();
       addedNewPageForSummary = true;
     }
@@ -1773,9 +1773,9 @@ export const UpdateGerantePdfOrder = async (req, res) => {
       if (lastDiagramsCount === 0) lastDiagramsCount = remainingPathsPerPage;
     }
 
-    // Add summary table, potentially on the same page if last flashing page has <=2 diagrams
+    // Add summary table on a new page if last flashing page has <=2 diagrams (to avoid UI collapse)
     let addedNewPageForSummary = false;
-    if (lastDiagramsCount > 2) {
+    if (lastDiagramsCount <= 2) {
       doc.addPage();
       addedNewPageForSummary = true;
     }
