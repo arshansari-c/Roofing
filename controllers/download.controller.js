@@ -1371,9 +1371,20 @@ export const generatePdfDownload = async (req, res) => {
       }
     }
 
-    // Add summary table on a new page
-    doc.addPage();
-    y = drawHeader(doc, pageWidth, 0);
+    // Determine if the last flashing details page has 1 or 2 diagrams
+    let lastDiagramsCount = firstPagePaths;
+    if (remainingPathsCount > 0) {
+      lastDiagramsCount = remainingPathsCount % remainingPathsPerPage;
+      if (lastDiagramsCount === 0) lastDiagramsCount = remainingPathsPerPage;
+    }
+
+    // Add summary table, potentially on the same page if last flashing page has <=2 diagrams
+    let addedNewPageForSummary = false;
+    if (lastDiagramsCount > 2) {
+      doc.addPage();
+      addedNewPageForSummary = true;
+    }
+    y = addedNewPageForSummary ? drawHeader(doc, pageWidth, 0) : y;
     y = drawSummaryTable(doc, validPaths, groupedQuantitiesAndLengths, y);
 
     // Draw footer on all pages
