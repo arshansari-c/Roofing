@@ -992,7 +992,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     totalF += totalFolds;
     totalG += girth;
 
-    const code = (path.code || '').replace(/\D/g, '') || 'N/A';
+    const code = (path.code || '').replace(/\D/g, '') || '';
 
     const row = [
       `${index + 1}`,
@@ -1475,7 +1475,7 @@ export const generatePdf = async (req, res) => {
           url: uploadResult.secure_url,
         }],
         JobReference,
-        data: selectedProjectData,
+        data: projectData,
         Number,
         emailList: emails,
         OrderContact,
