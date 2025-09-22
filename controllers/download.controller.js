@@ -672,7 +672,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 };
 
 // Helper function to draw header (improved: white background, dark text for professionalism)
-const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
+const drawHeader = (doc, pageWidth, y) => {
   const margin = 50;
   // Header with white background (removed gradient)
   doc.rect(0, 0, pageWidth, 80)
@@ -702,14 +702,6 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
     });
   } catch (err) {
     console.warn('Failed to load logo:', err.message);
-  }
-
-  // Page number (dark text)
-  if (pageNumber) {
-    doc.font(FONTS.body)
-       .fontSize(10)
-       .fillColor(COLORS.darkText)
-       .text(`Page ${pageNumber}`, pageWidth - margin, 60, { align: 'right' });
   }
 
   // Divider line with dash (border color)
@@ -838,7 +830,7 @@ const drawInstructions = (doc, y) => {
 };
 
 // Helper function to draw footer (improved: thinner line)
-const drawFooter = (doc, pageWidth, pageHeight) => {
+const drawFooter = (doc, pageWidth, pageHeight, pageNumber) => {
   const margin = 50;
   // Footer divider
   doc.moveTo(margin, pageHeight - 50)
@@ -846,6 +838,12 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .strokeColor(COLORS.border)
      .lineWidth(0.5)
      .stroke();
+
+  // Page number in bottom center
+  doc.font(FONTS.body)
+     .fontSize(10)
+     .fillColor(COLORS.darkText)
+     .text(`Page ${pageNumber}`, 0, pageHeight - 30, { width: pageWidth, align: 'center' });
 };
 
 // Draw property table below each diagram to match the photo (with #, Colour/Material, CODE, F, GIRTH in table, Q x L and T below)
@@ -1042,7 +1040,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     // Check if we need a new page
     if (y + minRowHeight > pageHeight - 80) {
       doc.addPage();
-      const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
+      const newPageY = drawHeader(doc, pageWidth, 0);
       y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY);
       // Redraw table header
       doc.rect(margin, y, pageWidth - 2 * margin, headerHeight)
@@ -1063,7 +1061,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   // Check for new page before totals
   if (y + minRowHeight > pageHeight - 80) {
     doc.addPage();
-    const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
+    const newPageY = drawHeader(doc, pageWidth, 0);
     y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY);
     // Redraw table header
     doc.rect(margin, y, pageWidth - 2 * margin, headerHeight)
@@ -1205,7 +1203,7 @@ export const generatePdfDownload = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
 
-    let y = drawHeader(doc, pageWidth, 0, 1);
+    let y = drawHeader(doc, pageWidth, 0);
 
     // Order Details Table
     y = drawOrderDetailsTable(doc, JobReference, Number, OrderContact, OrderDate,
@@ -1299,8 +1297,7 @@ export const generatePdfDownload = async (req, res) => {
     if (remainingPathsCount > 0) {
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
-        const pageNumber = doc.bufferedPageRange().count;
-        y = drawHeader(doc, pageWidth, 0, pageNumber);
+        y = drawHeader(doc, pageWidth, 0);
         y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
 
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
@@ -1376,15 +1373,14 @@ export const generatePdfDownload = async (req, res) => {
 
     // Add summary table on a new page
     doc.addPage();
-    const lastPageNumber = doc.bufferedPageRange().count;
-    y = drawHeader(doc, pageWidth, 0, lastPageNumber);
+    y = drawHeader(doc, pageWidth, 0);
     y = drawSummaryTable(doc, validPaths, groupedQuantitiesAndLengths, y);
 
     // Draw footer on all pages
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-      drawFooter(doc, pageWidth, pageHeight);
+      drawFooter(doc, pageWidth, pageHeight, i + 1);
     }
 
     // Finalize the PDF
