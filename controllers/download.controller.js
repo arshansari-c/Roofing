@@ -1265,21 +1265,21 @@ export const generatePdfDownload = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Diagram first (on top)
-          const imageY = yPos;
-          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
-          // Property table below diagram (no gap)
-          const tableY = imageY + imgH;
-          const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+          // Property table first (on top)
+          const tableY = yPos;
+          const tableX = x + (imgSize - 230) / 2; // Center table under diagram position
           const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
-          // Draw professional frame around diagram and properties
+          // Diagram below table (no gap)
+          const imageY = tableEndY;
+          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+          // Draw professional frame around properties and diagram
           const framePadding = 5;
           const frameX = Math.min(x, tableX) - framePadding;
           const frameY = yPos - framePadding;
           const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-          const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
+          const frameHeight = (tableEndY - tableY) + imgH + 2 * framePadding;
           doc.rect(frameX, frameY, frameWidth, frameHeight)
              .lineWidth(0.5)
              .strokeColor(COLORS.border)
@@ -1343,21 +1343,21 @@ export const generatePdfDownload = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
 
-            // Diagram first (on top)
-            const imageY = yPos;
-            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
-            // Property table below diagram (no gap)
-            const tableY = imageY + imgH;
-            const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+            // Property table first (on top)
+            const tableY = yPos;
+            const tableX = x + (imgSize - 230) / 2; // Center table under diagram position
             const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
-            // Draw professional frame around diagram and properties
+            // Diagram below table (no gap)
+            const imageY = tableEndY;
+            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+            // Draw professional frame around properties and diagram
             const framePadding = 5;
             const frameX = Math.min(x, tableX) - framePadding;
             const frameY = yPos - framePadding;
             const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-            const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
+            const frameHeight = (tableEndY - tableY) + imgH + 2 * framePadding;
             doc.rect(frameX, frameY, frameWidth, frameHeight)
                .lineWidth(0.5)
                .strokeColor(COLORS.border)
@@ -1458,4 +1458,4 @@ export const generatePdfDownload = async (req, res) => {
     console.error('GeneratePdf error:', error.message);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
-};
+}
