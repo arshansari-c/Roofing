@@ -674,8 +674,8 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   </svg>`;
 };
 
-// Helper function to draw header (improved: white background, dark text for professionalism)
-const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
+// Helper function to draw header (improved: white background, dark text for professionalism, no page number)
+const drawHeader = (doc, pageWidth, y) => {
   const margin = 50;
   // Header with white background (removed gradient)
   doc.rect(0, 0, pageWidth, 80)
@@ -705,14 +705,6 @@ const drawHeader = (doc, pageWidth, y, pageNumber = null) => {
     });
   } catch (err) {
     console.warn('Failed to load logo:', err.message);
-  }
-
-  // Page number (dark text)
-  if (pageNumber) {
-    doc.font(FONTS.body)
-       .fontSize(10)
-       .fillColor(COLORS.darkText)
-       .text(`Page ${pageNumber}`, pageWidth - margin, 60, { align: 'right' });
   }
 
   // Divider line with dash (border color)
@@ -840,8 +832,8 @@ const drawInstructions = (doc, y) => {
   return y + 50;
 };
 
-// Helper function to draw footer (improved: thinner line)
-const drawFooter = (doc, pageWidth, pageHeight) => {
+// Helper function to draw footer (improved: thinner line, with page number)
+const drawFooter = (doc, pageWidth, pageHeight, pageNumber) => {
   const margin = 50;
   // Footer divider
   doc.moveTo(margin, pageHeight - 50)
@@ -849,6 +841,12 @@ const drawFooter = (doc, pageWidth, pageHeight) => {
      .strokeColor(COLORS.border)
      .lineWidth(0.5)
      .stroke();
+
+  // Page number in bottom center
+  doc.font(FONTS.body)
+     .fontSize(10)
+     .fillColor(COLORS.darkText)
+     .text(`Page ${pageNumber}`, 0, pageHeight - 30, { width: pageWidth, align: 'center' });
 };
 
 // Draw property table below each diagram to match the photo (with #, Colour/Material, CODE, F, GIRTH in table, Q x L and T below)
@@ -948,16 +946,16 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   return currentY;
 };
 
-// Helper function to draw summary table (with dynamic row heights and adjusted totals position) (improved: better alignment)
+// Helper function to draw summary table (with dynamic row heights and adjusted totals position) (improved: better alignment, matching download layout)
 const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
   y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
 
-  // Table Header
-  const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
-  const colWidths = [25, 90, 90, 60, 30, 60, 140];
+  // Table Header (matching download: no 'Name' column)
+  const headers = ['#', 'Colour/Material', 'Code', 'F', 'GIRTH', 'Q x L'];
+  const colWidths = [25, 90, 60, 30, 60, 140];
   const minRowHeight = 22;
   const padding = 12;
 
@@ -994,11 +992,12 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     totalF += totalFolds;
     totalG += girth;
 
+    const code = (path.code || '').replace(/\D/g, '') || 'N/A';
+
     const row = [
       `${index + 1}`,
-      path.name || 'Unnamed',
       path.color || 'N/A',
-      path.code || 'N/A',
+      code,
       totalFolds.toString(),
       `${girth}mm`,
       qxL || 'N/A'
@@ -1024,8 +1023,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       const cellWidth = colWidths[i] - 10;
       const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
       const textY = y + (rowHeight - textHeight) / 2;
-      const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
-      if (i === 3) {
+      const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
+      if (i === 2) {
         doc.fillColor(COLORS.accent);
       } else {
         doc.fillColor(COLORS.darkText);
@@ -1045,7 +1044,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     // Check if we need a new page
     if (y + minRowHeight > pageHeight - 80) {
       doc.addPage();
-      const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
+      const newPageY = drawHeader(doc, pageWidth, 0);
       y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY);
       // Redraw table header
       doc.rect(margin, y, pageWidth - 2 * margin, headerHeight)
@@ -1066,7 +1065,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   // Check for new page before totals
   if (y + minRowHeight > pageHeight - 80) {
     doc.addPage();
-    const newPageY = drawHeader(doc, pageWidth, 0, doc.bufferedPageRange().count + 1);
+    const newPageY = drawHeader(doc, pageWidth, 0);
     y = drawSectionHeader(doc, 'ORDER SUMMARY (CONTINUED)', newPageY);
     // Redraw table header
     doc.rect(margin, y, pageWidth - 2 * margin, headerHeight)
@@ -1083,9 +1082,9 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     y += headerHeight;
   }
 
-  // Totals row (place 'Totals' in the 'Name' column for better fit)
+  // Totals row (place 'Totals' in the 'Colour/Material' column for better fit)
   doc.font(FONTS.tableHeader).fontSize(11);
-  const totalsRow = ['', 'Totals', '', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
+  const totalsRow = ['', 'Totals', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
   let totalsMaxHeight = 0;
   totalsRow.forEach((val, i) => {
     const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
@@ -1100,7 +1099,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     const cellWidth = colWidths[i] - 10;
     const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
     const textY = y + (totalsRowHeight - textHeight) / 2;
-    const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
+    const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
     doc.text(val, xPos + 5, textY, { width: cellWidth, align: align });
     xPos += colWidths[i];
   });
@@ -1208,7 +1207,7 @@ export const generatePdf = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
 
-    let y = drawHeader(doc, pageWidth, 0, 1);
+    let y = drawHeader(doc, pageWidth, 0);
 
     // Order Details Table
     y = drawOrderDetailsTable(doc, JobReference, Number, OrderContact, OrderDate,
@@ -1268,21 +1267,21 @@ export const generatePdf = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Diagram first (on top)
-          const imageY = yPos;
-          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
-          // Property table below diagram (no gap)
-          const tableY = imageY + imgH;
-          const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+          // Property table first (on top)
+          const tableY = yPos;
+          const tableX = x + (imgSize - 230) / 2; // Center table under diagram position
           const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
-          // Draw professional frame around diagram and properties
+          // Diagram below table (no gap)
+          const imageY = tableEndY;
+          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+          // Draw professional frame around properties and diagram
           const framePadding = 5;
           const frameX = Math.min(x, tableX) - framePadding;
           const frameY = yPos - framePadding;
           const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-          const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
+          const frameHeight = (tableEndY - tableY) + imgH + 2 * framePadding;
           doc.rect(frameX, frameY, frameWidth, frameHeight)
              .lineWidth(0.5)
              .strokeColor(COLORS.border)
@@ -1302,8 +1301,7 @@ export const generatePdf = async (req, res) => {
     if (remainingPathsCount > 0) {
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
-        const pageNumber = doc.bufferedPageRange().count;
-        y = drawHeader(doc, pageWidth, 0, pageNumber);
+        y = drawHeader(doc, pageWidth, 0);
         y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
 
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
@@ -1346,21 +1344,21 @@ export const generatePdf = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
 
-            // Diagram first (on top)
-            const imageY = yPos;
-            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
-            // Property table below diagram (no gap)
-            const tableY = imageY + imgH;
-            const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+            // Property table first (on top)
+            const tableY = yPos;
+            const tableX = x + (imgSize - 230) / 2; // Center table under diagram position
             const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
-            // Draw professional frame around diagram and properties
+            // Diagram below table (no gap)
+            const imageY = tableEndY;
+            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+            // Draw professional frame around properties and diagram
             const framePadding = 5;
             const frameX = Math.min(x, tableX) - framePadding;
             const frameY = yPos - framePadding;
             const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-            const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
+            const frameHeight = (tableEndY - tableY) + imgH + 2 * framePadding;
             doc.rect(frameX, frameY, frameWidth, frameHeight)
                .lineWidth(0.5)
                .strokeColor(COLORS.border)
@@ -1377,17 +1375,27 @@ export const generatePdf = async (req, res) => {
       }
     }
 
-    // Add summary table on a new page
-    doc.addPage();
-    const lastPageNumber = doc.bufferedPageRange().count;
-    y = drawHeader(doc, pageWidth, 0, lastPageNumber);
+    // Determine if the last flashing details page has 1 or 2 diagrams
+    let lastDiagramsCount = firstPagePaths;
+    if (remainingPathsCount > 0) {
+      lastDiagramsCount = remainingPathsCount % remainingPathsPerPage;
+      if (lastDiagramsCount === 0) lastDiagramsCount = remainingPathsPerPage;
+    }
+
+    // Add summary table, potentially on the same page if last flashing page has <=2 diagrams
+    let addedNewPageForSummary = false;
+    if (lastDiagramsCount > 2) {
+      doc.addPage();
+      addedNewPageForSummary = true;
+    }
+    y = addedNewPageForSummary ? drawHeader(doc, pageWidth, 0) : y;
     y = drawSummaryTable(doc, validPaths, groupedQuantitiesAndLengths, y);
 
     // Draw footer on all pages
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-      drawFooter(doc, pageWidth, pageHeight);
+      drawFooter(doc, pageWidth, pageHeight, i + 1);
     }
 
     // Finalize the PDF
@@ -1502,6 +1510,7 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;
@@ -1574,7 +1583,7 @@ export const UpdateGerantePdfOrder = async (req, res) => {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
 
-    let y = drawHeader(doc, pageWidth, 0, 1);
+    let y = drawHeader(doc, pageWidth, 0);
 
     // Order Details Table
     y = drawOrderDetailsTable(doc, updatedOrderDetails.JobReference, updatedOrderDetails.Number, updatedOrderDetails.OrderContact, updatedOrderDetails.OrderDate,
@@ -1649,21 +1658,21 @@ export const UpdateGerantePdfOrder = async (req, res) => {
           const imgW = imgSize;
           const imgH = (img.height * imgW) / img.width;
 
-          // Diagram first (on top)
-          const imageY = yPos;
-          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
-          // Property table below diagram (no gap)
-          const tableY = imageY + imgH;
-          const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+          // Property table first (on top)
+          const tableY = yPos;
+          const tableX = x + (imgSize - 230) / 2; // Center table under diagram position
           const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
-          // Draw professional frame around diagram and properties
+          // Diagram below table (no gap)
+          const imageY = tableEndY;
+          doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+          // Draw professional frame around properties and diagram
           const framePadding = 5;
           const frameX = Math.min(x, tableX) - framePadding;
           const frameY = yPos - framePadding;
           const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-          const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
+          const frameHeight = (tableEndY - tableY) + imgH + 2 * framePadding;
           doc.rect(frameX, frameY, frameWidth, frameHeight)
              .lineWidth(0.5)
              .strokeColor(COLORS.border)
@@ -1683,8 +1692,7 @@ export const UpdateGerantePdfOrder = async (req, res) => {
     if (remainingPathsCount > 0) {
       for (let pageIndex = 0; pageIndex < remainingPagesNeeded; pageIndex++) {
         doc.addPage();
-        const pageNumber = doc.bufferedPageRange().count;
-        y = drawHeader(doc, pageWidth, 0, pageNumber);
+        y = drawHeader(doc, pageWidth, 0);
         y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
 
         const startPath = firstPagePaths + pageIndex * remainingPathsPerPage;
@@ -1727,21 +1735,21 @@ export const UpdateGerantePdfOrder = async (req, res) => {
             const imgW = imgSize;
             const imgH = (img.height * imgW) / img.width;
 
-            // Diagram first (on top)
-            const imageY = yPos;
-            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
-
-            // Property table below diagram (no gap)
-            const tableY = imageY + imgH;
-            const tableX = x + (imgSize - 230) / 2; // Center table under diagram
+            // Property table first (on top)
+            const tableY = yPos;
+            const tableX = x + (imgSize - 230) / 2; // Center table under diagram position
             const tableEndY = drawDiagramPropertyTable(doc, tableX, tableY, pathData, groupedQuantitiesAndLengths[i], i);
 
-            // Draw professional frame around diagram and properties
+            // Diagram below table (no gap)
+            const imageY = tableEndY;
+            doc.image(imageBuffer, x, imageY, { width: imgW, height: imgH });
+
+            // Draw professional frame around properties and diagram
             const framePadding = 5;
             const frameX = Math.min(x, tableX) - framePadding;
             const frameY = yPos - framePadding;
             const frameWidth = Math.max(imgW, 230) + 2 * framePadding;
-            const frameHeight = imgH + (tableEndY - tableY) + 2 * framePadding;
+            const frameHeight = (tableEndY - tableY) + imgH + 2 * framePadding;
             doc.rect(frameX, frameY, frameWidth, frameHeight)
                .lineWidth(0.5)
                .strokeColor(COLORS.border)
@@ -1758,17 +1766,27 @@ export const UpdateGerantePdfOrder = async (req, res) => {
       }
     }
 
-    // Add summary table on a new page
-    doc.addPage();
-    const lastPageNumber = doc.bufferedPageRange().count;
-    y = drawHeader(doc, pageWidth, 0, lastPageNumber);
+    // Determine if the last flashing details page has 1 or 2 diagrams
+    let lastDiagramsCount = firstPagePaths;
+    if (remainingPathsCount > 0) {
+      lastDiagramsCount = remainingPathsCount % remainingPathsPerPage;
+      if (lastDiagramsCount === 0) lastDiagramsCount = remainingPathsPerPage;
+    }
+
+    // Add summary table, potentially on the same page if last flashing page has <=2 diagrams
+    let addedNewPageForSummary = false;
+    if (lastDiagramsCount > 2) {
+      doc.addPage();
+      addedNewPageForSummary = true;
+    }
+    y = addedNewPageForSummary ? drawHeader(doc, pageWidth, 0) : y;
     y = drawSummaryTable(doc, validPaths, groupedQuantitiesAndLengths, y);
 
     // Draw footer on all pages
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-      drawFooter(doc, pageWidth, pageHeight);
+      drawFooter(doc, pageWidth, pageHeight, i + 1);
     }
 
     // Finalize the PDF
