@@ -989,7 +989,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     totalF += totalFolds;
     totalG += girth;
 
-    const code = (path.code || '').replace(/\D/g, '') || 'N/A';
+    const code = (path.code || '').replace(/\D/g, '') || '';
 
     const row = [
       `${index + 1}`,
