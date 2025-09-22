@@ -951,8 +951,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
 
   // Table Header
-  const headers = ['#', 'Name', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
-  const colWidths = [25, 90, 90, 60, 30, 60, 140];
+  const headers = ['#', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
+  const colWidths = [25, 90, 60, 30, 60, 140];
   const minRowHeight = 22;
   const padding = 12;
 
@@ -991,7 +991,6 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
 
     const row = [
       `${index + 1}`,
-      path.name || 'Unnamed',
       path.color || 'N/A',
       path.code || 'N/A',
       totalFolds.toString(),
@@ -1019,8 +1018,8 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       const cellWidth = colWidths[i] - 10;
       const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
       const textY = y + (rowHeight - textHeight) / 2;
-      const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
-      if (i === 3) {
+      const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
+      if (i === 2) {
         doc.fillColor(COLORS.accent);
       } else {
         doc.fillColor(COLORS.darkText);
@@ -1078,9 +1077,9 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     y += headerHeight;
   }
 
-  // Totals row (place 'Totals' in the 'Name' column for better fit)
+  // Totals row (place 'Totals' in the 'Colour' column for better fit)
   doc.font(FONTS.tableHeader).fontSize(11);
-  const totalsRow = ['', 'Totals', '', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
+  const totalsRow = ['', 'Totals', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
   let totalsMaxHeight = 0;
   totalsRow.forEach((val, i) => {
     const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
@@ -1095,7 +1094,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     const cellWidth = colWidths[i] - 10;
     const textHeight = doc.heightOfString(val, { width: cellWidth, align: 'center' });
     const textY = y + (totalsRowHeight - textHeight) / 2;
-    const align = (i === 0 || i === 4 || i === 5) ? 'center' : 'left';
+    const align = (i === 0 || i === 3 || i === 4) ? 'center' : 'left';
     doc.text(val, xPos + 5, textY, { width: cellWidth, align: align });
     xPos += colWidths[i];
   });
