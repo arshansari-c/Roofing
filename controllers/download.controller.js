@@ -1379,9 +1379,10 @@ export const generatePdfDownload = async (req, res) => {
       if (lastDiagramsCount === 0) lastDiagramsCount = remainingPathsPerPage;
     }
 
-    // Add summary table, potentially on the same page if last flashing page has <=2 diagrams
+    // Add summary table, potentially on the same page if last flashing page has >2 diagrams
+    // Modified: Add new page if lastDiagramsCount <= 2 to avoid overlap/collapse when few diagrams
     let addedNewPageForSummary = false;
-    if (lastDiagramsCount > 2) {
+    if (lastDiagramsCount <= 2) {
       doc.addPage();
       addedNewPageForSummary = true;
     }
