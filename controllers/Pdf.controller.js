@@ -163,7 +163,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       return;
     }
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
-    if (Math.round(angleValue) === 90 || Math.round(angleValue) === 270) {
+    const roundedValue = Math.round(angleValue);
+    if (roundedValue === 90 || roundedValue === 270 || roundedValue === 45 || roundedValue === 315) {
       return;
     }
     const labelX = parseFloat(angle.labelPosition.x);
@@ -588,7 +589,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     }
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
     const roundedValue = Math.round(angleValue);
-    if (roundedValue === 90 || roundedValue === 270) {
+    if (roundedValue === 90 || roundedValue === 270 || roundedValue === 45 || roundedValue === 315) {
       return '';
     }
     const {x: posX, y: posY} = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
@@ -652,21 +653,6 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     `;
   }).join('');
 
-  // Add legend if folds present
-  if (path.segments.some(s => s.fold && s.fold !== 'None')) {
-    const legendX = 20 * scaleFactor;
-    const legendY = targetViewBoxSize - 150 * scaleFactor;
-    svgContent += `
-      <g filter="url(#dropShadow)">
-        <rect x="${legendX}" y="${legendY}" width="${150 * scaleFactor}" height="${100 * scaleFactor}" fill="#FFFFFF" stroke="#000000" rx="10" />
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 20 * scaleFactor}" font-size="${14 * scaleFactor}">Legend</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 40 * scaleFactor}" font-size="${12 * scaleFactor}">Crush: Double Chevron</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 60 * scaleFactor}" font-size="${12 * scaleFactor}">Hook: Curved Line</text>
-        <text x="${legendX + 10 * scaleFactor}" y="${legendY + 80 * scaleFactor}" font-size="${12 * scaleFactor}">Break: Zigzag</text>
-      </g>
-    `;
-  }
-
   return `<svg width="100%" height="100%" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">
     ${svgDefs}
     <g>${gridLines}</g>
@@ -674,7 +660,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
   </svg>`;
 };
 
-// Helper function to draw header (improved: white background, dark text for professionalism, no page number)
+// Helper function to draw header (improved: white background, dark text for professionalism)
 const drawHeader = (doc, pageWidth, y) => {
   const margin = 50;
   // Header with white background (removed gradient)
@@ -798,7 +784,7 @@ const drawInstructions = (doc, y) => {
 
   const instructions = [
     'Arrow points to the (solid) coloured side',
-    '90° degrees are not labelled',
+    '90° and 45° degrees are not labelled',
     'F = Total number of folds, each crush counts as 2 folds'
   ];
 
@@ -832,7 +818,7 @@ const drawInstructions = (doc, y) => {
   return y + 50;
 };
 
-// Helper function to draw footer (improved: thinner line, with page number)
+// Helper function to draw footer (improved: thinner line)
 const drawFooter = (doc, pageWidth, pageHeight, pageNumber) => {
   const margin = 50;
   // Footer divider
@@ -946,15 +932,15 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   return currentY;
 };
 
-// Helper function to draw summary table (with dynamic row heights and adjusted totals position) (improved: better alignment, matching download layout)
+// Helper function to draw summary table (with dynamic row heights and adjusted totals position) (improved: better alignment)
 const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
   const margin = 50;
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
   y = drawSectionHeader(doc, 'ORDER SUMMARY', y);
 
-  // Table Header (matching download: no 'Name' column)
-  const headers = ['#', 'Colour/Material', 'Code', 'F', 'GIRTH', 'Q x L'];
+  // Table Header
+  const headers = ['#', 'Colour', 'Code', 'F', 'GIRTH', 'Q x L'];
   const colWidths = [25, 90, 60, 30, 60, 140];
   const minRowHeight = 22;
   const padding = 12;
@@ -1082,7 +1068,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
     y += headerHeight;
   }
 
-  // Totals row (place 'Totals' in the 'Colour/Material' column for better fit)
+  // Totals row (place 'Totals' in the 'Colour' column for better fit)
   doc.font(FONTS.tableHeader).fontSize(11);
   const totalsRow = ['', 'Totals', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
   let totalsMaxHeight = 0;
