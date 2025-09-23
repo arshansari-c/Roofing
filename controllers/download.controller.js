@@ -160,7 +160,8 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       return;
     }
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
-    if (Math.round(angleValue) === 90 || Math.round(angleValue) === 270) {
+    const roundedValue = Math.round(angleValue);
+    if (roundedValue === 90 || roundedValue === 270 || roundedValue === 45 || roundedValue === 315) {
       return;
     }
     const labelX = parseFloat(angle.labelPosition.x);
@@ -585,7 +586,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     }
     const angleValue = parseFloat(angle.angle.replace(/°/g, ''));
     const roundedValue = Math.round(angleValue);
-    if (roundedValue === 90 || roundedValue === 270) {
+    if (roundedValue === 90 || roundedValue === 270 || roundedValue === 45 || roundedValue === 315) {
       return '';
     }
     const {x: posX, y: posY} = transformCoord(angle.labelPosition.x, angle.labelPosition.y);
@@ -780,7 +781,7 @@ const drawInstructions = (doc, y) => {
 
   const instructions = [
     'Arrow points to the (solid) coloured side',
-    '90° degrees are not labelled',
+    '90° and 45° degrees are not labelled',
     'F = Total number of folds, each crush counts as 2 folds'
   ];
 
