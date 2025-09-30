@@ -85,7 +85,7 @@ const AuthSchema = new Schema(
 
     role: {
       type: String,
-      enum: ["user", "admin", "supplier", "freelancer"],
+      enum: ["user", "admin", "supplier", "freelancer","teammate"],
       default: "user",
     },
 
