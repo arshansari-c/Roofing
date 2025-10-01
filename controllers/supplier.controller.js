@@ -36,7 +36,11 @@ export const fetchTeammateTeams = async (req, res) => {
 
     // Find suppliers and teammates under this admin
     const findAdminSupplier = await UserSupplier.find({ userId: adminId });
-    const findAdminTeammates = await UserTeammate.find({ userId: adminId });
+    const findAdminTeammates = await UserTeammate.find({ userId: adminId })
+  .populate([
+    { path: "teammateId" }, // assuming `teammateId` is a reference to a User
+  ]);
+
 
     return res.status(200).json({
       message: "Suppliers and teammates fetched successfully",
