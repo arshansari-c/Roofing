@@ -13,11 +13,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Cloudinary config
+// Cloudinary config - Corrected environment variable names
 cloudinary.config({
-  cloud_name: process.env.CLOUDNARY_NAME,
-  api_key: process.env.CLOUDNARY_API,
-  api_secret: process.env.CLOUDNARY_SECRET,
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 // Derive __dirname for ES modules
@@ -1426,7 +1426,7 @@ export const generatePdf = async (req, res) => {
         await transporter.sendMail(mailOptions);
         console.log('Email sent successfully to:', emails);
       } catch (emailError) {
-        console.error('Failed to send email:', emailError.message);
+        console.error('Failed to send email:', emailError);
         // Continue even if email fails, as per "don't fail the response"
       }
     } else {
@@ -1443,8 +1443,8 @@ export const generatePdf = async (req, res) => {
       });
       console.log('Cloudinary upload result:', JSON.stringify(uploadResult, null, 2));
     } catch (uploadError) {
-      console.error('Cloudinary upload error:', uploadError.message);
-      return res.status(500).json({ message: 'Failed to upload PDF to Cloudinary', error: uploadError.message });
+      console.error('Cloudinary upload error:', uploadError);
+      return res.status(500).json({ message: 'Failed to upload PDF to Cloudinary', error: uploadError ? uploadError.message : 'Unknown error' });
     }
 
     if (!uploadResult || !uploadResult.public_id || !uploadResult.secure_url) {
@@ -1492,7 +1492,7 @@ export const generatePdf = async (req, res) => {
       cloudinaryUrl: uploadResult.secure_url,
     });
   } catch (error) {
-    console.error('GeneratePdf error:', error.message);
+    console.error('GeneratePdf error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
