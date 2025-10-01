@@ -13,6 +13,41 @@ cloudinary.config({
   api_key: process.env.CLOUDNARY_API,
   api_secret: process.env.CLOUDNARY_SECRET,
 });
+export const fetchTeammateTeams = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "UserId is required" });
+    }
+
+    const findUser = await User.findById(userId);
+    if (!findUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Get the admin userId who added this teammate
+    const findAdmin = await UserTeammate.findOne({ teammateId: userId }).select("userId");
+    if (!findAdmin) {
+      return res.status(404).json({ message: "Admin not found for this teammate" });
+    }
+
+    const adminId = findAdmin.userId;
+
+    // Find suppliers and teammates under this admin
+    const findAdminSupplier = await UserSupplier.find({ userId: adminId });
+    const findAdminTeammates = await UserTeammate.find({ userId: adminId });
+
+    return res.status(200).json({
+      message: "Suppliers and teammates fetched successfully",
+      suppliers: findAdminSupplier,
+      teammates: findAdminTeammates,
+    });
+  } catch (error) {
+    console.error("fetchTeammateTeams:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 export const fetchTeammatesOrders = async (req, res) => {
   try {
