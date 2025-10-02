@@ -21,34 +21,41 @@ export const fetchTeammateTeams = async (req, res) => {
       return res.status(400).json({ message: "UserId is required" });
     }
 
-    const findUser = await User.findById(userId);
-    if (!findUser) {
+    // Find the teammate user
+    const teammateUser = await User.findById(userId);
+    if (!teammateUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Get the admin userId who added this teammate
-    const findAdmin = await UserTeammate.findOne({ teammateId: userId }).select("userId");
-    if (!findAdmin) {
+    // Find the admin who added this teammate
+    const adminRelation = await UserTeammate.findOne({ teammateId: userId }).select("userId");
+    if (!adminRelation) {
       return res.status(404).json({ message: "Admin not found for this teammate" });
     }
 
-    const adminId = findAdmin.userId;
+    const adminId = adminRelation.userId;
 
-    // Find suppliers and teammates under this admin
-    const findAdminSupplier = await UserSupplier.find({ userId: adminId });
-    const findAdminTeammates = await UserTeammate.find({ userId: adminId })
-  .populate([
-    { path: "teammateId" }, // assuming `teammateId` is a reference to a User
-  ]);
+    // Find the admin's details
+    const adminUser = await User.findById(adminId);
+    if (!adminUser) {
+      return res.status(404).json({ message: "Admin user not found" });
+    }
 
+    // Get suppliers added by admin
+    const suppliers = await UserSupplier.find({ userId: adminId });
+
+    // Get teammates added by admin, with user details populated
+    const teammates = await UserTeammate.find({ userId: adminId }).populate("teammateId");
 
     return res.status(200).json({
       message: "Suppliers and teammates fetched successfully",
-      suppliers: findAdminSupplier,
-      teammates: findAdminTeammates,
+      suppliers,
+      teammates,
+      owner: adminUser,
     });
+
   } catch (error) {
-    console.error("fetchTeammateTeams:", error);
+    console.error("fetchTeammateTeams error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
