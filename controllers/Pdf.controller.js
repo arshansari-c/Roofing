@@ -1410,11 +1410,64 @@ export const generatePdf = async (req, res) => {
     // Send email with PDF attachment
     if (emails && Array.isArray(emails) && emails.length > 0) {
       try {
+        // Create a modern HTML email template
+    // Create a modern HTML email template
+const htmlTemplate = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashing Order - ${JobReference}</title>
+    <style>
+      body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+      .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
+      .header { background-color: #2563eb; color: #ffffff; padding: 20px; text-align: center; }
+      .header h1 { margin: 0; font-size: 24px; }
+      .content { padding: 20px; }
+      .content p { font-size: 16px; color: #333333; line-height: 1.6; }
+      .details-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+      .details-table th, .details-table td { padding: 12px; border: 1px solid #dddddd; text-align: left; }
+      .details-table th { background-color: #f9fafb; font-weight: bold; color: #0f172a; }
+      .footer { background-color: #f9fafb; padding: 15px; text-align: center; font-size: 14px; color: #777777; }
+      .footer a { color: #2563eb; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Flashing Order Confirmation</h1>
+      </div>
+      <div class="content">
+        <p>Dear Recipient,</p>
+        <p>Thank you for your order with Commercial Roofers Pty Ltd. Please find the details of your flashing order below, along with the attached PDF for your records.</p>
+        <table class="details-table">
+          <tr><th>Job Reference</th><td>${JobReference}</td></tr>
+          <tr><th>PO Number</th><td>${Number}</td></tr>
+          <tr><th>Order Contact</th><td>${OrderContact}</td></tr>
+          <tr><th>Order Date</th><td>${OrderDate}</td></tr>
+          ${DeliveryAddress ? `<tr><th>Delivery Address</th><td>${DeliveryAddress}</td></tr>` : ''}
+          ${!DeliveryAddress && PickupNotes ? `<tr><th>Pickup Notes</th><td>${PickupNotes}</td></tr>` : ''}
+          <tr><th>Additional Notes</th><td>${Notes || 'N/A'}</td></tr>
+          <tr><th>Additional Items</th><td>${AdditionalItems || 'N/A'}</td></tr>
+        </table>
+        <p>If you have any questions or need further assistance, feel free to contact us at info@commercialroofers.net.au or 0421259430.</p>
+        <p>Best regards,<br>Commercial Roofers Pty Ltd Team</p>
+      </div>
+      <div class="footer">
+        &copy; ${new Date().getFullYear()} Commercial Roofers Pty Ltd. All rights reserved.<br>
+        <a href="https://commercialroofers.net.au">Visit our website</a>
+      </div>
+    </div>
+  </body>
+  </html>
+`;
+
         const mailOptions = {
           from: process.env.EMAIL_USER, // Sender email
           to: emails.join(','), // Recipients
           subject: `Flashing Order PDF - ${JobReference}`,
-          text: 'Please find the attached PDF for your flashing order.',
+          html: htmlTemplate, // Use HTML template
           attachments: [
             {
               filename: `project-${timestamp}.pdf`,
@@ -1496,7 +1549,6 @@ export const generatePdf = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-
 export const UpdateGerantePdfOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.params;

@@ -818,12 +818,54 @@ export const forgetPassword = async (req, res) => {
     findUser.resetPassword = false;
     await findUser.save();
 
+    // Create a modern HTML email template for OTP
+    const htmlTemplate = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset OTP - Commercial Roofers</title>
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
+          .header { background-color: #2563eb; color: #ffffff; padding: 20px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content { padding: 20px; }
+          .content p { font-size: 16px; color: #333333; line-height: 1.6; }
+          .otp-box { background-color: #f9fafb; border: 1px solid #dddddd; border-radius: 4px; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; color: #0f172a; margin: 20px 0; }
+          .footer { background-color: #f9fafb; padding: 15px; text-align: center; font-size: 14px; color: #777777; }
+          .footer a { color: #2563eb; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Password Reset OTP</h1>
+          </div>
+          <div class="content">
+            <p>Dear User,</p>
+            <p>You have requested to reset your password for your Commercial Roofers account. Please use the following One-Time Password (OTP) to proceed:</p>
+            <div class="otp-box">${otp}</div>
+            <p>This OTP is valid for the next 5 minutes. If you did not request this, please ignore this email or contact support.</p>
+            <p>If you have any questions, feel free to contact us at info@commercialroofers.net.au or 0421259430.</p>
+            <p>Best regards,<br>Commercial Roofers Pty Ltd Team</p>
+          </div>
+          <div class="footer">
+            &copy; ${new Date().getFullYear()} Commercial Roofers Pty Ltd. All rights reserved.<br>
+            <a href="https://commercialroofers.net.au">Visit our website</a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
     await transporter.sendMail({
       from: '"Commercial Roofers" <no-reply@yourdomain.com>',
       to: email,
       subject: 'Reset Password OTP',
       text: `Your OTP for password reset is: ${otp}`,
-      html: `<p>Your OTP for password reset is: <strong>${otp}</strong></p>`,
+      html: htmlTemplate,
     });
 
     res.status(200).json({ message: "OTP sent successfully" });
