@@ -115,10 +115,14 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
     let foldType = 'None';
     let foldLength = FOLD_LENGTH;
     let foldAngle = 0;
+    let tailLength = 20;
+    let flipped = false;
     if (typeof segment.fold === 'object' && segment.fold) {
       foldType = segment.fold.type || 'None';
       foldLength = parseFloat(segment.fold.length) || FOLD_LENGTH;
       foldAngle = parseFloat(segment.fold.angle) || 0;
+      tailLength = parseFloat(segment.fold.tailLength) || 20;
+      flipped = !!segment.fold.flipped;
     } else {
       foldType = segment.fold || 'None';
     }
@@ -129,29 +133,54 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection) => {
       if (!p1 || !p2) return;
       const dx = parseFloat(p2.x) - parseFloat(p1.x);
       const dy = parseFloat(p2.y) - parseFloat(p1.y);
-      const length = Math.sqrt(dx * dx + dy * dy);
-      if (length) {
-        const unitX = dx / length;
-        const unitY = dy / length;
-        let normalX = unitY;
-        let normalY = -unitX;
+      const segLength = Math.sqrt(dx * dx + dy * dy);
+      if (segLength === 0) return;
+      const unitX = dx / segLength;
+      const unitY = dy / segLength;
+      const isFirstSegment = i === 0;
+      const foldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
+      const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
+      let foldEndX, foldEndY, dirX, dirY;
+      if (foldType === 'Crush') {
+        let normalX = isFirstSegment ? -unitY : unitY;
+        let normalY = isFirstSegment ? unitX : -unitX;
+        if (flipped) {
+          normalX = -normalX;
+          normalY = -normalY;
+        }
         const angleRad = foldAngle * Math.PI / 180;
         const cosA = Math.cos(angleRad);
         const sinA = Math.sin(angleRad);
         const rotNormalX = normalX * cosA - normalY * sinA;
         const rotNormalY = normalX * sinA + normalY * cosA;
-        const isFirstSegment = i === 0;
-        const foldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
-        const foldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
-        const foldEndX = foldBaseX + rotNormalX * foldLength;
-        const foldEndY = foldBaseY + rotNormalY * foldLength;
-        const foldLabelX = foldEndX + rotNormalX * 25;
-        const foldLabelY = foldEndY + rotNormalY * 25;
-        minX = Math.min(minX, foldLabelX - 50, foldEndX, foldBaseX);
-        maxX = Math.max(maxX, foldLabelX + 50, foldEndX, foldBaseX);
-        minY = Math.min(minY, foldLabelY - 30, foldEndY, foldBaseY);
-        maxY = Math.max(maxY, foldLabelY + ARROW_SIZE + 30, foldEndY, foldBaseY);
+        const curveWidth = foldLength * 0.8;
+        const curveHeight = foldLength * 0.6;
+        const curveEndX = foldBaseX + rotNormalX * curveWidth;
+        const curveEndY = foldBaseY + rotNormalY * curveWidth;
+        dirX = isFirstSegment ? unitX : -unitX;
+        dirY = isFirstSegment ? unitY : -unitY;
+        foldEndX = curveEndX + dirX * tailLength;
+        foldEndY = curveEndY + dirY * tailLength;
+      } else {
+        let foldAngleVal = foldAngle;
+        if (flipped) foldAngleVal = 360 - foldAngleVal;
+        const foldAngleRad = foldAngleVal * Math.PI / 180;
+        dirX = isFirstSegment ? unitX : -unitX;
+        dirY = isFirstSegment ? unitY : -unitY;
+        const foldDirX = dirX * Math.cos(foldAngleRad) - dirY * Math.sin(foldAngleRad);
+        const foldDirY = dirX * Math.sin(foldAngleRad) + dirY * Math.cos(foldAngleRad);
+        dirX = foldDirX;
+        dirY = foldDirY;
+        foldEndX = foldBaseX + dirX * foldLength;
+        foldEndY = foldBaseY + dirY * foldLength;
       }
+      const labelOffset = 50;
+      const labelX = foldEndX + dirX * labelOffset;
+      const labelY = foldEndY + dirY * labelOffset;
+      minX = Math.min(minX, labelX - 50, foldEndX, foldBaseX);
+      maxX = Math.max(maxX, labelX + 50, foldEndX, foldBaseX);
+      minY = Math.min(minY, labelY - 30, foldEndY, foldBaseY);
+      maxY = Math.max(maxY, labelY + ARROW_SIZE + 30, foldEndY, foldBaseY);
     }
   });
 
@@ -479,88 +508,141 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     let foldType = 'None';
     let foldLength = FOLD_LENGTH;
     let foldAngle = 0;
+    let tailLengthVal = 20;
+    let flipped = false;
     if (typeof segment.fold === 'object' && segment.fold) {
       foldType = segment.fold.type || 'None';
       foldLength = parseFloat(segment.fold.length) || FOLD_LENGTH;
       foldAngle = parseFloat(segment.fold.angle) || 0;
+      tailLengthVal = parseFloat(segment.fold.tailLength) || 20;
+      flipped = !!segment.fold.flipped;
     } else {
       foldType = segment.fold || 'None';
     }
 
     if (foldType !== 'None') {
-      const dx = parseFloat(p2.x) - parseFloat(p1.x);
-      const dy = parseFloat(p2.y) - parseFloat(p1.y);
-      const length = Math.sqrt(dx * dx + dy * dy);
-      if (length) {
-        const unitX = dx / length;
-        const unitY = dy / length;
-        let normalX = unitY;
-        let normalY = -unitX;
+      const dxModel = parseFloat(p2.x) - parseFloat(p1.x);
+      const dyModel = parseFloat(p2.y) - parseFloat(p1.y);
+      const segLength = Math.sqrt(dxModel * dxModel + dyModel * dyModel);
+      if (segLength === 0) return '';
+      const unitX = dxModel / segLength;
+      const unitY = dyModel / segLength;
+      const isFirstSegment = i === 0;
+      const foldBaseModelX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
+      const foldBaseModelY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
+      const foldBase = transformCoord(foldBaseModelX, foldBaseModelY);
+      let foldEndModelX, foldEndModelY, offsetDirModelX, offsetDirModelY;
+      const foldColor = '#000000';
+      let foldPath = '';
+      if (foldType === 'Crush') {
+        let normalX = isFirstSegment ? -unitY : unitY;
+        let normalY = isFirstSegment ? unitX : -unitX;
+        if (flipped) {
+          normalX = -normalX;
+          normalY = -normalY;
+        }
         const angleRad = foldAngle * Math.PI / 180;
         const cosA = Math.cos(angleRad);
         const sinA = Math.sin(angleRad);
         const rotNormalX = normalX * cosA - normalY * sinA;
         const rotNormalY = normalX * sinA + normalY * cosA;
-        const isFirstSegment = i === 0;
-        const foldBase = transformCoord(
-          isFirstSegment ? p1.x : p2.x,
-          isFirstSegment ? p1.y : p2.y
-        );
-        const foldEnd = {
-          x: foldBase.x + rotNormalX * foldLength * scaleFactor,
-          y: foldBase.y + rotNormalY * foldLength * scaleFactor
-        };
-        const foldLabelPos = {
-          x: foldEnd.x + rotNormalX * 25 * scaleFactor,
-          y: foldEnd.y + rotNormalY * 25 * scaleFactor
-        };
-        const foldColor = '#000000';
-        const foldDirX = unitX;
-        const foldDirY = unitY;
-        let foldPath = '';
-        const chevronSizeAdj = CHEVRON_SIZE * scaleFactor;
-        const hookRadiusAdj = HOOK_RADIUS * scaleFactor;
-        const zigzagAdj = ZIGZAG_SIZE * scaleFactor;
-
-        if (foldType === 'Crush') {
-          const chevron1 = foldEnd;
-          const chevron2 = {
-            x: foldEnd.x - rotNormalX * 3 * scaleFactor,
-            y: foldEnd.y - rotNormalY * 3 * scaleFactor
-          };
-          foldPath = `
-            M${chevron1.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * foldDirX},${chevron1.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * foldDirY}
-            L${chevron1.x},${chevron1.y}
-            L${chevron1.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * foldDirX},${chevron1.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * foldDirY}
-            M${chevron2.x + chevronSizeAdj * rotNormalX + chevronSizeAdj * foldDirX},${chevron2.y + chevronSizeAdj * rotNormalY + chevronSizeAdj * foldDirY}
-            L${chevron2.x},${chevron2.y}
-            L${chevron2.x + chevronSizeAdj * rotNormalX - chevronSizeAdj * foldDirX},${chevron2.y + chevronSizeAdj * rotNormalY - chevronSizeAdj * foldDirY}
-          `;
-          foldElement = `<path d="${foldPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none" filter="url(#dropShadow)"/>`;
-        } else if (foldType === 'Crush Hook') {
-          const arcPath = `M${foldBase.x},${foldBase.y} L${foldEnd.x},${foldEnd.y} A${hookRadiusAdj},${hookRadiusAdj} 0 0 1 ${foldEnd.x + hookRadiusAdj * foldDirX},${foldEnd.y + hookRadiusAdj * foldDirY}`;
-          foldElement = `<path d="${arcPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none" filter="url(#dropShadow)"/>`;
-        } else if (foldType === 'Break') {
-          const mid = {
-            x: foldBase.x + rotNormalX * (foldLength / 2) * scaleFactor,
-            y: foldBase.y + rotNormalY * (foldLength / 2) * scaleFactor
-          };
-          const zigzagPath = `
-            M${foldBase.x},${foldBase.y}
-            L${mid.x + zigzagAdj * foldDirX},${mid.y + zigzagAdj * foldDirY}
-            L${mid.x - zigzagAdj * foldDirX},${mid.y - zigzagAdj * foldDirY}
-            L${foldEnd.x},${foldEnd.y}
-          `;
-          foldElement = `<path d="${zigzagPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none" filter="url(#dropShadow)"/>`;
-        } else if (foldType === 'Open') {
-          foldElement = `<line x1="${foldBase.x}" y1="${foldBase.y}" x2="${foldEnd.x}" y2="${foldEnd.y}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" filter="url(#dropShadow)"/>`;
-        }
-        foldElement += `
-          <text x="${foldLabelPos.x}" y="${foldLabelPos.y}" font-size="${14 * scaleFactor}" font-family="Helvetica-Bold, sans-serif" font-weight="bold" fill="${foldColor}" text-anchor="middle" alignment-baseline="middle" filter="url(#dropShadow)">
-            ${foldType}
-          </text>
-        `;
+        const curveWidth = foldLength * 0.8;
+        const curveHeight = foldLength * 0.6;
+        const curveEndModelX = foldBaseModelX + rotNormalX * curveWidth;
+        const curveEndModelY = foldBaseModelY + rotNormalY * curveWidth;
+        const curveEnd = transformCoord(curveEndModelX, curveEndModelY);
+        const bulgeSign = flipped ? -1 : 1;
+        const cp1ModelX = foldBaseModelX + rotNormalX * (curveWidth / 3) + bulgeSign * (-rotNormalY * curveHeight);
+        const cp1ModelY = foldBaseModelY + rotNormalY * (curveWidth / 3) + bulgeSign * (rotNormalX * curveHeight);
+        const cp1 = transformCoord(cp1ModelX, cp1ModelY);
+        const cp2ModelX = foldBaseModelX + rotNormalX * (2 * curveWidth / 3) + bulgeSign * (-rotNormalY * curveHeight);
+        const cp2ModelY = foldBaseModelY + rotNormalY * (2 * curveWidth / 3) + bulgeSign * (rotNormalX * curveHeight);
+        const cp2 = transformCoord(cp2ModelX, cp2ModelY);
+        const tailDirX = isFirstSegment ? unitX : -unitX;
+        const tailDirY = isFirstSegment ? unitY : -unitY;
+        foldEndModelX = curveEndModelX + tailDirX * tailLengthVal;
+        foldEndModelY = curveEndModelY + tailDirY * tailLengthVal;
+        const foldEnd = transformCoord(foldEndModelX, foldEndModelY);
+        offsetDirModelX = tailDirX;
+        offsetDirModelY = tailDirY;
+        foldPath = `M${foldBase.x},${foldBase.y} C${cp1.x},${cp1.y} ${cp2.x},${cp2.y} ${curveEnd.x},${curveEnd.y} L${foldEnd.x},${foldEnd.y}`;
+      } else {
+        let foldAngleVal = foldAngle;
+        if (flipped) foldAngleVal = 360 - foldAngleVal;
+        const foldAngleRad = foldAngleVal * Math.PI / 180;
+        let baseDirX = isFirstSegment ? unitX : -unitX;
+        let baseDirY = isFirstSegment ? unitY : -unitY;
+        const foldDirX = baseDirX * Math.cos(foldAngleRad) - baseDirY * Math.sin(foldAngleRad);
+        const foldDirY = baseDirX * Math.sin(foldAngleRad) + baseDirY * Math.cos(foldAngleRad);
+        foldEndModelX = foldBaseModelX + foldDirX * foldLength;
+        foldEndModelY = foldBaseModelY + foldDirY * foldLength;
+        const foldEnd = transformCoord(foldEndModelX, foldEndModelY);
+        offsetDirModelX = foldDirX;
+        offsetDirModelY = foldDirY;
+        foldPath = `M${foldBase.x},${foldBase.y} L${foldEnd.x},${foldEnd.y}`;
       }
+      const labelOffsetModel = 25;
+      const foldLabelModelX = foldEndModelX + offsetDirModelX * labelOffsetModel;
+      const foldLabelModelY = foldEndModelY + offsetDirModelY * labelOffsetModel;
+      const foldLabelPos = transformCoord(foldLabelModelX, foldLabelModelY);
+      const targetFoldEnd = foldEnd; // svg coord of foldEnd
+      const posFoldLabel = foldLabelPos; // svg
+      const labelDxFold = targetFoldEnd.x - posFoldLabel.x;
+      const labelDyFold = targetFoldEnd.y - posFoldLabel.y;
+      const absLabelDxFold = Math.abs(labelDxFold);
+      const absLabelDyFold = Math.abs(labelDyFold);
+      let tailPathFold = '';
+      const tailSizeFold = 6;
+      const attachSizeFold = 6;
+      const foldLabelHeight = 20;
+      const foldLabelRadius = 5;
+      const foldFontSize = 12;
+      if (absLabelDxFold > absLabelDyFold) {
+        if (labelDxFold < 0) {
+          const baseXFold = posFoldLabel.x - 40;
+          const tipXFold = baseXFold - tailSizeFold;
+          const topBaseYF = posFoldLabel.y - attachSizeFold / 2;
+          const bottomBaseYF = posFoldLabel.y + attachSizeFold / 2;
+          tailPathFold = `M ${baseXFold} ${topBaseYF} L ${baseXFold} ${bottomBaseYF} L ${tipXFold} ${posFoldLabel.y} Z`;
+        } else {
+          const baseXFold = posFoldLabel.x + 40;
+          const tipXFold = baseXFold + tailSizeFold;
+          const topBaseYF = posFoldLabel.y - attachSizeFold / 2;
+          const bottomBaseYF = posFoldLabel.y + attachSizeFold / 2;
+          tailPathFold = `M ${baseXFold} ${topBaseYF} L ${baseXFold} ${bottomBaseYF} L ${tipXFold} ${posFoldLabel.y} Z`;
+        }
+      } else {
+        if (labelDyFold < 0) {
+          const baseYF = posFoldLabel.y - 10;
+          const tipYF = baseYF - tailSizeFold;
+          const leftBaseXF = posFoldLabel.x - attachSizeFold / 2;
+          const rightBaseXF = posFoldLabel.x + attachSizeFold / 2;
+          tailPathFold = `M ${leftBaseXF} ${baseYF} L ${rightBaseXF} ${baseYF} L ${posFoldLabel.x} ${tipYF} Z`;
+        } else {
+          const baseYF = posFoldLabel.y + 10;
+          const tipYF = baseYF + tailSizeFold;
+          const leftBaseXF = posFoldLabel.x - attachSizeFold / 2;
+          const rightBaseXF = posFoldLabel.x + attachSizeFold / 2;
+          tailPathFold = `M ${leftBaseXF} ${baseYF} L ${rightBaseXF} ${baseYF} L ${posFoldLabel.x} ${tipYF} Z`;
+        }
+      }
+      const foldText = foldType === 'Crush' ? `${foldType.toUpperCase()} ${tailLengthVal}` : foldType.toUpperCase();
+      const approxTextWidthFold = foldText.length * (foldFontSize * 0.6);
+      const foldLabelWidth = Math.max(60, approxTextWidthFold + 20);
+      foldElement = `
+        <path d="${foldPath}" stroke="${foldColor}" stroke-width="${2 * scaleFactor}" fill="none" filter="url(#dropShadow)"/>
+        <g filter="url(#dropShadow)">
+          <rect x="${posFoldLabel.x - foldLabelWidth/2}" y="${posFoldLabel.y - foldLabelHeight/2}"
+                width="${foldLabelWidth}" height="${foldLabelHeight}"
+                fill="${labelBg}" rx="${foldLabelRadius}"
+                stroke="#000000" stroke-width="0.5"/>
+          <path d="${tailPathFold}" fill="${tailFill}"/>
+          <text x="${posFoldLabel.x}" y="${posFoldLabel.y}" font-size="${foldFontSize * scaleFactor}" font-family="Helvetica-Bold, sans-serif" font-weight="bold"
+                fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
+            ${foldText}
+          </text>
+        </g>
+      `;
     }
 
     return `
@@ -570,7 +652,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
               fill="${labelBg}" rx="${labelRadius}"
               stroke="#000000" stroke-width="0.5"/>
         <path d="${tailPath}" fill="${tailFill}"/>
-        <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica-Bold, sans-serif" font-weight="bold"
+        <text x="${posX}" y="${posY}" font-size="${fontSize * scaleFactor}" font-family="Helvetica-Bold, sans-serif" font-weight="bold"
               fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${segment.length}
         </text>
@@ -643,7 +725,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
       <g filter="url(#dropShadow)">
         <rect x="${posX - labelWidth / 2}" y="${posY - labelHeight / 2}" width="${labelWidth}" height="${labelHeight}" fill="${labelBg}" rx="${labelRadius}" stroke="#000000" stroke-width="0.5"/>
         <path d="${tailPath}" fill="${tailFill}"/>
-        <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="Helvetica-Bold, sans-serif" font-weight="bold" fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
+        <text x="${posX}" y="${posY}" font-size="${fontSize * scaleFactor}" font-family="Helvetica-Bold, sans-serif" font-weight="bold" fill="${labelText}" text-anchor="middle" alignment-baseline="middle">
           ${roundedAngle}°
         </text>
       </g>
@@ -1453,4 +1535,4 @@ export const generatePdfDownload = async (req, res) => {
     console.error('GeneratePdf error:', error.message);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
-}
+};
