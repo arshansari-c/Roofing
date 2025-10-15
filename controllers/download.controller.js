@@ -69,6 +69,7 @@ const ZIGZAG_SIZE = 9;
 const LABEL_PADDING = 12;
 const SHADOW_OFFSET = 2;
 const SCALE_BAR_LENGTH = 100;
+const FOLD_LABEL_DISTANCE = 20; // Fixed 20mm distance for fold labels
 
 // Helper function to validate points
 const validatePoints = (points) => {
@@ -115,7 +116,7 @@ const calculateBounds = (path, scale, showBorder, borderOffsetDirection, labelPo
     minY = Math.min(minY, labelY - 30);
     maxY = Math.max(maxY, labelY + ARROW_SIZE + 30);
 
-    // Process fold labels from provided labelPositions
+    // Process fold labels with fixed distance
     const foldLabelKey = `fold-${path.pathIndex}-${i}`;
     const foldLabelPos = labelPositions[foldLabelKey];
     if (foldLabelPos) {
@@ -220,6 +221,75 @@ const calculateOffsetSegments = (path, borderOffsetDirection) => {
     });
   }
   return offsetSegments;
+};
+
+// Helper function to calculate fold label position with fixed distance
+const calculateFoldLabelPosition = (segment, isFirstSegment, p1, p2, foldType, foldAngle = 0, flipped = false) => {
+  const dx = parseFloat(p2.x) - parseFloat(p1.x);
+  const dy = parseFloat(p2.y) - parseFloat(p1.y);
+  const length = Math.sqrt(dx * dx + dy * dy);
+  
+  if (length === 0) return null;
+
+  const unitX = dx / length;
+  const unitY = dy / length;
+  
+  // Base point is the start of first segment or end of last segment
+  const basePoint = isFirstSegment ? p1 : p2;
+  
+  // Calculate base direction (away from the path)
+  let baseDirX, baseDirY;
+  if (isFirstSegment) {
+    baseDirX = unitX;
+    baseDirY = unitY;
+  } else {
+    baseDirX = -unitX;
+    baseDirY = -unitY;
+  }
+
+  // Calculate normal direction (perpendicular to the segment)
+  let normalX = -baseDirY;
+  let normalY = baseDirX;
+  
+  // Adjust for flip if needed
+  if (flipped) {
+    normalX = -normalX;
+    normalY = -normalY;
+  }
+
+  // For different fold types, adjust the label position direction
+  let labelDirX, labelDirY;
+  
+  if (foldType === 'Crush') {
+    // For crush folds, position label in the normal direction
+    labelDirX = normalX;
+    labelDirY = normalY;
+  } else {
+    // For other folds, use the fold direction with some adjustment
+    const foldAngleRad = (foldAngle * Math.PI) / 180;
+    labelDirX = baseDirX * Math.cos(foldAngleRad) - baseDirY * Math.sin(foldAngleRad);
+    labelDirY = baseDirX * Math.sin(foldAngleRad) + baseDirY * Math.cos(foldAngleRad);
+    
+    // Make sure label is positioned away from the diagram
+    const dotProduct = labelDirX * normalX + labelDirY * normalY;
+    if (dotProduct < 0) {
+      labelDirX = -labelDirX;
+      labelDirY = -labelDirY;
+    }
+  }
+
+  // Normalize the direction vector
+  const dirLength = Math.sqrt(labelDirX * labelDirX + labelDirY * labelDirY);
+  if (dirLength > 0) {
+    labelDirX /= dirLength;
+    labelDirY /= dirLength;
+  }
+
+  // Position label at fixed 20mm distance
+  const labelX = parseFloat(basePoint.x) + labelDirX * FOLD_LABEL_DISTANCE;
+  const labelY = parseFloat(basePoint.y) + labelDirY * FOLD_LABEL_DISTANCE;
+
+  return { x: labelX, y: labelY };
 };
 
 // Helper function to calculate total folds
@@ -477,124 +547,140 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         const unitX = dx / segLength;
         const unitY = dy / segLength;
         const isFirstSegment = i === 0;
-        let modelFoldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
-        let modelFoldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
-        let foldPath = '';
+        const isLastSegment = i === path.points.length - 2;
         
-        if (foldType === 'Crush') {
-          let normalX = isFirstSegment ? -unitY : unitY;
-          let normalY = isFirstSegment ? unitX : -unitX;
-          if (flipped) {
-            normalX = -normalX;
-            normalY = -normalY;
-          }
-          const angleRad = foldAngle * Math.PI / 180;
-          const cosA = Math.cos(angleRad);
-          const sinA = Math.sin(angleRad);
-          const rotNormalX = normalX * cosA - normalY * sinA;
-          const rotNormalY = normalX * sinA + normalY * cosA;
-          const curveHeight = foldLength * 0.6;
-          const curveWidth = foldLength * 0.8;
-          const modelStartX = modelFoldBaseX;
-          const modelStartY = modelFoldBaseY;
-          const modelCurveEndX = modelStartX + rotNormalX * curveWidth;
-          const modelCurveEndY = modelStartY + rotNormalY * curveWidth;
-          const bulgeSign = flipped ? -1 : 1;
-          const modelCp1X = modelStartX + rotNormalX * (curveWidth / 3) + bulgeSign * (-rotNormalY * curveHeight);
-          const modelCp1Y = modelStartY + rotNormalY * (curveWidth / 3) + bulgeSign * (rotNormalX * curveHeight);
-          const modelCp2X = modelStartX + rotNormalX * (2 * curveWidth / 3) + bulgeSign * (-rotNormalY * curveHeight);
-          const modelCp2Y = modelStartY + rotNormalY * (2 * curveWidth / 3) + bulgeSign * (rotNormalX * curveHeight);
-          const tailDirX = isFirstSegment ? unitX : -unitX;
-          const tailDirY = isFirstSegment ? unitY : -unitY;
-          const modelTailX = modelCurveEndX + tailDirX * tailLengthVal;
-          const modelTailY = modelCurveEndY + tailDirY * tailLengthVal;
+        // Only process end folds (first or last segment)
+        if (isFirstSegment || isLastSegment) {
+          let modelFoldBaseX = isFirstSegment ? parseFloat(p1.x) : parseFloat(p2.x);
+          let modelFoldBaseY = isFirstSegment ? parseFloat(p1.y) : parseFloat(p2.y);
+          let foldPath = '';
           
-          const svgStart = transformCoord(modelStartX, modelStartY);
-          const svgCp1 = transformCoord(modelCp1X, modelCp1Y);
-          const svgCp2 = transformCoord(modelCp2X, modelCp2Y);
-          const svgCurveEnd = transformCoord(modelCurveEndX, modelCurveEndY);
-          const svgTail = transformCoord(modelTailX, modelTailY);
-          foldPath = `M${svgStart.x},${svgStart.y} C${svgCp1.x},${svgCp1.y} ${svgCp2.x},${svgCp2.y} ${svgCurveEnd.x},${svgCurveEnd.y} L${svgTail.x},${svgTail.y}`;
-        } else {
-          let foldAngleVal = foldAngle;
-          if (flipped) foldAngleVal = 360 - foldAngleVal;
-          const foldAngleRad = foldAngleVal * Math.PI / 180;
-          let baseDirX = isFirstSegment ? unitX : -unitX;
-          let baseDirY = isFirstSegment ? unitY : -unitY;
-          const foldDirX = baseDirX * Math.cos(foldAngleRad) - baseDirY * Math.sin(foldAngleRad);
-          const foldDirY = baseDirX * Math.sin(foldAngleRad) + baseDirY * Math.cos(foldAngleRad);
-          const modelFoldEndX = modelFoldBaseX + foldDirX * foldLength;
-          const modelFoldEndY = modelFoldBaseY + foldDirY * foldLength;
-          
-          const svgBase = transformCoord(modelFoldBaseX, modelFoldBaseY);
-          const svgEnd = transformCoord(modelFoldEndX, modelFoldEndY);
-          foldPath = `M${svgBase.x},${svgBase.y} L${svgEnd.x},${svgEnd.y}`;
-        }
-        
-        foldElement = `<path d="${foldPath}" stroke="#000000" stroke-width="${2 * scaleFactor}" fill="none" filter="url(#dropShadow)"/>`;
-
-        // Add fold label using provided position
-        const foldLabelKey = `fold-${path.pathIndex}-${i}`;
-        const foldLabelPos = labelPositions[foldLabelKey];
-        
-        if (foldLabelPos) {
-          const {x: foldLabelX, y: foldLabelY} = transformCoord(foldLabelPos.x, foldLabelPos.y);
-          const foldLabelText = foldType === 'Crush' ? `${foldType.toUpperCase()} ${tailLengthVal}` : foldType.toUpperCase();
-          const foldLabelWidth = Math.max(90, foldLabelText.length * (fontSize * 0.6) + 20);
-          
-          // Calculate tail for fold label
-          let foldTailPath = '';
-          const foldTargetX = modelFoldBaseX;
-          const foldTargetY = modelFoldBaseY;
-          const {x: targetX, y: targetY} = transformCoord(foldTargetX, foldTargetY);
-          const foldLabelDx = targetX - foldLabelX;
-          const foldLabelDy = targetY - foldLabelY;
-          const absFoldLabelDx = Math.abs(foldLabelDx);
-          const absFoldLabelDy = Math.abs(foldLabelDy);
-
-          if (absFoldLabelDx > absFoldLabelDy) {
-            if (foldLabelDx < 0) {
-              const baseX = foldLabelX - foldLabelWidth / 2;
-              const tipX = baseX - tailSize;
-              const topBaseY = foldLabelY - attachSize / 2;
-              const bottomBaseY = foldLabelY + attachSize / 2;
-              foldTailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${foldLabelY} Z`;
-            } else {
-              const baseX = foldLabelX + foldLabelWidth / 2;
-              const tipX = baseX + tailSize;
-              const topBaseY = foldLabelY - attachSize / 2;
-              const bottomBaseY = foldLabelY + attachSize / 2;
-              foldTailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${foldLabelY} Z`;
+          if (foldType === 'Crush') {
+            let normalX = isFirstSegment ? -unitY : unitY;
+            let normalY = isFirstSegment ? unitX : -unitX;
+            if (flipped) {
+              normalX = -normalX;
+              normalY = -normalY;
             }
+            const angleRad = foldAngle * Math.PI / 180;
+            const cosA = Math.cos(angleRad);
+            const sinA = Math.sin(angleRad);
+            const rotNormalX = normalX * cosA - normalY * sinA;
+            const rotNormalY = normalX * sinA + normalY * cosA;
+            const curveHeight = foldLength * 0.6;
+            const curveWidth = foldLength * 0.8;
+            const modelStartX = modelFoldBaseX;
+            const modelStartY = modelFoldBaseY;
+            const modelCurveEndX = modelStartX + rotNormalX * curveWidth;
+            const modelCurveEndY = modelStartY + rotNormalY * curveWidth;
+            const bulgeSign = flipped ? -1 : 1;
+            const modelCp1X = modelStartX + rotNormalX * (curveWidth / 3) + bulgeSign * (-rotNormalY * curveHeight);
+            const modelCp1Y = modelStartY + rotNormalY * (curveWidth / 3) + bulgeSign * (rotNormalX * curveHeight);
+            const modelCp2X = modelStartX + rotNormalX * (2 * curveWidth / 3) + bulgeSign * (-rotNormalY * curveHeight);
+            const modelCp2Y = modelStartY + rotNormalY * (2 * curveWidth / 3) + bulgeSign * (rotNormalX * curveHeight);
+            const tailDirX = isFirstSegment ? unitX : -unitX;
+            const tailDirY = isFirstSegment ? unitY : -unitY;
+            const modelTailX = modelCurveEndX + tailDirX * tailLengthVal;
+            const modelTailY = modelCurveEndY + tailDirY * tailLengthVal;
+            
+            const svgStart = transformCoord(modelStartX, modelStartY);
+            const svgCp1 = transformCoord(modelCp1X, modelCp1Y);
+            const svgCp2 = transformCoord(modelCp2X, modelCp2Y);
+            const svgCurveEnd = transformCoord(modelCurveEndX, modelCurveEndY);
+            const svgTail = transformCoord(modelTailX, modelTailY);
+            foldPath = `M${svgStart.x},${svgStart.y} C${svgCp1.x},${svgCp1.y} ${svgCp2.x},${svgCp2.y} ${svgCurveEnd.x},${svgCurveEnd.y} L${svgTail.x},${svgTail.y}`;
           } else {
-            if (foldLabelDy < 0) {
-              const baseY = foldLabelY - labelHeight / 2;
-              const tipY = baseY - tailSize;
-              const leftBaseX = foldLabelX - attachSize / 2;
-              const rightBaseX = foldLabelX + attachSize / 2;
-              foldTailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${foldLabelX} ${tipY} Z`;
-            } else {
-              const baseY = foldLabelY + labelHeight / 2;
-              const tipY = baseY + tailSize;
-              const leftBaseX = foldLabelX - attachSize / 2;
-              const rightBaseX = foldLabelX + attachSize / 2;
-              foldTailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${foldLabelX} ${tipY} Z`;
-            }
+            let foldAngleVal = foldAngle;
+            if (flipped) foldAngleVal = 360 - foldAngleVal;
+            const foldAngleRad = foldAngleVal * Math.PI / 180;
+            let baseDirX = isFirstSegment ? unitX : -unitX;
+            let baseDirY = isFirstSegment ? unitY : -unitY;
+            const foldDirX = baseDirX * Math.cos(foldAngleRad) - baseDirY * Math.sin(foldAngleRad);
+            const foldDirY = baseDirX * Math.sin(foldAngleRad) + baseDirY * Math.cos(foldAngleRad);
+            const modelFoldEndX = modelFoldBaseX + foldDirX * foldLength;
+            const modelFoldEndY = modelFoldBaseY + foldDirY * foldLength;
+            
+            const svgBase = transformCoord(modelFoldBaseX, modelFoldBaseY);
+            const svgEnd = transformCoord(modelFoldEndX, modelFoldEndY);
+            foldPath = `M${svgBase.x},${svgBase.y} L${svgEnd.x},${svgEnd.y}`;
+          }
+          
+          foldElement = `<path d="${foldPath}" stroke="#000000" stroke-width="${2 * scaleFactor}" fill="none" filter="url(#dropShadow)"/>`;
+
+          // Calculate fold label position with fixed distance
+          const calculatedFoldLabelPos = calculateFoldLabelPosition(
+            segment, isFirstSegment, p1, p2, foldType, foldAngle, flipped
+          );
+
+          let foldLabelPos;
+          const foldLabelKey = `fold-${path.pathIndex}-${i}`;
+          
+          // Use calculated position if available, otherwise fall back to provided position
+          if (calculatedFoldLabelPos) {
+            foldLabelPos = calculatedFoldLabelPos;
+          } else {
+            foldLabelPos = labelPositions[foldLabelKey];
           }
 
-          foldElement += `
-            <g filter="url(#dropShadow)">
-              <rect x="${foldLabelX - foldLabelWidth/2}" y="${foldLabelY - labelHeight/2}"
-                    width="${foldLabelWidth}" height="${labelHeight}"
-                    fill="${labelBg}" rx="${labelRadius}"
-                    stroke="#000000" stroke-width="0.5"/>
-              <path d="${foldTailPath}" fill="${tailFill}"/>
-              <text x="${foldLabelX}" y="${foldLabelY}" font-size="${fontSize}" font-family="${FONTS.body}" font-weight="bold"
-                    fill="${labelTextColor}" text-anchor="middle" alignment-baseline="middle">
-                ${foldLabelText}
-              </text>
-            </g>
-          `;
+          if (foldLabelPos) {
+            const {x: foldLabelX, y: foldLabelY} = transformCoord(foldLabelPos.x, foldLabelPos.y);
+            const foldLabelText = foldType === 'Crush' ? `${foldType.toUpperCase()} ${tailLengthVal}` : foldType.toUpperCase();
+            const foldLabelWidth = Math.max(90, foldLabelText.length * (fontSize * 0.6) + 20);
+            
+            // Calculate tail for fold label - always point to the base point
+            let foldTailPath = '';
+            const foldTargetX = modelFoldBaseX;
+            const foldTargetY = modelFoldBaseY;
+            const {x: targetX, y: targetY} = transformCoord(foldTargetX, foldTargetY);
+            const foldLabelDx = targetX - foldLabelX;
+            const foldLabelDy = targetY - foldLabelY;
+            const absFoldLabelDx = Math.abs(foldLabelDx);
+            const absFoldLabelDy = Math.abs(foldLabelDy);
+
+            if (absFoldLabelDx > absFoldLabelDy) {
+              if (foldLabelDx < 0) {
+                const baseX = foldLabelX - foldLabelWidth / 2;
+                const tipX = baseX - tailSize;
+                const topBaseY = foldLabelY - attachSize / 2;
+                const bottomBaseY = foldLabelY + attachSize / 2;
+                foldTailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${foldLabelY} Z`;
+              } else {
+                const baseX = foldLabelX + foldLabelWidth / 2;
+                const tipX = baseX + tailSize;
+                const topBaseY = foldLabelY - attachSize / 2;
+                const bottomBaseY = foldLabelY + attachSize / 2;
+                foldTailPath = `M${baseX} ${topBaseY} L${baseX} ${bottomBaseY} L${tipX} ${foldLabelY} Z`;
+              }
+            } else {
+              if (foldLabelDy < 0) {
+                const baseY = foldLabelY - labelHeight / 2;
+                const tipY = baseY - tailSize;
+                const leftBaseX = foldLabelX - attachSize / 2;
+                const rightBaseX = foldLabelX + attachSize / 2;
+                foldTailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${foldLabelX} ${tipY} Z`;
+              } else {
+                const baseY = foldLabelY + labelHeight / 2;
+                const tipY = baseY + tailSize;
+                const leftBaseX = foldLabelX - attachSize / 2;
+                const rightBaseX = foldLabelX + attachSize / 2;
+                foldTailPath = `M${leftBaseX} ${baseY} L${rightBaseX} ${baseY} L${foldLabelX} ${tipY} Z`;
+              }
+            }
+
+            foldElement += `
+              <g filter="url(#dropShadow)">
+                <rect x="${foldLabelX - foldLabelWidth/2}" y="${foldLabelY - labelHeight/2}"
+                      width="${foldLabelWidth}" height="${labelHeight}"
+                      fill="${labelBg}" rx="${labelRadius}"
+                      stroke="#000000" stroke-width="0.5"/>
+                <path d="${foldTailPath}" fill="${tailFill}"/>
+                <text x="${foldLabelX}" y="${foldLabelY}" font-size="${fontSize}" font-family="${FONTS.body}" font-weight="bold"
+                      fill="${labelTextColor}" text-anchor="middle" alignment-baseline="middle">
+                  ${foldLabelText}
+                </text>
+              </g>
+            `;
+          }
         }
       }
     }
@@ -801,7 +887,8 @@ const drawInstructions = (doc, y) => {
   const instructions = [
     'Arrow points to the (solid) coloured side',
     '90° and 45° degrees are not labelled',
-    'F = Total number of folds, each crush counts as 2 folds'
+    'F = Total number of folds, each crush counts as 2 folds',
+    'End fold labels are positioned 20mm away from the diagram for better visibility'
   ];
 
   instructions.forEach((instruction, index) => {
