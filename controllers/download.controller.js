@@ -69,7 +69,7 @@ const ZIGZAG_SIZE = 9;
 const LABEL_PADDING = 12;
 const SHADOW_OFFSET = 2;
 const SCALE_BAR_LENGTH = 100;
-const FOLD_LABEL_DISTANCE = 40; // Fixed 20mm distance for fold labels
+const FOLD_LABEL_DISTANCE = 60; // Fixed 20mm distance for fold labels
 
 // Helper function to validate points
 const validatePoints = (points) => {
