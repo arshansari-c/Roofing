@@ -1313,7 +1313,7 @@ export const generatePdfDownload = async (req, res) => {
 
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
-      const startX = startX;
+      const startX = margin;
       const startY = y;
 
       for (let i = 0; i < firstPagePaths; i++) {
