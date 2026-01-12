@@ -319,7 +319,7 @@ const calculateGirth = (path) => {
   let totalLength = 0;
   if (Array.isArray(path.segments)) {
     path.segments.forEach(segment => {
-      const lengthStr = segment.length || '0 m';
+      const lengthStr = segment.length || '0 mm';
       const lengthNum = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
       totalLength += lengthNum;
     });
@@ -488,7 +488,9 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const absLabelDy = Math.abs(labelDy);
 
     // Dynamic label width
-    const textContent = segment.length || '';
+    let lengthText = (segment.length || '0 mm').trim();
+    lengthText = lengthText.replace(/\s*m$/, 'mm');
+    const textContent = lengthText;
     const approxTextWidth = textContent.length * (fontSize * 0.6);
     labelWidth = Math.max(90, approxTextWidth + 20);
 
@@ -627,7 +629,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
           if (foldLabelPos) {
             const {x: foldLabelX, y: foldLabelY} = transformCoord(foldLabelPos.x, foldLabelPos.y);
-            const foldLabelText = foldType === 'Crush' ? `${foldType.toUpperCase()} ${tailLengthVal}` : foldType.toUpperCase();
+            const foldLabelText = foldType === 'Crush' ? `${foldType.toUpperCase()} ${tailLengthVal}mm` : foldType.toUpperCase();
             const foldLabelWidth = Math.max(90, foldLabelText.length * (fontSize * 0.6) + 20);
             
             // Calculate tail for fold label - always point to the base point
@@ -697,7 +699,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         <path d="${tailPath}" fill="${tailFill}"/>
         <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="${FONTS.body}" font-weight="bold"
               fill="${labelTextColor}" text-anchor="middle" alignment-baseline="middle">
-          ${segment.length}
+          ${lengthText}
         </text>
       </g>
       ${foldElement}
@@ -952,7 +954,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const code = (pathData.code || '').replace(/\D/g, '');
   const num = (pathIndex + 1).toString();
 
-  const row = [num, color, code, totalFolds, girth];
+  const row = [num, color, code, totalFolds, `${girth}mm`];
   const aligns = ['center', 'left', 'center', 'center', 'center'];
 
   let currentY = y;
