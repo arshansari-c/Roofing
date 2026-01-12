@@ -317,6 +317,7 @@ const calculateGirth = (path) => {
   if (Array.isArray(path.segments)) {
     path.segments.forEach(segment => {
       const lengthStr = segment.length || '0 m';
+      // Extract numeric value and handle different unit formats
       const lengthNum = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
       totalLength += lengthNum;
     });
@@ -328,6 +329,13 @@ const calculateGirth = (path) => {
 const formatQxL = (quantitiesAndLengths) => {
   if (!Array.isArray(quantitiesAndLengths)) return 'N/A';
   return quantitiesAndLengths.map(item => `${item.quantity} x ${parseFloat(item.length).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`).join('   ');
+};
+
+// Helper function to convert m to mm in length strings
+const convertMtoMM = (lengthStr) => {
+  if (!lengthStr) return '';
+  // Replace "m" at the end with "mm"
+  return lengthStr.replace(/\s*m$/g, 'mm').replace(/m$/g, 'mm');
 };
 
 // Generate SVG string with proper fold label positions
@@ -484,8 +492,11 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
     const absLabelDx = Math.abs(labelDx);
     const absLabelDy = Math.abs(labelDy);
 
+    // Convert m to mm for display
+    const lengthDisplay = convertMtoMM(segment.length || '');
+    const textContent = lengthDisplay;
+    
     // Dynamic label width
-    const textContent = segment.length || '';
     const approxTextWidth = textContent.length * (fontSize * 0.6);
     labelWidth = Math.max(90, approxTextWidth + 20);
 
@@ -624,7 +635,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
 
           if (foldLabelPos) {
             const {x: foldLabelX, y: foldLabelY} = transformCoord(foldLabelPos.x, foldLabelPos.y);
-            const foldLabelText = foldType === 'Crush' ? `${foldType.toUpperCase()} ${tailLengthVal}` : foldType.toUpperCase();
+            const foldLabelText = foldType === 'Crush' ? `${foldType.toUpperCase()} ${tailLengthVal}mm` : foldType.toUpperCase();
             const foldLabelWidth = Math.max(90, foldLabelText.length * (fontSize * 0.6) + 20);
             
             // Calculate tail for fold label - always point to the base point
@@ -694,7 +705,7 @@ const generateSvgString = (path, bounds, scale, showBorder, borderOffsetDirectio
         <path d="${tailPath}" fill="${tailFill}"/>
         <text x="${posX}" y="${posY}" font-size="${fontSize}" font-family="${FONTS.body}" font-weight="bold"
               fill="${labelTextColor}" text-anchor="middle" alignment-baseline="middle">
-          ${segment.length}
+          ${textContent}
         </text>
       </g>
       ${foldElement}
@@ -944,7 +955,7 @@ const drawDiagramPropertyTable = (doc, x, y, pathData, qxlGroup, pathIndex) => {
   const headers = ['', 'Colour/Material', 'CODE', 'F', 'GIRTH'];
 
   const totalFolds = calculateTotalFolds(pathData).toString();
-  const girth = calculateGirth(pathData);
+  const girth = `${calculateGirth(pathData)}mm`; // Add mm suffix
   const color = pathData.color || 'Shale Grey';
   const code = (pathData.code || '').replace(/\D/g, '');
   const num = (pathIndex + 1).toString();
@@ -1080,7 +1091,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
       path.color || 'N/A',
       code,
       totalFolds.toString(),
-      `${girth}mm`,
+      `${girth}mm`, // Add mm suffix
       qxL || 'N/A'
     ];
 
@@ -1157,7 +1168,7 @@ const drawSummaryTable = (doc, validPaths, groupedQuantitiesAndLengths, y) => {
 
   // Totals row
   doc.font(FONTS.tableHeader).fontSize(11);
-  const totalsRow = ['', 'Totals', '', totalF.toString(), `${totalG.toFixed(2)}mm`, ''];
+  const totalsRow = ['', 'Totals', '', totalF.toString(), `${totalG.toFixed(2)}mm`, '']; // Add mm suffix
   let totalsMaxHeight = 0;
   totalsRow.forEach((val, i) => {
     const h = doc.heightOfString(val, { width: colWidths[i] - 10, align: 'center' });
@@ -1302,13 +1313,13 @@ export const generatePdfDownload = async (req, res) => {
 
     if (firstPagePaths > 0) {
       y = drawSectionHeader(doc, `FLASHING DETAILS - PART ${imagePart++} OF ${imagePageCount}`, y);
-      const startX = margin;
+      const startX = startX;
       const startY = y;
 
       for (let i = 0; i < firstPagePaths; i++) {
         const row = Math.floor(i / pathsPerRow);
         const col = i % pathsPerRow;
-        const x = startX + col * (imgSize + gap);
+        const x = margin + col * (imgSize + gap);
         const yPos = startY + row * (imgSize + tableHeightApprox);
 
         try {
