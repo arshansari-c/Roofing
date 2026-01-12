@@ -316,7 +316,7 @@ const calculateGirth = (path) => {
   let totalLength = 0;
   if (Array.isArray(path.segments)) {
     path.segments.forEach(segment => {
-      const lengthStr = segment.length || '0 m';
+      const lengthStr = segment.length || '0 mm';
       // Extract numeric value and handle different unit formats
       const lengthNum = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
       totalLength += lengthNum;
@@ -334,8 +334,8 @@ const formatQxL = (quantitiesAndLengths) => {
 // Helper function to convert m to mm in length strings
 const convertMtoMM = (lengthStr) => {
   if (!lengthStr) return '';
-  // Replace "m" at the end with "mm"
-  return lengthStr.replace(/\s*m$/g, 'mm').replace(/m$/g, 'mm');
+  const num = parseFloat(lengthStr.replace(/[^0-9.]/g, '')) || 0;
+  return `${num.toFixed(0)}mm`;
 };
 
 // Generate SVG string with proper fold label positions
